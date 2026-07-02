@@ -8,12 +8,6 @@ let appSettings = {};
 export async function init(app) {
     appInstance = app;
 
-    // Show/hide write UI based on role
-    if (app.isReadOnly()) {
-        document.getElementById('btn-add-member').style.display = 'none';
-        document.getElementById('btn-bulk-reminders').style.display = 'none';
-    }
-
     // Load settings for reminders
     try {
         const res = await api.get('/api/settings');
@@ -54,7 +48,7 @@ function renderTable() {
 
     let filtered = allMembers.filter(m => {
         const matchesSearch = (m['Name'] || '').toLowerCase().includes(searchTerm) ||
-                              (m['Phone Number'] || '').includes(searchTerm);
+            (m['Phone Number'] || '').includes(searchTerm);
         const matchesStatus = statusFilter === 'all' || m['Payment Status'] === statusFilter;
         return matchesSearch && matchesStatus;
     });
@@ -64,8 +58,6 @@ function renderTable() {
         return;
     }
 
-    const isReadOnly = appInstance.isReadOnly();
-
     filtered.forEach(m => {
         const tr = document.createElement('tr');
 
@@ -73,18 +65,6 @@ function renderTable() {
         if (m['Payment Status'] === 'Paid') statusBadge = `<span class="badge badge-success">Paid</span>`;
         if (m['Payment Status'] === 'Partially Paid') statusBadge = `<span class="badge badge-warning">Partially Paid</span>`;
         if (m['Payment Status'] === 'Pending') statusBadge = `<span class="badge badge-danger">Pending</span>`;
-
-        let actionsHtml = `<span class="text-muted text-sm">Read only</span>`;
-        if (!isReadOnly) {
-            actionsHtml = `
-                <div class="flex gap-sm">
-                    <button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(${m._rowId})">💰</button>
-                    <button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(${m._rowId})">💬</button>
-                    <button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(${m._rowId})">✏️</button>
-                    <button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(${m._rowId})">🗑️</button>
-                </div>
-            `;
-        }
 
         tr.innerHTML = `
             <td class="font-bold">${m['Name']}</td>
@@ -94,7 +74,14 @@ function renderTable() {
             <td class="text-success">${utils.formatCurrency(m['Amount Paid'])}</td>
             <td class="text-danger">${utils.formatCurrency(m['Remaining Balance'])}</td>
             <td>${statusBadge}</td>
-            <td>${actionsHtml}</td>
+            <td>
+                <div class="flex gap-sm">
+                    <button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(${m._rowId})">💰</button>
+                    <button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(${m._rowId})">💬</button>
+                    <button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(${m._rowId})">✏️</button>
+                    <button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(${m._rowId})">🗑️</button>
+                </div>
+            </td>
         `;
         tbody.appendChild(tr);
     });
@@ -250,18 +237,33 @@ window.membersJS = {
 };
 
 function generateReminderText(m) {
-    let msg = `Assalamu Alaikum ${m['Name']}!\nHope you're doing well.\n\n`;
-    msg += `This is a gentle reminder that I, ${appSettings['SECRETARY_NAME'] || '[Secretary Name]'}, am now the Secretary Finance for the ${appSettings['SECTOR_NAME'] || '[Sector Name]'}.\n\n`;
-    msg += `Your Fund Details:\n`;
+    let msg = `📢 *United Pakistan - ${appSettings['SECTOR_NAME'] || '[Sector Name]'}*\n\n`;
+    msg += `*Assalamu Alaikum ${m['Name']}!* 🤝\n\n`;
+    msg += `I hope you're doing well.\n\n`;
+    msg += `This is a gentle reminder regarding your monthly fund.\n\n`;
+
+    msg += `📋 *Fund Details*\n`;
     msg += `• Monthly Fund: ${utils.formatCurrency(m['Monthly Fund'])}\n`;
+
     if (Number(m['Previous Balance']) > 0) {
         msg += `• Previous Balance: ${utils.formatCurrency(m['Previous Balance'])}\n`;
     }
-    msg += `• Total Payable: *${utils.formatCurrency(m['Total Payable'])}*\n\n`;
-    msg += `Kindly transfer the amount to the following account and share the payment receipt.\n\n`;
+
+    msg += `• *Total Payable:* ${utils.formatCurrency(m['Total Payable'])}\n\n`;
+
+    msg += `💳 *Payment Details*\n`;
     msg += `Easypaisa: *${appSettings['EASYPAISA_NUMBER'] || '[Number]'}*\n`;
-    msg += `Account Title: ${appSettings['ACCOUNT_TITLE'] || '[Title]'}\n\n`;
-    msg += `Thank you.`;
+    msg += `Account Title: *${appSettings['ACCOUNT_TITLE'] || '[Title]'}*\n\n`;
+
+    msg += `Kindly transfer the amount and share the payment receipt for confirmation.\n\n`;
+
+    msg += `Thank you for your cooperation.\n\n`;
+
+    msg += `*Best regards,*\n`;
+    msg += `${appSettings['SECRETARY_NAME'] || '[Secretary Name]'}\n`;
+    msg += `Secretary Finance\n`;
+    msg += `${appSettings['SECTOR_NAME'] || '[Sector Name]'}\n`;
+    msg += `United Pakistan`;
 
     return msg;
 }
@@ -289,7 +291,7 @@ function generateBulkReminders() {
                 <pre class="text-sm bg-gray p-sm" style="white-space: pre-wrap; font-family: inherit; border-radius: 4px;">${msg}</pre>
             `;
 
-            item.querySelector('.copy-btn').addEventListener('click', function() {
+            item.querySelector('.copy-btn').addEventListener('click', function () {
                 window.membersJS.copyText(this, msg);
             });
 
