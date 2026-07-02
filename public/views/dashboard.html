@@ -1,0 +1,106 @@
+<div class="dashboard-container">
+    <div class="grid grid-cols-4 mb-md">
+        <!-- Stat Cards -->
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Total Collected</h3>
+            <div class="text-2xl font-bold mt-sm" id="stat-collected">Rs. 0</div>
+            <div class="text-sm text-success mt-sm"><span id="stat-collected-pct">0</span>% of total due</div>
+        </div>
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Outstanding</h3>
+            <div class="text-2xl font-bold mt-sm" id="stat-outstanding">Rs. 0</div>
+            <div class="text-sm text-danger mt-sm">Pending amount</div>
+        </div>
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Paid Members</h3>
+            <div class="text-2xl font-bold mt-sm" id="stat-paid-members">0</div>
+            <div class="text-sm text-muted mt-sm">out of <span id="stat-total-members">0</span> total</div>
+        </div>
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Pending Members</h3>
+            <div class="text-2xl font-bold mt-sm" id="stat-pending-members">0</div>
+            <div class="text-sm text-muted mt-sm">Needs reminder</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2">
+        <div class="card">
+            <div class="flex justify-between align-center mb-md">
+                <h3 class="font-bold">Recent Payments</h3>
+                <a href="#" class="btn-text" onclick="app.navigate('members')">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table" id="recent-payments-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Amount</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="no-payments-msg" class="text-center text-muted p-md hidden">
+                No payments received yet for this month.
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="font-bold mb-md">Quick Actions</h3>
+            <div class="grid gap-sm">
+                <button class="btn btn-outline flex justify-between align-center p-md text-left" onclick="app.navigate('members')">
+                    <div>
+                        <div class="font-bold">Add New Member</div>
+                        <div class="text-sm text-muted">Register a new committee member</div>
+                    </div>
+                    <span>➕</span>
+                </button>
+                <button class="btn btn-outline flex justify-between align-center p-md text-left" id="btn-generate-reminders">
+                    <div>
+                        <div class="font-bold">Pending Reminders</div>
+                        <div class="text-sm text-muted">View members who haven't paid</div>
+                    </div>
+                    <span>📱</span>
+                </button>
+                <button class="btn btn-outline flex justify-between align-center p-md text-left" id="btn-new-month">
+                    <div>
+                        <div class="font-bold">Start New Month</div>
+                        <div class="text-sm text-muted">Create a new sheet and carry over balances</div>
+                    </div>
+                    <span>📅</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Month Modal -->
+<div id="new-month-modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Start New Month</h3>
+            <button class="modal-close" onclick="document.getElementById('new-month-modal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="new-month-form">
+                <div class="form-group">
+                    <label for="new-month-name">Month Name (e.g. August 2026)</label>
+                    <input type="text" id="new-month-name" class="form-control" required placeholder="August 2026">
+                </div>
+                <div class="form-group mt-sm flex align-center gap-sm">
+                    <input type="checkbox" id="carry-balances" checked>
+                    <label for="carry-balances" style="margin-bottom:0">Carry over remaining balances as 'Previous Balance'</label>
+                </div>
+                <p class="text-sm text-muted mt-sm">This will create a new sheet, copy all members, reset their paid amounts, and set their status to Pending.</p>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="document.getElementById('new-month-modal').classList.remove('active')">Cancel</button>
+            <button class="btn btn-primary" id="btn-confirm-new-month" type="submit" form="new-month-form">Create Month</button>
+        </div>
+    </div>
+</div>

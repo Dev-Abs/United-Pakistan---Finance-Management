@@ -1,0 +1,44 @@
+<div class="reports-container">
+    <div class="grid grid-cols-3 mb-md">
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Total Collected</h3>
+            <div class="text-2xl font-bold mt-sm text-success" id="r-collected">Rs. 0</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Outstanding</h3>
+            <div class="text-2xl font-bold mt-sm text-danger" id="r-outstanding">Rs. 0</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Collection Rate</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-rate">0%</div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2">
+        <div class="card">
+            <h3 class="font-bold mb-md">Payment Status Distribution</h3>
+            <canvas id="statusChart" width="400" height="300"></canvas>
+        </div>
+        <div class="card">
+            <div class="flex justify-between align-center mb-md">
+                <h3 class="font-bold">Export Data</h3>
+            </div>
+            <p class="text-muted text-sm mb-md">Download the current month's data for offline record keeping or sharing.</p>
+            
+            <div class="grid gap-sm">
+                <button class="btn btn-outline flex align-center justify-between" id="btn-export-csv">
+                    <span>Export as CSV</span>
+                    <span>📄</span>
+                </button>
+                <button class="btn btn-outline flex align-center justify-between" id="btn-export-excel">
+                    <span>Export as Excel</span>
+                    <span>📊</span>
+                </button>
+                <button class="btn btn-outline flex align-center justify-between" id="btn-export-pdf">
+                    <span>Export as PDF</span>
+                    <span>📑</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

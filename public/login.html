@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - United Pakistan Finance Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/components.css">
+</head>
+<body class="bg-gray">
+    <div class="login-container flex-center full-height">
+        <div class="card login-card">
+            <div class="text-center mb-md">
+                <div class="logo-large">UP</div>
+                <h2 class="mt-sm">Welcome Back</h2>
+                <p class="text-muted">Finance Management Portal</p>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" class="form-control" required autofocus>
+                </div>
+                <div class="form-group mt-sm">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" required>
+                </div>
+                <div id="login-error" class="text-danger mt-sm hidden text-sm"></div>
+                <button type="submit" class="btn btn-primary w-full mt-md">Login</button>
+            </form>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { api } from '/js/api.js';
+        
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = e.target.username.value;
+            const password = e.target.password.value;
+            const errorDiv = document.getElementById('login-error');
+            const submitBtn = e.target.querySelector('button');
+            
+            errorDiv.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging in...';
+            
+            try {
+                const res = await api.post('/api/auth/login', { username, password });
+                if (res.success) {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Invalid credentials';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Login';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>United Pakistan - Finance Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/responsive.css">
+    <!-- Chart.js for reports -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="/js/app.js" defer></script>
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">UP</div>
+                <h2>United Pakistan</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="nav-item active" data-route="dashboard">
+                    <span class="icon">📊</span> Dashboard
+                </a>
+                <a href="/members" class="nav-item" data-route="members">
+                    <span class="icon">👥</span> Members
+                </a>
+                <a href="/reports" class="nav-item" data-route="reports">
+                    <span class="icon">📈</span> Reports
+                </a>
+                <a href="/settings" class="nav-item" data-route="settings">
+                    <span class="icon">⚙️</span> Settings
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn-text">
+                    <span class="icon">🚪</span> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <button id="mobile-menu-btn" class="menu-btn">☰</button>
+                <div class="header-title">
+                    <h1 id="page-title">Dashboard</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="month-selector">
+                        <select id="current-month-select" class="form-control">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dynamic Content Container -->
+            <div id="main-view" class="view-container">
+                <!-- Views get injected here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Global Loader -->
+    <div id="global-loader" class="global-loader hidden">
+        <div class="spinner"></div>
+    </div>
+</body>
+</html>
