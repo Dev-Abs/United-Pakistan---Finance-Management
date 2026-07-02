@@ -1,4 +1,4 @@
-const fetch = require('node-fetch'); // We might need to use built-in fetch in Node 18+ or install node-fetch. Since Node 18+ has native fetch, we will just use global fetch.
+// Native fetch is available in Node 18+
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL;
 const APPS_SCRIPT_SECRET = process.env.APPS_SCRIPT_SECRET;
