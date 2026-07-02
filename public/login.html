@@ -48,6 +48,7 @@
             try {
                 const res = await api.post('/api/auth/login', { username, password });
                 if (res.success) {
+                    localStorage.setItem('auth_token', res.token);
                     window.location.href = '/';
                 }
             } catch (error) {

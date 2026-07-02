@@ -8,25 +8,23 @@ router.post('/login', (req, res) => {
     username === process.env.ADMIN_USERNAME &&
     password === process.env.ADMIN_PASSWORD
   ) {
-    req.session.authenticated = true;
-    return res.json({ success: true });
+    // Generate a simple token based on secret
+    const token = process.env.SESSION_SECRET || 'secret-token';
+    return res.json({ success: true, token });
   }
 
   return res.status(401).json({ success: false, error: 'Invalid credentials' });
 });
 
 router.post('/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).json({ success: false, error: 'Could not log out' });
-    }
-    res.clearCookie('connect.sid');
-    return res.json({ success: true });
-  });
+  res.json({ success: true });
 });
 
 router.get('/status', (req, res) => {
-  if (req.session && req.session.authenticated) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token === (process.env.SESSION_SECRET || 'secret-token')) {
     return res.json({ success: true, authenticated: true });
   }
   return res.json({ success: true, authenticated: false });

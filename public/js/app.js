@@ -62,7 +62,7 @@ class App {
         // Logout
         document.getElementById('logout-btn')?.addEventListener('click', async () => {
             try {
-                await api.post('/api/auth/logout');
+                localStorage.removeItem('auth_token');
                 window.location.href = '/login.html';
             } catch (error) {
                 utils.showToast('Failed to logout', 'error');
