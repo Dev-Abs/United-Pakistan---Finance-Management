@@ -61,6 +61,97 @@ function response(data, code = 200) {
 }
 
 // ----------------------------------------------------------------------------
+// Payment Status Logic
+// ----------------------------------------------------------------------------
+
+// Mirrors the Status -> Amount Paid -> Remaining Balance cascade from the
+// Excel tracker. Mutates `data` in place and returns it.
+function applyPaymentStatusLogic(data, status, totalPayable) {
+  const totalPayableNum = Number(totalPayable) || 0;
+
+  if (status === 'Paid') {
+    data['Amount Paid'] = totalPayableNum;
+    data['Remaining Balance'] = 0;
+  } else if (status === 'Partially Paid') {
+    if (data['Amount Paid'] === undefined || data['Amount Paid'] === '') {
+      throw new Error('Amount Paid is required when Payment Status is Partially Paid');
+    }
+    data['Remaining Balance'] = totalPayableNum - Number(data['Amount Paid']);
+  } else if (status === 'Pending') {
+    data['Amount Paid'] = 0;
+    data['Remaining Balance'] = totalPayableNum;
+  }
+
+  return data;
+}
+
+// ----------------------------------------------------------------------------
+// Sheet Formatting
+// ----------------------------------------------------------------------------
+
+// Applies header styling, column widths, number formats, and the
+// Payment Status dropdown + color coding to a freshly-created sheet.
+function applySheetFormatting(sheet, headers) {
+  const numCols = headers.length;
+  const numRows = sheet.getMaxRows();
+
+  const headerRange = sheet.getRange(1, 1, 1, numCols);
+  headerRange.setFontWeight('bold')
+    .setFontColor('#FFFFFF')
+    .setBackground('#4472C4')
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle')
+    .setBorder(true, true, true, true, true, true);
+  sheet.setFrozenRows(1);
+
+  sheet.getRange(1, 1, numRows, numCols).setFontFamily('Arial').setFontSize(10);
+
+  const widths = {
+    'Name': 160, 'Phone Number': 130, 'Designation': 130,
+    'Payment Date': 110, 'Receipt Link': 160, 'Remarks': 160
+  };
+  headers.forEach((header, i) => {
+    sheet.setColumnWidth(i + 1, widths[header] || 120);
+  });
+
+  const moneyCols = ['Monthly Fund', 'Previous Balance', 'Total Payable', 'Amount Paid', 'Remaining Balance'];
+  moneyCols.forEach(col => {
+    const idx = headers.indexOf(col);
+    if (idx !== -1 && numRows > 1) {
+      sheet.getRange(2, idx + 1, numRows - 1, 1).setNumberFormat('#,##0');
+    }
+  });
+
+  const statusIdx = headers.indexOf('Payment Status');
+  if (statusIdx !== -1 && numRows > 1) {
+    const statusRange = sheet.getRange(2, statusIdx + 1, numRows - 1, 1);
+
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(['Pending', 'Partially Paid', 'Paid'], true)
+      .setAllowInvalid(false)
+      .build();
+    statusRange.setDataValidation(rule);
+
+    const existingRules = sheet.getConditionalFormatRules();
+    existingRules.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Paid')
+        .setBackground('#C6EFCE').setFontColor('#006100')
+        .setRanges([statusRange]).build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Partially Paid')
+        .setBackground('#FFEB9C').setFontColor('#9C6500')
+        .setRanges([statusRange]).build(),
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo('Pending')
+        .setBackground('#FFC7CE').setFontColor('#9C0006')
+        .setRanges([statusRange]).build()
+    );
+    sheet.setConditionalFormatRules(existingRules);
+  }
+}
+
+// ----------------------------------------------------------------------------
 // Sheet Operations
 // ----------------------------------------------------------------------------
 
@@ -72,7 +163,15 @@ function getSheets() {
 }
 
 function getHeaders(sheet) {
-  const range = sheet.getRange(1, 1, 1, sheet.getLastColumn());
+  const lastCol = sheet.getLastColumn();
+  if (lastCol === 0) {
+    // Inject default headers if sheet is empty
+    const headers = ['Name', 'Phone Number', 'Designation', 'Monthly Fund', 'Previous Balance', 'Total Payable', 'Amount Paid', 'Remaining Balance', 'Payment Status', 'Payment Date', 'Receipt Link', 'Remarks'];
+    sheet.appendRow(headers);
+    applySheetFormatting(sheet, headers);
+    return headers;
+  }
+  const range = sheet.getRange(1, 1, 1, lastCol);
   return range.getValues()[0];
 }
 
@@ -110,17 +209,15 @@ function appendRow(sheetName, data) {
   if (!sheet) throw new Error('Sheet not found');
 
   const headers = getHeaders(sheet);
-  const rowData = headers.map(header => data[header] !== undefined ? data[header] : '');
-  
-  // Set defaults for some fields if not provided
+
   if (!data['Payment Status']) {
-     const statusIdx = headers.indexOf('Payment Status');
-     if(statusIdx !== -1) rowData[statusIdx] = 'Pending';
+    data['Payment Status'] = 'Pending';
   }
-  if (!data['Amount Paid']) {
-     const amountIdx = headers.indexOf('Amount Paid');
-     if(amountIdx !== -1) rowData[amountIdx] = 0;
-  }
+
+  const totalPayable = data['Total Payable'] !== undefined ? data['Total Payable'] : 0;
+  applyPaymentStatusLogic(data, data['Payment Status'], totalPayable);
+
+  const rowData = headers.map(header => data[header] !== undefined ? data[header] : '');
 
   sheet.appendRow(rowData);
   return { _rowId: sheet.getLastRow() };
@@ -134,6 +231,24 @@ function updateRow(sheetName, rowId, data) {
   const headers = getHeaders(sheet);
   const range = sheet.getRange(rowId, 1, 1, headers.length);
   const currentRowData = range.getValues()[0];
+
+  const statusIdx = headers.indexOf('Payment Status');
+  const totalPayableIdx = headers.indexOf('Total Payable');
+
+  const touchesPaymentFields = data['Payment Status'] !== undefined
+    || data['Amount Paid'] !== undefined
+    || data['Total Payable'] !== undefined;
+
+  if (touchesPaymentFields) {
+    const status = data['Payment Status'] !== undefined
+      ? data['Payment Status']
+      : (statusIdx !== -1 ? currentRowData[statusIdx] : undefined);
+    const totalPayable = data['Total Payable'] !== undefined
+      ? data['Total Payable']
+      : (totalPayableIdx !== -1 ? currentRowData[totalPayableIdx] : 0);
+
+    applyPaymentStatusLogic(data, status, totalPayable);
+  }
 
   const newRowData = headers.map((header, index) => {
     return data[header] !== undefined ? data[header] : currentRowData[index];
@@ -167,7 +282,7 @@ function createMonthSheet(newSheetName, carryBalances) {
     const newSheet = ss.insertSheet(newSheetName);
     const headers = ['Name', 'Phone Number', 'Designation', 'Monthly Fund', 'Previous Balance', 'Total Payable', 'Amount Paid', 'Remaining Balance', 'Payment Status', 'Payment Date', 'Receipt Link', 'Remarks'];
     newSheet.appendRow(headers);
-    newSheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    applySheetFormatting(newSheet, headers);
     return true;
   }
 
