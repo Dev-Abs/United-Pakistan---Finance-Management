@@ -7,7 +7,13 @@ let appSettings = {};
 
 export async function init(app) {
     appInstance = app;
-    
+
+    // Show/hide write UI based on role
+    if (app.isReadOnly()) {
+        document.getElementById('btn-add-member').style.display = 'none';
+        document.getElementById('btn-bulk-reminders').style.display = 'none';
+    }
+
     // Load settings for reminders
     try {
         const res = await api.get('/api/settings');
@@ -17,14 +23,14 @@ export async function init(app) {
     if (app.state.currentMonth) {
         await loadMembers();
     }
-    
+
     window.addEventListener('monthChanged', loadMembers);
     setupEventListeners();
 }
 
 async function loadMembers() {
     if (!appInstance.state.currentMonth) return;
-    
+
     utils.showLoader();
     try {
         const res = await api.get(`/api/members?month=${encodeURIComponent(appInstance.state.currentMonth)}`);
@@ -42,30 +48,44 @@ async function loadMembers() {
 function renderTable() {
     const tbody = document.querySelector('#members-table tbody');
     tbody.innerHTML = '';
-    
+
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
     const statusFilter = document.getElementById('status-filter').value;
-    
+
     let filtered = allMembers.filter(m => {
-        const matchesSearch = (m['Name'] || '').toLowerCase().includes(searchTerm) || 
+        const matchesSearch = (m['Name'] || '').toLowerCase().includes(searchTerm) ||
                               (m['Phone Number'] || '').includes(searchTerm);
         const matchesStatus = statusFilter === 'all' || m['Payment Status'] === statusFilter;
         return matchesSearch && matchesStatus;
     });
-    
+
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted p-md">No members found.</td></tr>`;
         return;
     }
-    
+
+    const isReadOnly = appInstance.isReadOnly();
+
     filtered.forEach(m => {
         const tr = document.createElement('tr');
-        
+
         let statusBadge = `<span class="badge badge-default">${m['Payment Status']}</span>`;
         if (m['Payment Status'] === 'Paid') statusBadge = `<span class="badge badge-success">Paid</span>`;
         if (m['Payment Status'] === 'Partially Paid') statusBadge = `<span class="badge badge-warning">Partially Paid</span>`;
         if (m['Payment Status'] === 'Pending') statusBadge = `<span class="badge badge-danger">Pending</span>`;
-        
+
+        let actionsHtml = `<span class="text-muted text-sm">Read only</span>`;
+        if (!isReadOnly) {
+            actionsHtml = `
+                <div class="flex gap-sm">
+                    <button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(${m._rowId})">💰</button>
+                    <button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(${m._rowId})">💬</button>
+                    <button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(${m._rowId})">✏️</button>
+                    <button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(${m._rowId})">🗑️</button>
+                </div>
+            `;
+        }
+
         tr.innerHTML = `
             <td class="font-bold">${m['Name']}</td>
             <td>${m['Phone Number']}</td>
@@ -74,14 +94,7 @@ function renderTable() {
             <td class="text-success">${utils.formatCurrency(m['Amount Paid'])}</td>
             <td class="text-danger">${utils.formatCurrency(m['Remaining Balance'])}</td>
             <td>${statusBadge}</td>
-            <td>
-                <div class="flex gap-sm">
-                    <button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(${m._rowId})">💰</button>
-                    <button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(${m._rowId})">💬</button>
-                    <button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(${m._rowId})">✏️</button>
-                    <button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(${m._rowId})">🗑️</button>
-                </div>
-            </td>
+            <td>${actionsHtml}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -90,7 +103,7 @@ function renderTable() {
 function setupEventListeners() {
     document.getElementById('search-input').addEventListener('input', renderTable);
     document.getElementById('status-filter').addEventListener('change', renderTable);
-    
+
     document.getElementById('btn-add-member').addEventListener('click', () => {
         document.getElementById('member-form').reset();
         document.getElementById('member-id').value = '';
@@ -98,7 +111,7 @@ function setupEventListeners() {
         document.getElementById('m-fund').value = appSettings['DEFAULT_MONTHLY_FUND'] || 500;
         document.getElementById('member-modal').classList.add('active');
     });
-    
+
     document.getElementById('member-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('member-id').value;
@@ -109,7 +122,7 @@ function setupEventListeners() {
             'Monthly Fund': document.getElementById('m-fund').value,
             'Remarks': document.getElementById('m-remarks').value
         };
-        
+
         // Initial defaults for new member
         if (!id) {
             data['Previous Balance'] = 0;
@@ -118,11 +131,11 @@ function setupEventListeners() {
             data['Remaining Balance'] = data['Total Payable'];
             data['Payment Status'] = 'Pending';
         }
-        
+
         const btn = document.getElementById('btn-save-member');
         btn.disabled = true;
         btn.textContent = 'Saving...';
-        
+
         try {
             if (id) {
                 await api.put(`/api/members/${id}`, { month: appInstance.state.currentMonth, data });
@@ -151,11 +164,11 @@ function setupEventListeners() {
             remarks: document.getElementById('p-remarks').value,
             totalPayable: document.getElementById('p-total-payable').value
         };
-        
+
         const btn = document.getElementById('btn-save-payment');
         btn.disabled = true;
         btn.textContent = 'Saving...';
-        
+
         try {
             await api.post(`/api/payments/${id}`, data);
             utils.showToast('Payment saved');
@@ -178,21 +191,21 @@ window.membersJS = {
     openEditModal: (id) => {
         const m = allMembers.find(x => x._rowId === id);
         if (!m) return;
-        
+
         document.getElementById('member-id').value = m._rowId;
         document.getElementById('m-name').value = m['Name'];
         document.getElementById('m-phone').value = m['Phone Number'];
         document.getElementById('m-designation').value = m['Designation'];
         document.getElementById('m-fund').value = m['Monthly Fund'];
         document.getElementById('m-remarks').value = m['Remarks'];
-        
+
         document.getElementById('member-modal-title').textContent = 'Edit Member';
         document.getElementById('member-modal').classList.add('active');
     },
-    
+
     deleteMember: async (id) => {
         if (!confirm('Are you sure you want to delete this member?')) return;
-        
+
         try {
             await api.delete(`/api/members/${id}?month=${encodeURIComponent(appInstance.state.currentMonth)}`);
             utils.showToast('Member deleted');
@@ -201,32 +214,32 @@ window.membersJS = {
             utils.showToast('Failed to delete', 'error');
         }
     },
-    
+
     openPaymentModal: (id) => {
         const m = allMembers.find(x => x._rowId === id);
         if (!m) return;
-        
+
         document.getElementById('p-member-id').value = m._rowId;
         document.getElementById('p-member-name').textContent = m['Name'];
         document.getElementById('p-total-payable').value = m['Total Payable'];
         document.getElementById('p-display-due').textContent = utils.formatCurrency(m['Total Payable']);
-        
+
         document.getElementById('p-amount').value = m['Total Payable']; // prefill with full amount
         document.getElementById('p-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('p-remarks').value = m['Remarks'] || '';
-        
+
         document.getElementById('payment-modal').classList.add('active');
     },
-    
+
     sendWhatsApp: (id) => {
         const m = allMembers.find(x => x._rowId === id);
         if (!m) return;
-        
+
         const msg = generateReminderText(m);
         const link = utils.generateWhatsAppLink(m['Phone Number'], msg);
         window.open(link, '_blank');
     },
-    
+
     copyText: (btn, text) => {
         navigator.clipboard.writeText(text).then(() => {
             const original = btn.textContent;
@@ -249,7 +262,7 @@ function generateReminderText(m) {
     msg += `Easypaisa: *${appSettings['EASYPAISA_NUMBER'] || '[Number]'}*\n`;
     msg += `Account Title: ${appSettings['ACCOUNT_TITLE'] || '[Title]'}\n\n`;
     msg += `Thank you.`;
-    
+
     return msg;
 }
 
@@ -257,7 +270,7 @@ function generateBulkReminders() {
     const pending = allMembers.filter(m => m['Payment Status'] === 'Pending' || m['Payment Status'] === 'Partially Paid');
     const list = document.getElementById('reminders-list');
     list.innerHTML = '';
-    
+
     if (pending.length === 0) {
         list.innerHTML = `<div class="p-md text-center text-muted">Everyone is fully paid! 🎉</div>`;
     } else {
@@ -275,15 +288,15 @@ function generateBulkReminders() {
                 </div>
                 <pre class="text-sm bg-gray p-sm" style="white-space: pre-wrap; font-family: inherit; border-radius: 4px;">${msg}</pre>
             `;
-            
+
             item.querySelector('.copy-btn').addEventListener('click', function() {
                 window.membersJS.copyText(this, msg);
             });
-            
+
             list.appendChild(item);
         });
     }
-    
+
     document.getElementById('reminders-modal').classList.add('active');
 }
 
@@ -294,12 +307,12 @@ function copyAllReminders() {
         allText += `--- TO: ${m['Name']} (${m['Phone Number']}) ---\n`;
         allText += generateReminderText(m) + '\n\n';
     });
-    
+
     if (!allText) {
         utils.showToast('No reminders to copy');
         return;
     }
-    
+
     const btn = document.getElementById('btn-copy-all-reminders');
     navigator.clipboard.writeText(allText).then(() => {
         btn.textContent = 'Copied All!';

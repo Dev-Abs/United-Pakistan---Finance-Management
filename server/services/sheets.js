@@ -32,19 +32,27 @@ async function gasRequest(action, params = {}) {
 
 const sheetsService = {
   getSheets: () => gasRequest('getSheets'),
-  
+
   getSheetData: (sheetName) => gasRequest('getSheet', { sheetName }),
-  
+
   addMember: (sheetName, data) => gasRequest('appendRow', { sheetName, data }),
-  
+
   updateMember: (sheetName, rowId, data) => gasRequest('updateRow', { sheetName, rowId, data }),
-  
+
   deleteMember: (sheetName, rowId) => gasRequest('deleteRow', { sheetName, rowId }),
-  
+
   createMonthSheet: (newSheetName, carryBalances) => gasRequest('createMonthSheet', { newSheetName, carryBalances }),
-  
+
+  getExpenses: (month) => gasRequest('getExpenses', { month }),
+
+  addExpense: (data) => gasRequest('addExpense', { data }),
+
+  updateExpense: (rowId, data) => gasRequest('updateExpense', { rowId, data }),
+
+  deleteExpense: (rowId) => gasRequest('deleteExpense', { rowId }),
+
   getSettings: () => gasRequest('getSettings'),
-  
+
   saveSettings: (data) => gasRequest('saveSettings', { data })
 };
 

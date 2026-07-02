@@ -6,14 +6,20 @@ class App {
         this.currentView = '';
         this.state = {
             currentMonth: '',
-            months: []
+            months: [],
+            userRole: null
         };
         this.routes = {
             'dashboard': { url: '/', title: 'Dashboard', script: '/js/dashboard.js' },
             'members': { url: '/members', title: 'Members', script: '/js/members.js' },
+            'expenses': { url: '/expenses', title: 'Expenses', script: '/js/expenses.js' },
             'reports': { url: '/reports', title: 'Reports', script: '/js/reports.js' },
             'settings': { url: '/settings', title: 'Settings', script: '/js/settings.js' }
         };
+    }
+
+    isReadOnly() {
+        return this.state.userRole === 'reader';
     }
 
     async init() {
@@ -28,6 +34,9 @@ class App {
                 window.location.href = '/';
                 return;
             }
+            if (authStatus.authenticated) {
+                this.state.userRole = authStatus.role || 'admin';
+            }
         } catch (error) {
             console.error('Auth check failed:', error);
             if (window.location.pathname !== '/login.html') {
@@ -38,13 +47,13 @@ class App {
 
         // Setup event listeners
         this.setupEventListeners();
-        
+
         // Load initial data (months)
         await this.loadMonths();
 
         // Handle initial route
         this.handleRoute();
-        
+
         // Handle browser back/forward
         window.addEventListener('popstate', () => this.handleRoute());
     }
@@ -73,7 +82,7 @@ class App {
         document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
             document.getElementById('sidebar').classList.toggle('active');
         });
-        
+
         // Month selector change
         document.getElementById('current-month-select')?.addEventListener('change', (e) => {
             this.state.currentMonth = e.target.value;
@@ -84,8 +93,6 @@ class App {
 
     async loadMonths() {
         try {
-            // Note: Currently these endpoints don't exist in Express, we will create them later
-            // Mocking for now to allow frontend testing or we wait for API implementation
             const res = await api.get('/api/months');
             if (res.success && res.data) {
                 this.state.months = res.data;
@@ -111,7 +118,7 @@ class App {
 
     navigate(routeName) {
         if (!this.routes[routeName]) return;
-        
+
         const route = this.routes[routeName];
         window.history.pushState({}, '', route.url);
         this.loadView(routeName);
@@ -120,54 +127,53 @@ class App {
     handleRoute() {
         const path = window.location.pathname;
         let matchedRoute = 'dashboard';
-        
+
         for (const [name, route] of Object.entries(this.routes)) {
             if (route.url === path && path !== '/') {
                 matchedRoute = name;
                 break;
             }
         }
-        
+
         this.loadView(matchedRoute);
     }
 
     async loadView(routeName) {
         if (this.currentView === routeName) return;
-        
+
         const route = this.routes[routeName];
         if (!route) return;
 
         utils.showLoader();
-        
+
         try {
             // Update UI
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             const activeNav = document.querySelector(`.nav-item[data-route="${routeName}"]`);
             if (activeNav) activeNav.classList.add('active');
-            
+
             document.getElementById('page-title').textContent = route.title;
 
             // Fetch template
             const response = await fetch(`/views/${routeName}.html`);
             if (!response.ok) throw new Error('View not found');
             const html = await response.text();
-            
+
             document.getElementById('main-view').innerHTML = html;
-            
+
             // Dynamically load associated script
             if (route.script) {
-                // We use dynamic import for JS modules
                 const module = await import(route.script);
                 if (module && typeof module.init === 'function') {
                     module.init(this);
                 }
             }
-            
+
             this.currentView = routeName;
-            
+
             // Close mobile menu if open
             document.getElementById('sidebar')?.classList.remove('active');
-            
+
         } catch (error) {
             console.error('Error loading view:', error);
             utils.showToast('Error loading page', 'error');

@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/sheets');
-const requireAuth = require('../middleware/auth');
+const { requireAuth, requireWriteAccess } = require('../middleware/auth');
 const calculations = require('../utils/calculations');
 
 router.use(requireAuth);
 
-router.post('/:id', async (req, res) => {
+router.post('/:id', requireWriteAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { month, amountPaid, paymentDate, remarks, totalPayable } = req.body;
-    
+
     if (!month || amountPaid === undefined || !totalPayable) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
@@ -27,7 +27,7 @@ router.post('/:id', async (req, res) => {
     };
 
     await sheetsService.updateMember(month, parseInt(id, 10), updateData);
-    
+
     res.json({ success: true, data: updateData });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

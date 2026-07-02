@@ -3,7 +3,15 @@ import { utils } from './utils.js';
 
 export async function init(app) {
     await loadSettings();
-    
+
+    // Disable editing for read-only users
+    if (app.isReadOnly()) {
+        document.querySelectorAll('#settings-form input').forEach(el => el.disabled = true);
+        const btn = document.getElementById('btn-save-settings');
+        if (btn) btn.style.display = 'none';
+        return;
+    }
+
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         

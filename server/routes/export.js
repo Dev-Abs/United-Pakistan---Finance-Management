@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/sheets');
-const requireAuth = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const ExcelJS = require('exceljs');
 
 router.use(requireAuth);

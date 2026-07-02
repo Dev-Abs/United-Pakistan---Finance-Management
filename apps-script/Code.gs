@@ -11,7 +11,7 @@ function doGet(e) {
 function handleRequest(e, method) {
   try {
     const params = method === 'POST' ? JSON.parse(e.postData.contents) : e.parameter;
-    
+
     // Validate secret
     if (params.secret !== SECRET) {
       return response({ error: 'Unauthorized' }, 401);
@@ -38,6 +38,18 @@ function handleRequest(e, method) {
         break;
       case 'createMonthSheet':
         result = createMonthSheet(params.newSheetName, params.carryBalances);
+        break;
+      case 'getExpenses':
+        result = getExpenses(params.month);
+        break;
+      case 'addExpense':
+        result = addExpense(params.data);
+        break;
+      case 'updateExpense':
+        result = updateExpense(params.rowId, params.data);
+        break;
+      case 'deleteExpense':
+        result = deleteExpense(params.rowId);
         break;
       case 'getSettings':
         result = getSettings();
@@ -159,7 +171,7 @@ function getSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheets()
     .map(sheet => sheet.getName())
-    .filter(name => name !== 'Settings');
+    .filter(name => name !== 'Settings' && name !== 'Expenses');
 }
 
 function getHeaders(sheet) {
@@ -178,7 +190,7 @@ function getHeaders(sheet) {
 function getSheetData(sheetName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(sheetName);
-  
+
   if (!sheet) {
     // If sheet doesn't exist, maybe it's a new month. We can create it empty if needed,
     // but better to throw error and let user create it explicitly.
@@ -187,13 +199,13 @@ function getSheetData(sheetName) {
 
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
-  
+
   if (lastRow < 2) return [];
 
   const headers = getHeaders(sheet);
   const dataRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
   const data = dataRange.getValues();
-  
+
   return data.map((row, index) => {
     let obj = { _rowId: index + 2 }; // 1-based index + header row
     headers.forEach((header, i) => {
@@ -262,79 +274,77 @@ function deleteRow(sheetName, rowId) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error('Sheet not found');
-  
+
   sheet.deleteRow(rowId);
   return true;
 }
 
-function createMonthSheet(newSheetName, carryBalances) {
+// ----------------------------------------------------------------------------
+// Expense Operations — single "Expenses" sheet with a Month column
+// ----------------------------------------------------------------------------
+
+const EXPENSE_HEADERS = ['Month', 'Date', 'Category', 'Description', 'Amount', 'Paid By', 'Remarks'];
+
+function getOrCreateExpensesSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  
-  if (ss.getSheetByName(newSheetName)) {
-    throw new Error('Sheet already exists for this month');
+  let sheet = ss.getSheetByName('Expenses');
+  if (!sheet) {
+    sheet = ss.insertSheet('Expenses');
+    sheet.appendRow(EXPENSE_HEADERS);
+    const headerRange = sheet.getRange(1, 1, 1, EXPENSE_HEADERS.length);
+    headerRange.setFontWeight('bold')
+      .setFontColor('#FFFFFF')
+      .setBackground('#4472C4')
+      .setHorizontalAlignment('center');
+    sheet.setFrozenRows(1);
+    const widths = { 'Month': 130, 'Date': 110, 'Category': 140, 'Description': 250, 'Amount': 100, 'Paid By': 130, 'Remarks': 160 };
+    EXPENSE_HEADERS.forEach((h, i) => sheet.setColumnWidth(i + 1, widths[h] || 120));
   }
+  return sheet;
+}
 
-  const sheets = ss.getSheets();
-  const dataSheets = sheets.filter(s => s.getName() !== 'Settings');
-  
-  if (dataSheets.length === 0) {
-    // Creating first sheet
-    const newSheet = ss.insertSheet(newSheetName);
-    const headers = ['Name', 'Phone Number', 'Designation', 'Monthly Fund', 'Previous Balance', 'Total Payable', 'Amount Paid', 'Remaining Balance', 'Payment Status', 'Payment Date', 'Receipt Link', 'Remarks'];
-    newSheet.appendRow(headers);
-    applySheetFormatting(newSheet, headers);
-    return true;
-  }
+function getExpenses(month) {
+  const sheet = getOrCreateExpensesSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
 
-  // Duplicate last sheet
-  const lastSheet = dataSheets[dataSheets.length - 1];
-  const newSheet = lastSheet.copyTo(ss);
-  newSheet.setName(newSheetName);
+  const data = sheet.getRange(2, 1, lastRow - 1, EXPENSE_HEADERS.length).getValues();
+  // Track actual sheet row number (data index + 2)
+  const allData = data.map((row, i) => ({ row, actualRow: i + 2 }));
+  const filtered = month
+    ? allData.filter(({ row }) => String(row[0]).trim() === month)
+    : allData;
 
-  if (carryBalances) {
-    const lastRow = newSheet.getLastRow();
-    const headers = getHeaders(newSheet);
-    
-    const remainingIdx = headers.indexOf('Remaining Balance');
-    const prevBalIdx = headers.indexOf('Previous Balance');
-    const amountPaidIdx = headers.indexOf('Amount Paid');
-    const paymentDateIdx = headers.indexOf('Payment Date');
-    const receiptLinkIdx = headers.indexOf('Receipt Link');
-    const statusIdx = headers.indexOf('Payment Status');
-    const remarksIdx = headers.indexOf('Remarks');
-    const totalPayableIdx = headers.indexOf('Total Payable');
-    const monthlyFundIdx = headers.indexOf('Monthly Fund');
+  return filtered.map(({ row, actualRow }) => {
+    const obj = { _rowId: actualRow };
+    EXPENSE_HEADERS.forEach((header, i) => {
+      obj[header] = row[i];
+    });
+    return obj;
+  });
+}
 
-    if (lastRow > 1) {
-      const dataRange = newSheet.getRange(2, 1, lastRow - 1, headers.length);
-      const data = dataRange.getValues();
-      
-      const newData = data.map(row => {
-        // Carry over remaining to previous balance
-        const remaining = remainingIdx !== -1 ? (Number(row[remainingIdx]) || 0) : 0;
-        if (prevBalIdx !== -1) row[prevBalIdx] = remaining;
-        
-        // Reset fields
-        if (amountPaidIdx !== -1) row[amountPaidIdx] = 0;
-        if (paymentDateIdx !== -1) row[paymentDateIdx] = '';
-        if (receiptLinkIdx !== -1) row[receiptLinkIdx] = '';
-        if (statusIdx !== -1) row[statusIdx] = 'Pending';
-        if (remarksIdx !== -1) row[remarksIdx] = '';
-        
-        // Recalculate Total Payable
-        const monthlyFund = monthlyFundIdx !== -1 ? (Number(row[monthlyFundIdx]) || 0) : 0;
-        if (totalPayableIdx !== -1) row[totalPayableIdx] = monthlyFund + remaining;
-        
-        // Recalculate Remaining Balance
-        if (remainingIdx !== -1) row[remainingIdx] = row[totalPayableIdx]; // since amount paid is 0
-        
-        return row;
-      });
-      
-      dataRange.setValues(newData);
-    }
-  }
+function addExpense(data) {
+  const sheet = getOrCreateExpensesSheet();
+  const rowData = EXPENSE_HEADERS.map(header => data[header] !== undefined ? data[header] : '');
+  sheet.appendRow(rowData);
+  return { _rowId: sheet.getLastRow() };
+}
 
+function updateExpense(rowId, data) {
+  const sheet = getOrCreateExpensesSheet();
+  const range = sheet.getRange(rowId, 1, 1, EXPENSE_HEADERS.length);
+  const currentRowData = range.getValues()[0];
+  const newRowData = EXPENSE_HEADERS.map((header, index) => {
+    return data[header] !== undefined ? data[header] : currentRowData[index];
+  });
+  range.setValues([newRowData]);
+  return true;
+}
+
+function deleteExpense(rowId) {
+  const sheet = getOrCreateExpensesSheet();
+  sheet.deleteRow(rowId);
   return true;
 }
 
@@ -345,30 +355,30 @@ function createMonthSheet(newSheetName, carryBalances) {
 function getSettings() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Settings');
-  
+
   if (!sheet) {
     sheet = ss.insertSheet('Settings');
     sheet.appendRow(['Key', 'Value']);
     sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
     return {};
   }
-  
+
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return {};
-  
+
   const data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
   const settings = {};
   data.forEach(row => {
     settings[row[0]] = row[1];
   });
-  
+
   return settings;
 }
 
 function saveSettings(settingsObj) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName('Settings');
-  
+
   if (!sheet) {
     sheet = ss.insertSheet('Settings');
     sheet.appendRow(['Key', 'Value']);
@@ -380,11 +390,11 @@ function saveSettings(settingsObj) {
       sheet.getRange(2, 1, lastRow - 1, 2).clearContent();
     }
   }
-  
+
   const rows = Object.keys(settingsObj).map(key => [key, settingsObj[key]]);
   if (rows.length > 0) {
     sheet.getRange(2, 1, rows.length, 2).setValues(rows);
   }
-  
+
   return true;
 }

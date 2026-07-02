@@ -1,0 +1,127 @@
+<div class="expenses-container">
+    <div class="card mb-md">
+        <div class="flex flex-wrap justify-between align-center gap-sm">
+            <h3 class="font-bold">Expenses for <span id="expense-month-label"></span></h3>
+            <div class="flex gap-sm">
+                <button class="btn btn-primary" id="btn-add-expense" style="display:none;">
+                    <span class="icon">➕</span> Add Expense
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-4 mb-md">
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Total Expenses</h3>
+            <div class="text-2xl font-bold mt-sm text-danger" id="exp-total">Rs. 0</div>
+        </div>
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Categories</h3>
+            <div class="text-2xl font-bold mt-sm" id="exp-categories-count">0</div>
+            <div class="text-sm text-muted mt-sm">Used this month</div>
+        </div>
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Highest Expense</h3>
+            <div class="text-2xl font-bold mt-sm" id="exp-highest">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm" id="exp-highest-cat">-</div>
+        </div>
+        <div class="card stat-card">
+            <h3 class="text-muted text-sm uppercase">Avg Per Expense</h3>
+            <div class="text-2xl font-bold mt-sm" id="exp-avg">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm">Per transaction</div>
+        </div>
+    </div>
+
+    <div class="card mb-md">
+        <div class="flex flex-wrap justify-between align-center gap-sm">
+            <div class="flex gap-sm">
+                <input type="text" id="exp-search" class="form-control" placeholder="Search expenses..." style="max-width: 250px;">
+                <select id="exp-category-filter" class="form-control" style="max-width: 160px;">
+                    <option value="all">All Categories</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-0">
+        <div class="table-responsive">
+            <table class="table" id="expenses-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Paid By</th>
+                        <th>Remarks</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Injected by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Expense Modal -->
+<div id="expense-modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="expense-modal-title">Add Expense</h3>
+            <button class="modal-close" onclick="document.getElementById('expense-modal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="expense-form">
+                <input type="hidden" id="e-id">
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="e-date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="e-category" class="form-control" required>
+                            <option value="">Select category...</option>
+                            <option value="Rent">Rent</option>
+                            <option value="Electricity">Electricity</option>
+                            <option value="Water">Water</option>
+                            <option value="Gas">Gas</option>
+                            <option value="Internet">Internet</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Food">Food</option>
+                            <option value="Stationery">Stationery</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Events">Events</option>
+                            <option value="Salary">Salary</option>
+                            <option value="Miscellaneous">Miscellaneous</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="e-description" class="form-control" required placeholder="What was this expense for?">
+                </div>
+                <div class="grid grid-cols-2">
+                    <div class="form-group">
+                        <label>Amount (Rs.)</label>
+                        <input type="number" id="e-amount" class="form-control" required min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Paid By</label>
+                        <input type="text" id="e-paid-by" class="form-control" required placeholder="Who paid?">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Remarks</label>
+                    <input type="text" id="e-remarks" class="form-control">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="document.getElementById('expense-modal').classList.remove('active')">Cancel</button>
+            <button class="btn btn-primary" id="btn-save-expense" type="submit" form="expense-form">Save Expense</button>
+        </div>
+    </div>
+</div>

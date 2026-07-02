@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/sheets');
-const requireAuth = require('../middleware/auth');
+const { requireAuth, requireWriteAccess } = require('../middleware/auth');
 
 router.use(requireAuth);
 
@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/new', async (req, res) => {
+router.post('/new', requireWriteAccess, async (req, res) => {
   try {
     const { monthName, carryBalances } = req.body;
     if (!monthName) {

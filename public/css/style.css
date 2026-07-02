@@ -172,11 +172,22 @@ body {
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
 .text-sm { font-size: 12px; }
+.text-md { font-size: 14px; }
+.text-2xl { font-size: 24px; }
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+.uppercase { text-transform: uppercase; }
+.text-left { text-align: left; }
 .w-full { width: 100%; }
 .mt-sm { margin-top: 12px; }
 .mt-md { margin-top: 24px; }
 .mb-sm { margin-bottom: 12px; }
 .mb-md { margin-bottom: 24px; }
+.p-sm { padding: 12px; }
+.p-md { padding: 20px; }
+.p-0 { padding: 0; }
+.border-bottom { border-bottom: 1px solid var(--border); }
+.flex-col { flex-direction: column; }
 
 /* Global Loader */
 .global-loader {
