@@ -16,8 +16,20 @@
       "dest": "server/index.js"
     },
     {
-      "src": "/(.*)",
+      "src": "/login.html",
+      "dest": "public/login.html"
+    },
+    {
+      "src": "/(.*\\.(?:html|css|js|json|svg|png|ico))",
       "dest": "public/$1"
+    },
+    {
+      "src": "/sw.js",
+      "dest": "public/sw.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "server/index.js"
     }
   ]
 }

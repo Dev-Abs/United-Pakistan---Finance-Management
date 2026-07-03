@@ -156,6 +156,17 @@ body {
     color: var(--text-muted);
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.install-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
 .view-container {
     flex: 1;
     padding: 24px;
