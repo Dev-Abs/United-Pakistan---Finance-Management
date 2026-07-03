@@ -65,6 +65,17 @@ class App {
                 e.preventDefault();
                 const route = e.currentTarget.getAttribute('data-route');
                 this.navigate(route);
+                // Close sidebar on mobile after navigation
+                document.getElementById('sidebar')?.classList.remove('active');
+            });
+        });
+
+        // Bottom navigation
+        document.querySelectorAll('.bottom-nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const route = e.currentTarget.getAttribute('data-route');
+                this.navigate(route);
             });
         });
 
@@ -81,6 +92,14 @@ class App {
         // Mobile menu toggle
         document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
             document.getElementById('sidebar').classList.toggle('active');
+        });
+
+        // Close sidebar when clicking main content (mobile)
+        document.querySelector('.main-content')?.addEventListener('click', () => {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+            }
         });
 
         // Month selector change
@@ -147,10 +166,15 @@ class App {
         utils.showLoader();
 
         try {
-            // Update UI
+            // Update UI — sidebar active state
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             const activeNav = document.querySelector(`.nav-item[data-route="${routeName}"]`);
             if (activeNav) activeNav.classList.add('active');
+
+            // Bottom nav active state
+            document.querySelectorAll('.bottom-nav-item').forEach(item => item.classList.remove('active'));
+            const activeBottom = document.querySelector(`.bottom-nav-item[data-route="${routeName}"]`);
+            if (activeBottom) activeBottom.classList.add('active');
 
             document.getElementById('page-title').textContent = route.title;
 

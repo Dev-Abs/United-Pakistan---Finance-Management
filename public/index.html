@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>United Pakistan - Finance Management</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="UP Finance">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -14,7 +18,7 @@
 </head>
 <body>
     <div id="app" class="app-container">
-        <!-- Sidebar -->
+        <!-- Sidebar (desktop) -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">UP</div>
@@ -58,6 +62,9 @@
                             <option value="">Loading...</option>
                         </select>
                     </div>
+                    <button id="install-app-btn" class="btn btn-sm btn-outline" style="display:none; margin-left:8px; white-space:nowrap;">
+                        <span class="icon">📲</span> Install
+                    </button>
                 </div>
             </header>
 
@@ -66,14 +73,63 @@
                 <!-- Views get injected here -->
             </div>
         </main>
+
+        <!-- Bottom Navigation (mobile only) -->
+        <nav class="bottom-nav" id="bottom-nav">
+            <a href="/" class="bottom-nav-item active" data-route="dashboard">
+                <span class="bottom-nav-icon">📊</span>
+                <span class="bottom-nav-label">Dashboard</span>
+            </a>
+            <a href="/members" class="bottom-nav-item" data-route="members">
+                <span class="bottom-nav-icon">👥</span>
+                <span class="bottom-nav-label">Members</span>
+            </a>
+            <a href="/expenses" class="bottom-nav-item" data-route="expenses">
+                <span class="bottom-nav-icon">💸</span>
+                <span class="bottom-nav-label">Expenses</span>
+            </a>
+            <a href="/reports" class="bottom-nav-item" data-route="reports">
+                <span class="bottom-nav-icon">📈</span>
+                <span class="bottom-nav-label">Reports</span>
+            </a>
+            <a href="/settings" class="bottom-nav-item" data-route="settings">
+                <span class="bottom-nav-icon">⚙️</span>
+                <span class="bottom-nav-label">Settings</span>
+            </a>
+        </nav>
     </div>
 
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
-    
+
     <!-- Global Loader -->
     <div id="global-loader" class="global-loader hidden">
         <div class="spinner"></div>
     </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-app-btn').style.display = 'inline-flex';
+        });
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#install-app-btn')) {
+                const btn = document.getElementById('install-app-btn');
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {
+                    deferredPrompt = null;
+                    btn.style.display = 'none';
+                });
+            }
+        });
+    </script>
 </body>
 </html>
