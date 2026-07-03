@@ -80,14 +80,16 @@ class App {
         });
 
         // Logout
-        document.getElementById('logout-btn')?.addEventListener('click', async () => {
+        const logoutHandler = async () => {
             try {
                 localStorage.removeItem('auth_token');
                 window.location.href = '/login.html';
             } catch (error) {
                 utils.showToast('Failed to logout', 'error');
             }
-        });
+        };
+        document.getElementById('logout-btn')?.addEventListener('click', logoutHandler);
+        document.getElementById('bottom-logout-btn')?.addEventListener('click', logoutHandler);
 
         // Mobile menu toggle
         document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {

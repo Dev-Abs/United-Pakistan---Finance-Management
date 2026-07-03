@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>United Pakistan - Finance Management</title>
     <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="UP Finance">
@@ -12,13 +13,12 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/responsive.css">
-    <!-- Chart.js for reports -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="/js/app.js" defer></script>
 </head>
 <body>
     <div id="app" class="app-container">
-        <!-- Sidebar (desktop) -->
+        <!-- Sidebar (desktop) — kept for logout on desktop -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">UP</div>
@@ -62,8 +62,8 @@
                             <option value="">Loading...</option>
                         </select>
                     </div>
-                    <button id="install-app-btn" class="btn btn-sm btn-outline" style="display:none; margin-left:8px; white-space:nowrap;">
-                        <span class="icon">📲</span> Install
+                    <button id="install-app-btn" class="btn btn-sm btn-outline" title="Install App / Add to Home Screen">
+                        <span class="icon">📲</span><span class="install-text"> Install</span>
                     </button>
                 </div>
             </header>
@@ -96,6 +96,10 @@
                 <span class="bottom-nav-icon">⚙️</span>
                 <span class="bottom-nav-label">Settings</span>
             </a>
+            <button class="bottom-nav-item" id="bottom-logout-btn" style="border:none;background:none;cursor:pointer;font-family:inherit;">
+                <span class="bottom-nav-icon">🚪</span>
+                <span class="bottom-nav-label">Logout</span>
+            </button>
         </nav>
     </div>
 
@@ -113,21 +117,34 @@
                 navigator.serviceWorker.register('/sw.js');
             });
         }
+        // PWA install handling
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            document.getElementById('install-app-btn').style.display = 'inline-flex';
         });
         document.addEventListener('click', (e) => {
-            if (e.target.closest('#install-app-btn')) {
-                const btn = document.getElementById('install-app-btn');
-                if (!deferredPrompt) return;
+            const btn = e.target.closest('#install-app-btn');
+            if (!btn) return;
+            if (deferredPrompt) {
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then(() => {
                     deferredPrompt = null;
-                    btn.style.display = 'none';
                 });
+            } else {
+                // Fallback: show platform-specific instructions
+                const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+                const isAndroid = /android/i.test(navigator.userAgent);
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+                if (isStandalone) {
+                    alert('App is already installed on your device.');
+                } else if (isiOS) {
+                    alert('To install: tap the Share button (📤) at the bottom of Safari, then scroll down and tap "Add to Home Screen".');
+                } else if (isAndroid) {
+                    alert('To install: tap the browser menu (⋮) and select "Install app" or "Add to Home screen".');
+                } else {
+                    alert('To install: use your browser\'s "Install" or "Add to Home Screen" option from the address bar or menu.');
+                }
             }
         });
     </script>
