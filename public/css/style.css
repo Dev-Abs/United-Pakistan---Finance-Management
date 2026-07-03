@@ -165,6 +165,18 @@ body {
 .install-btn {
     font-size: 12px;
     padding: 6px 10px;
+    white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+    .install-btn .install-text {
+        display: none;
+    }
+    .install-btn {
+        font-size: 16px;
+        padding: 4px 8px;
+        min-width: auto;
+    }
 }
 
 .view-container {
