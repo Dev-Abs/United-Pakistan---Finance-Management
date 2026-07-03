@@ -18,6 +18,19 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/history', async (req, res) => {
+  try {
+    const { name, phone } = req.query;
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Name parameter is required' });
+    }
+    const data = await sheetsService.getMemberHistory(name, phone);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.post('/', requireWriteAccess, async (req, res) => {
   try {
     const { month, data } = req.body;

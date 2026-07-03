@@ -54,6 +54,9 @@ function handleRequest(e, method) {
       case 'getSettings':
         result = getSettings();
         break;
+      case 'getMemberHistory':
+        result = getMemberHistory(params.name, params.phone);
+        break;
       case 'saveSettings':
         result = saveSettings(params.data);
         break;
@@ -346,6 +349,42 @@ function deleteExpense(rowId) {
   const sheet = getOrCreateExpensesSheet();
   sheet.deleteRow(rowId);
   return true;
+}
+
+// ----------------------------------------------------------------------------
+// Member History — search all month sheets for a member by name
+// ----------------------------------------------------------------------------
+
+function getMemberHistory(name, phone) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets()
+    .filter(s => s.getName() !== 'Settings' && s.getName() !== 'Expenses');
+
+  const allRecords = [];
+  const searchName = String(name || '').trim().toLowerCase();
+  if (!searchName) return [];
+
+  sheets.forEach(sheet => {
+    const lastCol = sheet.getLastColumn();
+    if (lastCol === 0) return;
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    // If header row is empty, skip
+    if (!headers[0]) return;
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return;
+
+    const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    data.forEach((row, i) => {
+      const rowName = String(row[0] || '').trim().toLowerCase();
+      if (rowName !== searchName) return;
+
+      const obj = { month: sheet.getName(), _rowId: i + 2 };
+      headers.forEach((h, j) => { obj[h] = row[j]; });
+      allRecords.push(obj);
+    });
+  });
+
+  return allRecords;
 }
 
 // ----------------------------------------------------------------------------

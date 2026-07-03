@@ -24,13 +24,14 @@
             <table class="table" id="members-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Phone</th>
-                        <th>Monthly Fund</th>
-                        <th>Total Due</th>
-                        <th>Paid</th>
-                        <th>Remaining</th>
-                        <th>Status</th>
+                        <th data-sort="Name" class="sortable">Name <span class="sort-arrow"></span></th>
+                        <th data-sort="Phone Number" class="sortable">Phone <span class="sort-arrow"></span></th>
+                        <th data-sort="Monthly Fund" class="sortable">Monthly Fund <span class="sort-arrow"></span></th>
+                        <th data-sort="Previous Balance" class="sortable">Prev Balance <span class="sort-arrow"></span></th>
+                        <th data-sort="Total Payable" class="sortable">Total Due <span class="sort-arrow"></span></th>
+                        <th data-sort="Amount Paid" class="sortable">Paid <span class="sort-arrow"></span></th>
+                        <th data-sort="Remaining Balance" class="sortable">Remaining <span class="sort-arrow"></span></th>
+                        <th data-sort="Payment Status" class="sortable">Status <span class="sort-arrow"></span></th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -62,14 +63,18 @@
                         <input type="text" id="m-phone" class="form-control" required>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Designation</label>
+                    <input type="text" id="m-designation" class="form-control">
+                </div>
                 <div class="grid grid-cols-2">
-                    <div class="form-group">
-                        <label>Designation</label>
-                        <input type="text" id="m-designation" class="form-control">
-                    </div>
                     <div class="form-group">
                         <label>Monthly Fund (Rs.)</label>
                         <input type="number" id="m-fund" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Previous Balance (Rs.)</label>
+                        <input type="number" id="m-prev-balance" class="form-control" value="0">
                     </div>
                 </div>
                 <div class="form-group">

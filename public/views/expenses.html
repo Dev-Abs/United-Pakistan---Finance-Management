@@ -3,6 +3,8 @@
         <div class="flex flex-wrap justify-between align-center gap-sm">
             <h3 class="font-bold">Expenses for <span id="expense-month-label"></span></h3>
             <div class="flex gap-sm">
+                <button class="btn btn-outline" id="btn-export-expenses-csv" title="Export CSV">📄 CSV</button>
+                <button class="btn btn-outline" id="btn-export-expenses-excel" title="Export Excel">📊 Excel</button>
                 <button class="btn btn-primary" id="btn-add-expense" style="display:none;">
                     <span class="icon">➕</span> Add Expense
                 </button>
@@ -10,15 +12,10 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-4 mb-md">
+    <div class="grid grid-cols-3 mb-md">
         <div class="card stat-card">
             <h3 class="text-muted text-sm uppercase">Total Expenses</h3>
             <div class="text-2xl font-bold mt-sm text-danger" id="exp-total">Rs. 0</div>
-        </div>
-        <div class="card stat-card">
-            <h3 class="text-muted text-sm uppercase">Categories</h3>
-            <div class="text-2xl font-bold mt-sm" id="exp-categories-count">0</div>
-            <div class="text-sm text-muted mt-sm">Used this month</div>
         </div>
         <div class="card stat-card">
             <h3 class="text-muted text-sm uppercase">Highest Expense</h3>
@@ -36,9 +33,6 @@
         <div class="flex flex-wrap justify-between align-center gap-sm">
             <div class="flex gap-sm">
                 <input type="text" id="exp-search" class="form-control" placeholder="Search expenses..." style="max-width: 250px;">
-                <select id="exp-category-filter" class="form-control" style="max-width: 160px;">
-                    <option value="all">All Categories</option>
-                </select>
             </div>
         </div>
     </div>
@@ -48,12 +42,11 @@
             <table class="table" id="expenses-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Category</th>
-                        <th>Description</th>
-                        <th>Amount</th>
-                        <th>Paid By</th>
-                        <th>Remarks</th>
+                        <th data-sort="Date" class="sortable">Date <span class="sort-arrow"></span></th>
+                        <th data-sort="Description" class="sortable">Description <span class="sort-arrow"></span></th>
+                        <th data-sort="Amount" class="sortable">Amount <span class="sort-arrow"></span></th>
+                        <th data-sort="Paid By" class="sortable">Paid By <span class="sort-arrow"></span></th>
+                        <th data-sort="Remarks" class="sortable">Remarks <span class="sort-arrow"></span></th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -75,33 +68,13 @@
         <div class="modal-body">
             <form id="expense-form">
                 <input type="hidden" id="e-id">
-                <div class="grid grid-cols-2">
-                    <div class="form-group">
-                        <label>Date</label>
-                        <input type="date" id="e-date" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Category</label>
-                        <select id="e-category" class="form-control" required>
-                            <option value="">Select category...</option>
-                            <option value="Rent">Rent</option>
-                            <option value="Electricity">Electricity</option>
-                            <option value="Water">Water</option>
-                            <option value="Gas">Gas</option>
-                            <option value="Internet">Internet</option>
-                            <option value="Transport">Transport</option>
-                            <option value="Food">Food</option>
-                            <option value="Stationery">Stationery</option>
-                            <option value="Maintenance">Maintenance</option>
-                            <option value="Events">Events</option>
-                            <option value="Salary">Salary</option>
-                            <option value="Miscellaneous">Miscellaneous</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="e-date" class="form-control" required>
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <input type="text" id="e-description" class="form-control" required placeholder="What was this expense for?">
+                    <input type="text" id="e-description" class="form-control" required placeholder="What was this expense for? (include category, details etc.)">
                 </div>
                 <div class="grid grid-cols-2">
                     <div class="form-group">

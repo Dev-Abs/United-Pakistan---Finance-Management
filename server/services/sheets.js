@@ -51,6 +51,8 @@ const sheetsService = {
 
   deleteExpense: (rowId) => gasRequest('deleteExpense', { rowId }),
 
+  getMemberHistory: (name, phone) => gasRequest('getMemberHistory', { name, phone }),
+
   getSettings: () => gasRequest('getSettings'),
 
   saveSettings: (data) => gasRequest('saveSettings', { data })
