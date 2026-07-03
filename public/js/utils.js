@@ -40,11 +40,11 @@ export const utils = {
     },
     
     showLoader() {
-        document.getElementById('global-loader')?.classList.remove('hidden');
+        // No-op: skeletons replace the full-screen loader
     },
-    
+
     hideLoader() {
-        document.getElementById('global-loader')?.classList.add('hidden');
+        // No-op: skeletons replace the full-screen loader
     },
     
     generateWhatsAppLink(phone, message) {

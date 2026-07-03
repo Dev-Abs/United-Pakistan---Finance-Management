@@ -18,7 +18,7 @@
 </head>
 <body>
     <div id="app" class="app-container">
-        <!-- Sidebar (desktop) — kept for logout on desktop -->
+        <!-- Sidebar (desktop) -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">UP</div>
@@ -107,42 +107,37 @@
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- Global Loader -->
-    <div id="global-loader" class="global-loader hidden">
-        <div class="spinner"></div>
-    </div>
-
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
+            window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js');
             });
         }
-        // PWA install handling
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
+
+        var deferredPrompt;
+        window.addEventListener('beforeinstallprompt', function(e) {
             e.preventDefault();
             deferredPrompt = e;
         });
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('#install-app-btn');
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('#install-app-btn');
             if (!btn) return;
             if (deferredPrompt) {
                 deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(() => {
+                deferredPrompt.userChoice.then(function() {
                     deferredPrompt = null;
                 });
             } else {
-                // Fallback: show platform-specific instructions
-                const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-                const isAndroid = /android/i.test(navigator.userAgent);
-                const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+                var isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+                var isAndroid = /android/i.test(navigator.userAgent);
+                var isStandalone = window.matchMedia('(display-mode: standalone)').matches;
                 if (isStandalone) {
                     alert('App is already installed on your device.');
                 } else if (isiOS) {
-                    alert('To install: tap the Share button (📤) at the bottom of Safari, then scroll down and tap "Add to Home Screen".');
+                    alert('To install: tap the Share button at the bottom of Safari, then scroll down and tap "Add to Home Screen".');
                 } else if (isAndroid) {
-                    alert('To install: tap the browser menu (⋮) and select "Install app" or "Add to Home screen".');
+                    alert('To install: tap the browser menu and select "Install app" or "Add to Home screen".');
                 } else {
                     alert('To install: use your browser\'s "Install" or "Add to Home Screen" option from the address bar or menu.');
                 }
