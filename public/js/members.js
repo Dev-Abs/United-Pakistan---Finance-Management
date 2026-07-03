@@ -30,17 +30,18 @@ export async function init(app) {
 
 async function loadMembers() {
     if (!appInstance.state.currentMonth) return;
-    utils.showLoader();
     try {
         const res = await api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth));
         if (res.success) {
             allMembers = res.data;
+            document.getElementById('members-skeleton').style.display = 'none';
+            document.getElementById('members-content').style.display = 'block';
             renderTable();
         }
     } catch (error) {
         utils.showToast('Failed to load members', 'error');
-    } finally {
-        utils.hideLoader();
+        document.getElementById('members-skeleton').style.display = 'none';
+        document.getElementById('members-content').style.display = 'block';
     }
 }
 

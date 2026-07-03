@@ -1,29 +1,38 @@
 <div class="members-container">
-    <div class="card mb-md flex flex-wrap justify-between align-center gap-sm">
-        <div class="flex gap-sm">
-            <input type="text" id="search-input" class="form-control" placeholder="Search members..." style="max-width: 250px;">
-            <select id="status-filter" class="form-control" style="max-width: 150px;">
-                <option value="all">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Partially Paid">Partially Paid</option>
-                <option value="Paid">Paid</option>
-            </select>
-        </div>
-        <div class="flex gap-sm">
-            <button class="btn btn-outline" id="btn-bulk-reminders">
-                <span class="icon">📱</span> Bulk Reminders
-            </button>
-            <button class="btn btn-primary" id="btn-add-member">
-                <span class="icon">➕</span> Add Member
-            </button>
+    <!-- Skeleton -->
+    <div id="members-skeleton">
+        <div class="card mb-md"><div class="skeleton skeleton-card" style="height:50px;"></div></div>
+        <div class="card p-0">
+            <div class="table-responsive">
+                <table class="table"><thead><tr><th>Name</th><th>Phone</th><th>Fund</th><th>Prev</th><th>Due</th><th>Paid</th><th>Remain</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody><tr><td colspan="9"><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div></td></tr></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div class="card p-0">
-        <div class="table-responsive">
-            <table class="table" id="members-table">
-                <thead>
-                    <tr>
+    <!-- Content (hidden initially) -->
+    <div id="members-content" style="display:none;">
+        <div class="card mb-md flex flex-wrap justify-between align-center gap-sm">
+            <div class="flex gap-sm">
+                <input type="text" id="search-input" class="form-control" placeholder="Search members..." style="max-width: 250px;">
+                <select id="status-filter" class="form-control" style="max-width: 150px;">
+                    <option value="all">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                    <option value="Paid">Paid</option>
+                </select>
+            </div>
+            <div class="flex gap-sm">
+                <button class="btn btn-outline" id="btn-bulk-reminders"><span class="icon">📱</span> Bulk Reminders</button>
+                <button class="btn btn-primary" id="btn-add-member"><span class="icon">➕</span> Add Member</button>
+            </div>
+        </div>
+
+        <div class="card p-0">
+            <div class="table-responsive">
+                <table class="table" id="members-table">
+                    <thead><tr>
                         <th data-sort="Name" class="sortable">Name <span class="sort-arrow"></span></th>
                         <th data-sort="Phone Number" class="sortable">Phone <span class="sort-arrow"></span></th>
                         <th data-sort="Monthly Fund" class="sortable">Monthly Fund <span class="sort-arrow"></span></th>
@@ -33,120 +42,42 @@
                         <th data-sort="Remaining Balance" class="sortable">Remaining <span class="sort-arrow"></span></th>
                         <th data-sort="Payment Status" class="sortable">Status <span class="sort-arrow"></span></th>
                         <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Injected by JS -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Add/Edit Member Modal -->
-<div id="member-modal" class="modal-overlay">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title" id="member-modal-title">Add Member</h3>
-            <button class="modal-close" onclick="document.getElementById('member-modal').classList.remove('active')">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="member-form">
-                <input type="hidden" id="member-id">
-                <div class="grid grid-cols-2">
-                    <div class="form-group">
-                        <label>Name</label>
-                        <input type="text" id="m-name" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Phone Number</label>
-                        <input type="text" id="m-phone" class="form-control" required>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Designation</label>
-                    <input type="text" id="m-designation" class="form-control">
-                </div>
-                <div class="grid grid-cols-2">
-                    <div class="form-group">
-                        <label>Monthly Fund (Rs.)</label>
-                        <input type="number" id="m-fund" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Previous Balance (Rs.)</label>
-                        <input type="number" id="m-prev-balance" class="form-control" value="0">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Remarks</label>
-                    <input type="text" id="m-remarks" class="form-control">
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="document.getElementById('member-modal').classList.remove('active')">Cancel</button>
-            <button class="btn btn-primary" id="btn-save-member" type="submit" form="member-form">Save Member</button>
-        </div>
-    </div>
-</div>
-
-<!-- Mark Paid Modal -->
-<div id="payment-modal" class="modal-overlay">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title">Mark Paid - <span id="p-member-name"></span></h3>
-            <button class="modal-close" onclick="document.getElementById('payment-modal').classList.remove('active')">&times;</button>
-        </div>
-        <div class="modal-body">
-            <form id="payment-form">
-                <input type="hidden" id="p-member-id">
-                <input type="hidden" id="p-total-payable">
-                
-                <div class="card bg-gray mb-md p-md">
-                    <div class="flex justify-between text-sm">
-                        <span>Total Due:</span>
-                        <span class="font-bold text-danger" id="p-display-due"></span>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2">
-                    <div class="form-group">
-                        <label>Amount Paid (Rs.)</label>
-                        <input type="number" id="p-amount" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Payment Date</label>
-                        <input type="date" id="p-date" class="form-control" required>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Remarks</label>
-                    <input type="text" id="p-remarks" class="form-control">
-                </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="document.getElementById('payment-modal').classList.remove('active')">Cancel</button>
-            <button class="btn btn-success" id="btn-save-payment" type="submit" form="payment-form" style="background-color: var(--success); color: white; border:none;">Confirm Payment</button>
-        </div>
-    </div>
-</div>
-
-<!-- Bulk Reminders Modal -->
-<div id="reminders-modal" class="modal-overlay">
-    <div class="modal" style="max-width: 600px;">
-        <div class="modal-header">
-            <h3 class="modal-title">Pending Reminders</h3>
-            <button class="modal-close" onclick="document.getElementById('reminders-modal').classList.remove('active')">&times;</button>
-        </div>
-        <div class="modal-body p-0">
-            <div id="reminders-list" class="flex flex-col">
-                <!-- Injected via JS -->
+                    </tr></thead>
+                    <tbody><!-- Injected by JS --></tbody>
+                </table>
             </div>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" id="btn-copy-all-reminders">Copy All Text</button>
-            <button class="btn btn-primary" onclick="document.getElementById('reminders-modal').classList.remove('active')">Done</button>
-        </div>
     </div>
 </div>
+
+<!-- Modals (same as before) -->
+<div id="member-modal" class="modal-overlay"><div class="modal">
+    <div class="modal-header"><h3 class="modal-title" id="member-modal-title">Add Member</h3><button class="modal-close" onclick="document.getElementById('member-modal').classList.remove('active')">&times;</button></div>
+    <div class="modal-body">
+        <form id="member-form"><input type="hidden" id="member-id">
+            <div class="grid grid-cols-2"><div class="form-group"><label>Name</label><input type="text" id="m-name" class="form-control" required></div><div class="form-group"><label>Phone Number</label><input type="text" id="m-phone" class="form-control" required></div></div>
+            <div class="form-group"><label>Designation</label><input type="text" id="m-designation" class="form-control"></div>
+            <div class="grid grid-cols-2"><div class="form-group"><label>Monthly Fund (Rs.)</label><input type="number" id="m-fund" class="form-control" required></div><div class="form-group"><label>Previous Balance (Rs.)</label><input type="number" id="m-prev-balance" class="form-control" value="0"></div></div>
+            <div class="form-group"><label>Remarks</label><input type="text" id="m-remarks" class="form-control"></div>
+        </form>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="document.getElementById('member-modal').classList.remove('active')">Cancel</button><button class="btn btn-primary" id="btn-save-member" type="submit" form="member-form">Save Member</button></div>
+</div></div>
+
+<div id="payment-modal" class="modal-overlay"><div class="modal">
+    <div class="modal-header"><h3 class="modal-title">Mark Paid - <span id="p-member-name"></span></h3><button class="modal-close" onclick="document.getElementById('payment-modal').classList.remove('active')">&times;</button></div>
+    <div class="modal-body">
+        <form id="payment-form"><input type="hidden" id="p-member-id"><input type="hidden" id="p-total-payable">
+            <div class="card bg-gray mb-md p-md"><div class="flex justify-between text-sm"><span>Total Due:</span><span class="font-bold text-danger" id="p-display-due"></span></div></div>
+            <div class="grid grid-cols-2"><div class="form-group"><label>Amount Paid (Rs.)</label><input type="number" id="p-amount" class="form-control" required></div><div class="form-group"><label>Payment Date</label><input type="date" id="p-date" class="form-control" required></div></div>
+            <div class="form-group"><label>Remarks</label><input type="text" id="p-remarks" class="form-control"></div>
+        </form>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="document.getElementById('payment-modal').classList.remove('active')">Cancel</button><button class="btn btn-success" id="btn-save-payment" type="submit" form="payment-form" style="background-color: var(--success); color: white; border:none;">Confirm Payment</button></div>
+</div></div>
+
+<div id="reminders-modal" class="modal-overlay"><div class="modal" style="max-width: 600px;">
+    <div class="modal-header"><h3 class="modal-title">Pending Reminders</h3><button class="modal-close" onclick="document.getElementById('reminders-modal').classList.remove('active')">&times;</button></div>
+    <div class="modal-body p-0"><div id="reminders-list" class="flex flex-col"></div></div>
+    <div class="modal-footer"><button class="btn btn-outline" id="btn-copy-all-reminders">Copy All Text</button><button class="btn btn-primary" onclick="document.getElementById('reminders-modal').classList.remove('active')">Done</button></div>
+</div></div>

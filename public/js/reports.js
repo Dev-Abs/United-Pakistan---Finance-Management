@@ -19,7 +19,6 @@ export async function init(app) {
 async function loadReportData() {
     if (!appInstance.state.currentMonth) return;
 
-    utils.showLoader();
     try {
         const [membersRes, expensesRes] = await Promise.all([
             api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth)),
@@ -29,12 +28,15 @@ async function loadReportData() {
         const members = membersRes.success ? membersRes.data : [];
         const expenses = expensesRes.success ? expensesRes.data : [];
 
+        document.getElementById('reports-skeleton').style.display = 'none';
+        document.getElementById('reports-content').style.display = 'block';
+
         updateStats(members, expenses);
         renderChart(members);
     } catch (error) {
         utils.showToast('Failed to load report data', 'error');
-    } finally {
-        utils.hideLoader();
+        document.getElementById('reports-skeleton').style.display = 'none';
+        document.getElementById('reports-content').style.display = 'block';
     }
 }
 

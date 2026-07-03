@@ -77,13 +77,20 @@ async function downloadExport(fmt) {
 
 async function loadExpenses() {
     if (!appInstance.state.currentMonth) return;
-    utils.showLoader();
     try {
         var res = await api.get('/api/expenses?month=' + encodeURIComponent(appInstance.state.currentMonth));
-        if (res.success) { allExpenses = res.data; updateStats(); renderTable(); }
+        if (res.success) {
+            allExpenses = res.data;
+            document.getElementById('expenses-skeleton').style.display = 'none';
+            document.getElementById('expenses-content').style.display = 'block';
+            updateStats();
+            renderTable();
+        }
     } catch (error) {
         utils.showToast('Failed to load expenses', 'error');
-    } finally { utils.hideLoader(); }
+        document.getElementById('expenses-skeleton').style.display = 'none';
+        document.getElementById('expenses-content').style.display = 'block';
+    }
 }
 
 function updateStats() {
