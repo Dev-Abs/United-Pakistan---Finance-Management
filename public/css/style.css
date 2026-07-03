@@ -171,6 +171,7 @@ body {
 .text-muted { color: var(--text-muted); }
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
 .text-sm { font-size: 12px; }
 .text-md { font-size: 14px; }
 .text-2xl { font-size: 24px; }

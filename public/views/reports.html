@@ -1,8 +1,14 @@
 <div class="reports-container">
-    <div class="grid grid-cols-3 mb-md">
+    <!-- Section 1: Collection Overview -->
+    <h3 class="font-bold mb-sm">Collection Overview</h3>
+    <div class="grid grid-cols-5 mb-md">
         <div class="card stat-card text-center">
             <h3 class="text-muted text-sm uppercase">Total Collected</h3>
             <div class="text-2xl font-bold mt-sm text-success" id="r-collected">Rs. 0</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Total Due</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-total-due">Rs. 0</div>
         </div>
         <div class="card stat-card text-center">
             <h3 class="text-muted text-sm uppercase">Outstanding</h3>
@@ -12,19 +18,99 @@
             <h3 class="text-muted text-sm uppercase">Collection Rate</h3>
             <div class="text-2xl font-bold mt-sm" id="r-rate">0%</div>
         </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Collection Target</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-target-pct">0%</div>
+            <div class="text-sm text-muted mt-sm" id="r-target-text">0 of 0 members</div>
+        </div>
     </div>
 
+    <!-- Section 2: Fund Breakdown -->
+    <h3 class="font-bold mb-sm">Fund Breakdown</h3>
+    <div class="grid grid-cols-4 mb-md">
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Monthly Fund Total</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-fund-total">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm">Base fund contributions</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Previous Balances</h3>
+            <div class="text-2xl font-bold mt-sm text-warning" id="r-prev-balances">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm">Carried forward</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Collected from Fund</h3>
+            <div class="text-2xl font-bold mt-sm text-success" id="r-fund-collected">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm">From monthly fund portion</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Fund Remaining</h3>
+            <div class="text-2xl font-bold mt-sm text-danger" id="r-fund-remaining">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm">Unpaid balance</div>
+        </div>
+    </div>
+
+    <!-- Section 3: Expense Overview -->
+    <h3 class="font-bold mb-sm">Expense Overview</h3>
+    <div class="grid grid-cols-4 mb-md">
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Total Expenses</h3>
+            <div class="text-2xl font-bold mt-sm text-danger" id="r-total-expense">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm" id="r-expense-count">0 transactions</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Net Position</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-net">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm" id="r-net-label">After expenses</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Expense Ratio</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-expense-ratio">0%</div>
+            <div class="text-sm text-muted mt-sm">Of total collected</div>
+        </div>
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Avg Expense</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-avg-expense">Rs. 0</div>
+            <div class="text-sm text-muted mt-sm">Per transaction</div>
+        </div>
+    </div>
+
+    <!-- Section 4: Member Status Breakdown -->
+    <h3 class="font-bold mb-sm">Member Status</h3>
+    <div class="grid grid-cols-4 mb-md">
+        <div class="card stat-card text-center">
+            <h3 class="text-muted text-sm uppercase">Total Members</h3>
+            <div class="text-2xl font-bold mt-sm" id="r-total-members">0</div>
+        </div>
+        <div class="card stat-card text-center" style="border-left: 4px solid var(--success);">
+            <h3 class="text-muted text-sm uppercase">Fully Paid</h3>
+            <div class="text-2xl font-bold mt-sm text-success" id="r-paid-count">0</div>
+            <div class="text-sm text-muted mt-sm" id="r-paid-amount">Rs. 0 collected</div>
+        </div>
+        <div class="card stat-card text-center" style="border-left: 4px solid var(--warning);">
+            <h3 class="text-muted text-sm uppercase">Partially Paid</h3>
+            <div class="text-2xl font-bold mt-sm text-warning" id="r-partial-count">0</div>
+            <div class="text-sm text-muted mt-sm" id="r-partial-amount">Rs. 0 collected</div>
+        </div>
+        <div class="card stat-card text-center" style="border-left: 4px solid var(--danger);">
+            <h3 class="text-muted text-sm uppercase">Pending</h3>
+            <div class="text-2xl font-bold mt-sm text-danger" id="r-pending-count">0</div>
+            <div class="text-sm text-muted mt-sm" id="r-pending-amount">Rs. 0 due</div>
+        </div>
+    </div>
+
+    <!-- Section 5: Charts and Export -->
     <div class="grid grid-cols-2">
         <div class="card">
             <h3 class="font-bold mb-md">Payment Status Distribution</h3>
-            <canvas id="statusChart" width="400" height="300"></canvas>
+            <canvas id="statusChart" width="400" height="280"></canvas>
         </div>
         <div class="card">
             <div class="flex justify-between align-center mb-md">
                 <h3 class="font-bold">Export Data</h3>
             </div>
             <p class="text-muted text-sm mb-md">Download the current month's data for offline record keeping or sharing.</p>
-            
+
             <div class="grid gap-sm">
                 <button class="btn btn-outline flex align-center justify-between" id="btn-export-csv">
                     <span>Export as CSV</span>
