@@ -51,7 +51,7 @@ function renderTable() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
     const statusFilter = document.getElementById('status-filter').value;
 
-    let filtered = allMembers.filter(function(m) {
+    let filtered = allMembers.filter(function (m) {
         const matchesSearch = (m['Name'] || '').toLowerCase().includes(searchTerm) ||
             (m['Phone Number'] || '').includes(searchTerm);
         const matchesStatus = statusFilter === 'all' || m['Payment Status'] === statusFilter;
@@ -68,7 +68,7 @@ function renderTable() {
     const sortDir = document.getElementById('members-table').dataset.sortDir || 'asc';
 
     if (sortField) {
-        filtered.sort(function(a, b) {
+        filtered.sort(function (a, b) {
             let va = a[sortField] !== undefined ? a[sortField] : '';
             let vb = b[sortField] !== undefined ? b[sortField] : '';
             if (typeof va === 'number') return sortDir === 'asc' ? va - vb : vb - va;
@@ -78,7 +78,7 @@ function renderTable() {
         });
     }
 
-    filtered.forEach(function(m) {
+    filtered.forEach(function (m) {
         const tr = document.createElement('tr');
         let statusBadge = '<span class="badge badge-default">' + (m['Payment Status'] || '') + '</span>';
         if (m['Payment Status'] === 'Paid') statusBadge = '<span class="badge badge-success">Paid</span>';
@@ -116,22 +116,22 @@ function setupEventListeners() {
     document.getElementById('search-input').addEventListener('input', renderTable);
     document.getElementById('status-filter').addEventListener('change', renderTable);
 
-    document.querySelectorAll('#members-table thead th.sortable').forEach(function(th) {
-        th.addEventListener('click', function() {
+    document.querySelectorAll('#members-table thead th.sortable').forEach(function (th) {
+        th.addEventListener('click', function () {
             const field = this.dataset.sort;
             const table = document.getElementById('members-table');
             const currentField = table.dataset.sortField || '';
             const currentDir = table.dataset.sortDir || 'asc';
             table.dataset.sortField = field;
             table.dataset.sortDir = (field === currentField && currentDir === 'asc') ? 'desc' : 'asc';
-            document.querySelectorAll('#members-table thead th.sortable .sort-arrow').forEach(function(a) { a.textContent = ''; });
+            document.querySelectorAll('#members-table thead th.sortable .sort-arrow').forEach(function (a) { a.textContent = ''; });
             const arrow = this.querySelector('.sort-arrow');
             if (arrow) arrow.textContent = table.dataset.sortDir === 'asc' ? ' ▲' : ' ▼';
             renderTable();
         });
     });
 
-    document.getElementById('btn-add-member').addEventListener('click', function() {
+    document.getElementById('btn-add-member').addEventListener('click', function () {
         document.getElementById('member-form').reset();
         document.getElementById('member-id').value = '';
         document.getElementById('member-modal-title').textContent = 'Add Member';
@@ -139,7 +139,7 @@ function setupEventListeners() {
         document.getElementById('member-modal').classList.add('active');
     });
 
-    document.getElementById('member-form').addEventListener('submit', async function(e) {
+    document.getElementById('member-form').addEventListener('submit', async function (e) {
         e.preventDefault();
         const id = document.getElementById('member-id').value;
         const data = {
@@ -177,7 +177,7 @@ function setupEventListeners() {
         }
     });
 
-    document.getElementById('payment-form').addEventListener('submit', async function(e) {
+    document.getElementById('payment-form').addEventListener('submit', async function (e) {
         e.preventDefault();
         const pid = document.getElementById('p-member-id').value;
         const pdata = {
@@ -208,8 +208,8 @@ function setupEventListeners() {
 }
 
 window.membersJS = {
-    openEditModal: function(id) {
-        const m = allMembers.find(function(x) { return x._rowId === id; });
+    openEditModal: function (id) {
+        const m = allMembers.find(function (x) { return x._rowId === id; });
         if (!m) return;
         document.getElementById('member-id').value = m._rowId;
         document.getElementById('m-name').value = m['Name'];
@@ -222,7 +222,7 @@ window.membersJS = {
         document.getElementById('member-modal').classList.add('active');
     },
 
-    deleteMember: async function(id) {
+    deleteMember: async function (id) {
         if (!confirm('Are you sure you want to delete this member?')) return;
         try {
             await api.delete('/api/members/' + id + '?month=' + encodeURIComponent(appInstance.state.currentMonth));
@@ -233,8 +233,8 @@ window.membersJS = {
         }
     },
 
-    openPaymentModal: function(id) {
-        const m = allMembers.find(function(x) { return x._rowId === id; });
+    openPaymentModal: function (id) {
+        const m = allMembers.find(function (x) { return x._rowId === id; });
         if (!m) return;
         document.getElementById('p-member-id').value = m._rowId;
         document.getElementById('p-member-name').textContent = m['Name'];
@@ -248,24 +248,24 @@ window.membersJS = {
         document.getElementById('payment-modal').classList.add('active');
     },
 
-    sendWhatsApp: function(id) {
-        const m = allMembers.find(function(x) { return x._rowId === id; });
+    sendWhatsApp: function (id) {
+        const m = allMembers.find(function (x) { return x._rowId === id; });
         if (!m) return;
         const msg = generateReminderText(m);
         const link = utils.generateWhatsAppLink(m['Phone Number'], msg);
         window.open(link, '_blank');
     },
 
-    copyText: function(btn, text) {
-        navigator.clipboard.writeText(text).then(function() {
+    copyText: function (btn, text) {
+        navigator.clipboard.writeText(text).then(function () {
             const original = btn.textContent;
             btn.textContent = 'Copied!';
-            setTimeout(function() { btn.textContent = original; }, 2000);
+            setTimeout(function () { btn.textContent = original; }, 2000);
         });
     },
 
-    showHistory: async function(id) {
-        const m = allMembers.find(function(x) { return x._rowId === id; });
+    showHistory: async function (id) {
+        const m = allMembers.find(function (x) { return x._rowId === id; });
         if (!m) return;
         utils.showLoader();
         try {
@@ -280,7 +280,7 @@ window.membersJS = {
                         '<th>Month</th><th>Monthly Fund</th><th>Prev Bal</th><th>Total Payable</th>' +
                         '<th>Amount Paid</th><th>Remaining</th><th>Status</th><th>Payment Date</th></tr></thead><tbody>';
                     var totalPaid = 0;
-                    history.forEach(function(h) {
+                    history.forEach(function (h) {
                         totalPaid += Number(h['Amount Paid']) || 0;
                         var sBadge = '<span class="badge badge-default">' + (h['Payment Status'] || '') + '</span>';
                         if (h['Payment Status'] === 'Paid') sBadge = '<span class="badge badge-success">Paid</span>';
@@ -328,7 +328,7 @@ function showHistoryModal(name, html) {
 
 function generateReminderText(m) {
     let msg = '*United Pakistan - ' + (appSettings['SECTOR_NAME'] || '[Sector Name]') + '*\n\n';
-    msg += 'Assalamu Alaikum ' + (m['Name'] || '') + '!\n\n';
+    msg += 'Assalamu Alaikum ' + (m['Name'] || '') + ' sb!\n\n';
     msg += 'This is a gentle reminder regarding your monthly fund.\n\n';
     msg += 'Fund Details:\n';
     msg += '- Monthly Fund: ' + utils.formatCurrency(m['Monthly Fund']) + '\n';
@@ -346,7 +346,7 @@ function generateReminderText(m) {
 }
 
 function generateBulkReminders() {
-    const pending = allMembers.filter(function(m) {
+    const pending = allMembers.filter(function (m) {
         return m['Payment Status'] === 'Pending' || m['Payment Status'] === 'Partially Paid';
     });
     const list = document.getElementById('reminders-list');
@@ -354,7 +354,7 @@ function generateBulkReminders() {
     if (pending.length === 0) {
         list.innerHTML = '<div class="p-md text-center text-muted">Everyone is fully paid!</div>';
     } else {
-        pending.forEach(function(m) {
+        pending.forEach(function (m) {
             const msg = generateReminderText(m);
             const item = document.createElement('div');
             item.className = 'p-md border-bottom';
@@ -365,7 +365,7 @@ function generateBulkReminders() {
                 '<a href="' + utils.generateWhatsAppLink(m['Phone Number'], msg) + '" target="_blank" class="btn btn-sm btn-primary">WhatsApp</a>' +
                 '</div></div>' +
                 '<pre class="text-sm bg-gray p-sm" style="white-space: pre-wrap; font-family: inherit; border-radius: 4px;">' + msg + '</pre>';
-            item.querySelector('.copy-btn').addEventListener('click', function() {
+            item.querySelector('.copy-btn').addEventListener('click', function () {
                 window.membersJS.copyText(this, msg);
             });
             list.appendChild(item);
@@ -375,11 +375,11 @@ function generateBulkReminders() {
 }
 
 function copyAllReminders() {
-    const pending = allMembers.filter(function(m) {
+    const pending = allMembers.filter(function (m) {
         return m['Payment Status'] === 'Pending' || m['Payment Status'] === 'Partially Paid';
     });
     let allText = '';
-    pending.forEach(function(m) {
+    pending.forEach(function (m) {
         allText += '--- TO: ' + (m['Name'] || '') + ' (' + (m['Phone Number'] || '') + ') ---\n';
         allText += generateReminderText(m) + '\n\n';
     });
@@ -388,8 +388,8 @@ function copyAllReminders() {
         return;
     }
     const btn = document.getElementById('btn-copy-all-reminders');
-    navigator.clipboard.writeText(allText).then(function() {
+    navigator.clipboard.writeText(allText).then(function () {
         btn.textContent = 'Copied All!';
-        setTimeout(function() { btn.textContent = 'Copy All Text'; }, 2000);
+        setTimeout(function () { btn.textContent = 'Copy All Text'; }, 2000);
     });
 }
