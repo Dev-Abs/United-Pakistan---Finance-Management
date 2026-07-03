@@ -1,58 +1,50 @@
-const CACHE_NAME = 'up-finance-v1';
+const CACHE_NAME = 'up-finance-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/login.html',
   '/css/style.css',
   '/css/components.css',
   '/css/responsive.css',
-  '/js/api.js',
-  '/js/app.js',
-  '/js/utils.js',
-  '/js/dashboard.js',
-  '/js/members.js',
-  '/js/expenses.js',
-  '/js/reports.js',
-  '/js/settings.js',
-  '/js/export.js',
-  '/views/dashboard.html',
-  '/views/members.html',
-  '/views/expenses.html',
-  '/views/reports.html',
-  '/views/settings.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/icon.svg'
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
-});
-
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      return cached || fetch(event.request).then(response => {
-        // Cache API responses for offline use
-        if (event.request.url.includes('/api/')) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      });
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
 });
 
 self.addEventListener('activate', event => {
+  clients.claim();
   event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      );
-    })
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+});
+
+self.addEventListener('fetch', event => {
+  const url = event.request.url;
+
+  // Never cache API calls
+  if (url.includes('/api/')) {
+    return;
+  }
+
+  // Static assets: cache-first (fast, rarely change)
+  if (STATIC_ASSETS.some(a => url.endsWith(a))) {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  // Everything else (HTML views, JS files): network-first
+  event.respondWith(
+    fetch(event.request).then(response => {
+      const clone = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
