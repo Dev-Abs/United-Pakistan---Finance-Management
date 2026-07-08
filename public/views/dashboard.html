@@ -1,44 +1,80 @@
 <div class="dashboard-container">
-    <!-- Stats Row -->
-    <div class="grid grid-cols-5 mb-md" id="dash-stats-grid">
-        <div class="card stat-card">
+    <!-- Finance Summary -->
+    <div class="finance-summary mb-md" id="dash-stats-grid">
+        <div class="card stat-card stat-card-primary">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Total Collected</h3>
-                <div class="text-2xl font-bold mt-sm text-success" id="stat-collected">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm"><span id="stat-collected-pct">0</span>% of total due</div>
+                <h3 class="text-muted text-sm uppercase">Monthly Fund Total</h3>
+                <div class="text-2xl font-bold mt-sm" id="stat-monthly-total">Rs. 0</div>
+                <div class="text-sm text-muted mt-sm"><span id="stat-total-members">0</span> members this month</div>
             </div>
         </div>
         <div class="card stat-card">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Total Expense</h3>
+                <h3 class="text-muted text-sm uppercase">Due Monthly Fund</h3>
+                <div class="text-2xl font-bold mt-sm text-danger" id="stat-monthly-due">Rs. 0</div>
+                <div class="text-sm text-muted mt-sm"><span id="stat-monthly-collected-pct">0</span>% current fund collected</div>
+            </div>
+        </div>
+        <div class="card stat-card">
+            <div class="skeleton skeleton-card"></div>
+            <div class="dash-stat-loaded" style="display:none;">
+                <h3 class="text-muted text-sm uppercase">Due Previous Balance</h3>
+                <div class="text-2xl font-bold mt-sm text-warning" id="stat-prev-due">Rs. 0</div>
+                <div class="text-sm text-muted mt-sm">From carried balances</div>
+            </div>
+        </div>
+        <div class="card stat-card">
+            <div class="skeleton skeleton-card"></div>
+            <div class="dash-stat-loaded" style="display:none;">
+                <h3 class="text-muted text-sm uppercase">Expenses Made</h3>
                 <div class="text-2xl font-bold mt-sm text-danger" id="stat-expense">Rs. 0</div>
                 <div class="text-sm text-muted mt-sm"><span id="stat-expense-count">0</span> transactions</div>
             </div>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card stat-card-success">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Net Amount</h3>
+                <h3 class="text-muted text-sm uppercase">Monthly Fund Collected</h3>
+                <div class="text-2xl font-bold mt-sm text-success" id="stat-monthly-collected">Rs. 0</div>
+                <div class="text-sm text-muted mt-sm">Before expenses</div>
+            </div>
+        </div>
+        <div class="card stat-card stat-card-balance">
+            <div class="skeleton skeleton-card"></div>
+            <div class="dash-stat-loaded" style="display:none;">
+                <h3 class="text-muted text-sm uppercase">Remaining After Expense</h3>
                 <div class="text-2xl font-bold mt-sm" id="stat-net">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm" id="stat-net-label">After expenses</div>
+                <div class="text-sm text-muted mt-sm" id="stat-net-label">Monthly fund minus expenses</div>
             </div>
         </div>
-        <div class="card stat-card">
-            <div class="skeleton skeleton-card"></div>
-            <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Paid Members</h3>
-                <div class="text-2xl font-bold mt-sm text-success" id="stat-paid-members">0</div>
-                <div class="text-sm text-muted mt-sm">out of <span id="stat-total-members">0</span> total</div>
+    </div>
+
+    <div class="card finance-detail-card mb-md">
+        <div class="finance-detail-header">
+            <div>
+                <h3 class="font-bold">Collection Details</h3>
+                <p class="text-sm text-muted">Monthly fund and previous balances are tracked separately for clearer decisions.</p>
             </div>
+            <div class="badge badge-default"><span id="stat-paid-members">0</span> paid / <span id="stat-pending-members">0</span> pending</div>
         </div>
-        <div class="card stat-card">
-            <div class="skeleton skeleton-card"></div>
-            <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Pending</h3>
-                <div class="text-2xl font-bold mt-sm text-danger" id="stat-pending-members">0</div>
-                <div class="text-sm text-muted mt-sm">Needs reminder</div>
+        <div class="finance-detail-grid">
+            <div>
+                <span class="text-sm text-muted">Total collected</span>
+                <strong id="stat-collected">Rs. 0</strong>
+            </div>
+            <div>
+                <span class="text-sm text-muted">Previous balance total</span>
+                <strong id="stat-prev-total">Rs. 0</strong>
+            </div>
+            <div>
+                <span class="text-sm text-muted">Previous balance collected</span>
+                <strong id="stat-prev-collected">Rs. 0</strong>
+            </div>
+            <div>
+                <span class="text-sm text-muted">Overall outstanding</span>
+                <strong id="stat-outstanding">Rs. 0</strong>
             </div>
         </div>
     </div>

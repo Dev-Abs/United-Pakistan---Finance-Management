@@ -59,27 +59,49 @@ async function loadDashboardData() {
 function updateStats(members, expenses) {
     let totalCollected = 0;
     let totalOutstanding = 0;
-    let totalDue = 0;
+    let totalMonthlyFund = 0;
+    let totalPreviousBalance = 0;
+    let monthlyFundCollected = 0;
+    let previousBalanceCollected = 0;
+    let dueMonthlyFund = 0;
+    let duePreviousBalance = 0;
     let paidCount = 0;
     let pendingCount = 0;
 
     members.forEach(function(m) {
         var paid = Number(m['Amount Paid']) || 0;
         var remaining = Number(m['Remaining Balance']) || 0;
-        var due = Number(m['Total Payable']) || 0;
+        var monthlyFund = Number(m['Monthly Fund']) || 0;
+        var previousBalance = Number(m['Previous Balance']) || 0;
+        var memberFundCollected = Math.min(paid, monthlyFund);
+        var memberPrevCollected = Math.min(Math.max(paid - monthlyFund, 0), previousBalance);
+
         totalCollected += paid;
         totalOutstanding += remaining;
-        totalDue += due;
+        totalMonthlyFund += monthlyFund;
+        totalPreviousBalance += previousBalance;
+        monthlyFundCollected += memberFundCollected;
+        previousBalanceCollected += memberPrevCollected;
+        dueMonthlyFund += Math.max(monthlyFund - memberFundCollected, 0);
+        duePreviousBalance += Math.max(previousBalance - memberPrevCollected, 0);
+
         if (m['Payment Status'] === 'Paid') paidCount++;
         if (m['Payment Status'] === 'Pending') pendingCount++;
     });
 
     const totalExpense = expenses.reduce(function(sum, e) { return sum + (Number(e['Amount']) || 0); }, 0);
-    const netAmount = totalCollected - totalExpense;
-    const pct = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
+    const netAmount = monthlyFundCollected - totalExpense;
+    const pct = totalMonthlyFund > 0 ? Math.round((monthlyFundCollected / totalMonthlyFund) * 100) : 0;
 
+    document.getElementById('stat-monthly-total').textContent = utils.formatCurrency(totalMonthlyFund);
+    document.getElementById('stat-monthly-due').textContent = utils.formatCurrency(dueMonthlyFund);
+    document.getElementById('stat-prev-due').textContent = utils.formatCurrency(duePreviousBalance);
+    document.getElementById('stat-monthly-collected').textContent = utils.formatCurrency(monthlyFundCollected);
+    document.getElementById('stat-monthly-collected-pct').textContent = pct;
     document.getElementById('stat-collected').textContent = utils.formatCurrency(totalCollected);
-    document.getElementById('stat-collected-pct').textContent = pct;
+    document.getElementById('stat-prev-total').textContent = utils.formatCurrency(totalPreviousBalance);
+    document.getElementById('stat-prev-collected').textContent = utils.formatCurrency(previousBalanceCollected);
+    document.getElementById('stat-outstanding').textContent = utils.formatCurrency(totalOutstanding);
     document.getElementById('stat-expense').textContent = utils.formatCurrency(totalExpense);
     document.getElementById('stat-expense-count').textContent = expenses.length;
 
@@ -88,10 +110,10 @@ function updateStats(members, expenses) {
     netEl.textContent = utils.formatCurrency(netAmount);
     if (netAmount < 0) {
         netEl.className = 'text-2xl font-bold mt-sm text-danger';
-        netLabel.textContent = 'Loss this month';
+        netLabel.textContent = 'Expenses exceed monthly fund collected';
     } else {
         netEl.className = 'text-2xl font-bold mt-sm text-success';
-        netLabel.textContent = 'Surplus this month';
+        netLabel.textContent = 'Monthly fund left after expenses';
     }
 
     document.getElementById('stat-paid-members').textContent = paidCount;
@@ -155,13 +177,15 @@ function renderCharts(members, expenses) {
     if (typeof Chart === 'undefined') return;
     destroyCharts();
 
-    var totalCollected = members.reduce(function(s, m) { return s + (Number(m['Amount Paid']) || 0); }, 0);
+    var monthlyFundCollected = members.reduce(function(s, m) {
+        return s + Math.min(Number(m['Amount Paid']) || 0, Number(m['Monthly Fund']) || 0);
+    }, 0);
     var totalExpense = expenses.reduce(function(s, e) { return s + (Number(e['Amount']) || 0); }, 0);
 
     var barCtx = document.getElementById('collectedVsExpenseChart');
     var barNoData = document.getElementById('collected-vs-expense-no-data');
 
-    if (totalCollected === 0 && totalExpense === 0) {
+    if (monthlyFundCollected === 0 && totalExpense === 0) {
         barCtx.style.display = 'none';
         barNoData.classList.remove('hidden');
     } else {
@@ -169,7 +193,7 @@ function renderCharts(members, expenses) {
         barNoData.classList.add('hidden');
         chartInstances.collectedVsExpense = new Chart(barCtx, {
             type: 'bar',
-            data: { labels: ['Collected', 'Expenses'], datasets: [{ label: 'Amount (Rs.)', data: [totalCollected, totalExpense], backgroundColor: ['#10b981', '#ef4444'], borderRadius: 6, maxBarThickness: 60 }] },
+            data: { labels: ['Monthly Fund Collected', 'Expenses'], datasets: [{ label: 'Amount (Rs.)', data: [monthlyFundCollected, totalExpense], backgroundColor: ['#10b981', '#ef4444'], borderRadius: 6, maxBarThickness: 60 }] },
             options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return 'Rs. ' + (v/1000).toFixed(0) + 'k'; } } } } }
         });
     }

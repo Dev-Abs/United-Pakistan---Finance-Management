@@ -7,6 +7,68 @@
     border: 1px solid var(--border);
 }
 
+.finance-summary {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.stat-card {
+    min-height: 128px;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card h3 {
+    letter-spacing: 0.04em;
+}
+
+.stat-card-primary {
+    border-left: 4px solid var(--primary);
+}
+
+.stat-card-success {
+    border-left: 4px solid var(--success);
+}
+
+.stat-card-balance {
+    border-left: 4px solid var(--warning);
+}
+
+.finance-detail-card {
+    padding: 0;
+}
+
+.finance-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.finance-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.finance-detail-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 20px;
+    border-right: 1px solid var(--border);
+}
+
+.finance-detail-grid > div:last-child {
+    border-right: 0;
+}
+
+.finance-detail-grid strong {
+    font-size: 18px;
+}
+
 .login-card {
     width: 100%;
     max-width: 400px;

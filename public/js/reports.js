@@ -68,10 +68,18 @@ function updateStats(members, expenses) {
     });
 
     const totalExpense = expenses.reduce(function(s, e) { return s + (Number(e['Amount']) || 0); }, 0);
-    const netAmount = totalCollected - totalExpense;
     const collectionPct = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
-    const expenseRatio = totalCollected > 0 ? Math.round((totalExpense / totalCollected) * 100) : 0;
     const targetPct = members.length > 0 ? Math.round((paidCount / members.length) * 100) : 0;
+
+    let fundCollected = 0;
+    let fundRemaining = 0;
+    members.forEach(function(m) {
+        const paid = Number(m['Amount Paid']) || 0;
+        const fund = Number(m['Monthly Fund']) || 0;
+        const memberFundCollected = Math.min(paid, fund);
+        fundCollected += memberFundCollected;
+        fundRemaining += Math.max(fund - memberFundCollected, 0);
+    });
 
     // Collection overview
     document.getElementById('r-collected').textContent = utils.formatCurrency(totalCollected);
@@ -81,18 +89,13 @@ function updateStats(members, expenses) {
     document.getElementById('r-target-pct').textContent = targetPct + '%';
     document.getElementById('r-target-text').textContent = paidCount + ' of ' + members.length + ' members';
 
-    // Fund breakdown — estimate collected from monthly fund portion vs previous balances
-    // Assumption: payments first cover previous balance, then monthly fund
-    const fundCollected = Math.min(totalCollected, totalMonthlyFund);
-    const fundRemaining = totalMonthlyFund - fundCollected;
-    const prevCollected = totalCollected - fundCollected;
-
     document.getElementById('r-fund-total').textContent = utils.formatCurrency(totalMonthlyFund);
     document.getElementById('r-prev-balances').textContent = utils.formatCurrency(totalPrevBal);
-    document.getElementById('r-fund-collected').textContent = utils.formatCurrency(totalCollected);
+    document.getElementById('r-fund-collected').textContent = utils.formatCurrency(fundCollected);
     document.getElementById('r-fund-remaining').textContent = utils.formatCurrency(fundRemaining);
 
     // Expense overview
+    const expenseRatio = fundCollected > 0 ? Math.round((totalExpense / fundCollected) * 100) : 0;
     document.getElementById('r-total-expense').textContent = utils.formatCurrency(totalExpense);
     document.getElementById('r-expense-count').textContent = expenses.length + ' transactions';
     if (expenses.length === 0) {
@@ -101,13 +104,14 @@ function updateStats(members, expenses) {
 
     var netEl = document.getElementById('r-net');
     var netLabel = document.getElementById('r-net-label');
-    netEl.textContent = utils.formatCurrency(netAmount);
-    if (netAmount >= 0) {
+    const fundAfterExpense = fundCollected - totalExpense;
+    netEl.textContent = utils.formatCurrency(fundAfterExpense);
+    if (fundAfterExpense >= 0) {
         netEl.className = 'text-2xl font-bold mt-sm text-success';
-        netLabel.textContent = 'Surplus after expenses';
+        netLabel.textContent = 'Monthly fund left after expenses';
     } else {
         netEl.className = 'text-2xl font-bold mt-sm text-danger';
-        netLabel.textContent = 'Deficit this month';
+        netLabel.textContent = 'Expenses exceed monthly fund collected';
     }
 
     document.getElementById('r-expense-ratio').textContent = expenseRatio + '%';
