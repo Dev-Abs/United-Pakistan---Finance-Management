@@ -88,10 +88,10 @@ function renderTable() {
         let actionsHtml = '<span class="text-muted text-sm">Read only</span>';
         if (!isReadOnly) {
             actionsHtml = '<div class="flex gap-sm">' +
-                '<button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(' + m._rowId + ')">💰</button>' +
-                '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')">💬</button>' +
-                '<button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(' + m._rowId + ')">✏️</button>' +
-                '<button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(' + m._rowId + ')">🗑️</button>' +
+                '<button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(' + m._rowId + ')">Rs</button>' +
+                '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')">WA</button>' +
+                '<button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(' + m._rowId + ')">Ed</button>' +
+                '<button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(' + m._rowId + ')">Del</button>' +
                 '</div>';
         }
 

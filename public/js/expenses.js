@@ -138,7 +138,7 @@ function renderTable() {
     filtered.forEach(function(exp) {
         var tr = document.createElement('tr');
         var act = '<span class="text-muted text-sm">-</span>';
-        if (!ro) act = '<div class="flex gap-sm"><button class="btn-icon" onclick="window.expensesJS.openEditModal(' + exp._rowId + ')">✏️</button><button class="btn-icon" onclick="window.expensesJS.deleteExpense(' + exp._rowId + ')">🗑️</button></div>';
+        if (!ro) act = '<div class="flex gap-sm"><button class="btn-icon" title="Edit" onclick="window.expensesJS.openEditModal(' + exp._rowId + ')">Ed</button><button class="btn-icon text-danger" title="Delete" onclick="window.expensesJS.deleteExpense(' + exp._rowId + ')">Del</button></div>';
         tr.innerHTML = '<td class="text-sm">' + utils.formatDate(exp.Date) + '</td>' +
             '<td>' + (exp.Description || '-') + '</td>' +
             '<td class="font-bold text-danger">' + utils.formatCurrency(exp.Amount) + '</td>' +
