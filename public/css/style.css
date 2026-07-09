@@ -10,7 +10,7 @@
     --text-main: #0f172a;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    
+
     /* Status Colors */
     --success: #059669;
     --success-bg: #d1fae5;
@@ -18,7 +18,7 @@
     --warning-bg: #fef3c7;
     --danger: #dc2626;
     --danger-bg: #fee2e2;
-    
+
     /* Variables */
     --sidebar-width: 272px;
     --header-height: 72px;
@@ -171,7 +171,8 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-width: 0; /* Important for truncating text in flex children */
+    min-width: 0;
+    /* Important for truncating text in flex children */
 }
 
 .top-header {
@@ -233,10 +234,12 @@ body {
     .install-btn .install-text {
         display: none;
     }
+
     .install-btn {
         font-size: 16px;
         padding: 4px 8px;
         min-width: auto;
+        margin-left: 4px;
     }
 }
 
@@ -247,34 +250,119 @@ body {
 }
 
 /* Utilities */
-.hidden { display: none !important; }
-.flex-center { display: flex; align-items: center; justify-content: center; }
-.full-height { min-height: 100vh; }
-.text-center { text-align: center; }
-.text-right { text-align: right; }
-.text-muted { color: var(--text-muted); }
-.text-danger { color: var(--danger); }
-.text-success { color: var(--success); }
-.text-warning { color: var(--warning); }
-.text-sm { font-size: 12px; }
-.text-md { font-size: 14px; }
-.text-2xl { font-size: 24px; }
-.font-bold { font-weight: 700; }
-.font-semibold { font-weight: 600; }
-.uppercase { text-transform: uppercase; }
-.text-left { text-align: left; }
-.w-full { width: 100%; }
-.mt-sm { margin-top: 12px; }
-.mt-md { margin-top: 24px; }
-.mb-sm { margin-bottom: 12px; }
-.mb-md { margin-bottom: 24px; }
-.p-sm { padding: 12px; }
-.p-md { padding: 20px; }
-.p-0 { padding: 0; }
-.border-bottom { border-bottom: 1px solid var(--border); }
-.border-top { border-top: 1px solid var(--border); }
-.flex-col { flex-direction: column; }
-.max-w-3xl { max-width: 860px; }
+.hidden {
+    display: none !important;
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.full-height {
+    min-height: 100vh;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
+
+.text-danger {
+    color: var(--danger);
+}
+
+.text-success {
+    color: var(--success);
+}
+
+.text-warning {
+    color: var(--warning);
+}
+
+.text-sm {
+    font-size: 12px;
+}
+
+.text-md {
+    font-size: 14px;
+}
+
+.text-2xl {
+    font-size: 24px;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+.uppercase {
+    text-transform: uppercase;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.mt-sm {
+    margin-top: 12px;
+}
+
+.mt-md {
+    margin-top: 24px;
+}
+
+.mb-sm {
+    margin-bottom: 12px;
+}
+
+.mb-md {
+    margin-bottom: 24px;
+}
+
+.p-sm {
+    padding: 12px;
+}
+
+.p-md {
+    padding: 20px;
+}
+
+.p-0 {
+    padding: 0;
+}
+
+.border-bottom {
+    border-bottom: 1px solid var(--border);
+}
+
+.border-top {
+    border-top: 1px solid var(--border);
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.max-w-3xl {
+    max-width: 860px;
+}
 
 /* Global Loader — hidden, no longer used */
 .global-loader {
@@ -283,8 +371,13 @@ body {
 
 /* Skeleton placeholders */
 @keyframes shimmer {
-    0% { background-position: -200px 0; }
-    100% { background-position: calc(200px + 100%) 0; }
+    0% {
+        background-position: -200px 0;
+    }
+
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
 }
 
 .skeleton {
