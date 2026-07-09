@@ -1,4 +1,4 @@
-const CACHE_NAME = 'up-finance-v2';
+const CACHE_NAME = 'up-finance-v3';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/css/components.css',
@@ -28,6 +28,19 @@ self.addEventListener('fetch', event => {
 
   // Never cache API calls
   if (url.includes('/api/')) {
+    return;
+  }
+
+  // Styles should update immediately after deployment. Old mobile layouts were
+  // being kept alive by cache-first CSS responses.
+  if (url.includes('/css/')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
     return;
   }
 

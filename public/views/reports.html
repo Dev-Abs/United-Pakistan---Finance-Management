@@ -65,9 +65,10 @@
 
         <div class="grid grid-cols-2">
             <div class="card"><h3 class="font-bold mb-md">Payment Status Distribution</h3><canvas id="statusChart" width="400" height="280"></canvas></div>
-            <div class="card"><div class="flex justify-between align-center mb-md"><h3 class="font-bold">Export Data</h3></div>
-                <p class="text-muted text-sm mb-md">Download the current month's data for offline record keeping or sharing.</p>
+            <div class="card"><div class="flex justify-between align-center mb-md"><h3 class="font-bold">Export & Share</h3></div>
+                <p class="text-muted text-sm mb-md">Download records or copy a WhatsApp-ready sector report for the current month.</p>
                 <div class="grid gap-sm">
+                    <button class="btn btn-primary flex align-center justify-between" id="btn-whatsapp-report"><span>Send WhatsApp Report</span><i data-lucide="send"></i></button>
                     <button class="btn btn-outline flex align-center justify-between" id="btn-export-csv"><span>Export as CSV</span><i data-lucide="file-down"></i></button>
                     <button class="btn btn-outline flex align-center justify-between" id="btn-export-excel"><span>Export as Excel</span><i data-lucide="table"></i></button>
                     <button class="btn btn-outline flex align-center justify-between" id="btn-export-pdf"><span>Export as PDF</span><i data-lucide="file-text"></i></button>
