@@ -5,6 +5,12 @@ let appInstance = null;
 let allMembers = [];
 let appSettings = {};
 
+function renderIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
+}
+
 export async function init(app) {
     appInstance = app;
 
@@ -88,10 +94,10 @@ function renderTable() {
         let actionsHtml = '<span class="text-muted text-sm">Read only</span>';
         if (!isReadOnly) {
             actionsHtml = '<div class="flex gap-sm">' +
-                '<button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(' + m._rowId + ')">Rs</button>' +
-                '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')">WA</button>' +
-                '<button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(' + m._rowId + ')">Ed</button>' +
-                '<button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(' + m._rowId + ')">Del</button>' +
+                '<button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(' + m._rowId + ')"><i data-lucide="dollar-sign"></i></button>' +
+                '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')"><i data-lucide="message-circle"></i></button>' +
+                '<button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(' + m._rowId + ')"><i data-lucide="pencil"></i></button>' +
+                '<button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(' + m._rowId + ')"><i data-lucide="trash-2"></i></button>' +
                 '</div>';
         }
 
@@ -110,6 +116,7 @@ function renderTable() {
             '<td>' + actionsHtml + '</td>';
         tbody.appendChild(tr);
     });
+    renderIcons();
 }
 
 function setupEventListeners() {

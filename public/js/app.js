@@ -18,6 +18,12 @@ class App {
         };
     }
 
+    renderIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+        }
+    }
+
     isReadOnly() {
         return this.state.userRole === 'reader';
     }
@@ -195,6 +201,8 @@ class App {
                 }
             }
 
+            this.renderIcons();
+
             this.currentView = routeName;
 
             // Close mobile menu if open
@@ -213,6 +221,7 @@ class App {
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new App();
+    window.app.renderIcons();
     // Only init if we are on the main app page (not login)
     if (document.getElementById('app')) {
         window.app.init();

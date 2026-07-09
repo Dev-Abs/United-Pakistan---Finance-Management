@@ -133,7 +133,17 @@ body {
     justify-content: center;
     background: var(--bg-subtle);
     border-radius: 8px;
-    font-size: 15px;
+    color: currentColor;
+}
+
+.icon svg,
+.nav-item svg,
+.bottom-nav-icon svg,
+.btn svg,
+.btn-icon svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2;
 }
 
 .nav-item:hover {
@@ -213,6 +223,10 @@ body {
     font-size: 12px;
     padding: 8px 12px;
     white-space: nowrap;
+}
+
+.install-btn .icon {
+    display: inline-flex;
 }
 
 @media (max-width: 480px) {

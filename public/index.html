@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/responsive.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script type="module" src="/js/app.js" defer></script>
 </head>
 <body>
@@ -29,24 +30,24 @@
             </div>
             <nav class="sidebar-nav">
                 <a href="/" class="nav-item active" data-route="dashboard">
-                    <span class="icon">DB</span> Dashboard
+                    <span class="icon"><i data-lucide="layout-dashboard"></i></span> Dashboard
                 </a>
                 <a href="/members" class="nav-item" data-route="members">
-                    <span class="icon">MB</span> Members
+                    <span class="icon"><i data-lucide="users"></i></span> Members
                 </a>
                 <a href="/expenses" class="nav-item" data-route="expenses">
-                    <span class="icon">EX</span> Expenses
+                    <span class="icon"><i data-lucide="receipt"></i></span> Expenses
                 </a>
                 <a href="/reports" class="nav-item" data-route="reports">
-                    <span class="icon">RP</span> Reports
+                    <span class="icon"><i data-lucide="bar-chart-3"></i></span> Reports
                 </a>
                 <a href="/settings" class="nav-item" data-route="settings">
-                    <span class="icon">ST</span> Settings
+                    <span class="icon"><i data-lucide="settings"></i></span> Settings
                 </a>
             </nav>
             <div class="sidebar-footer">
                 <button id="logout-btn" class="btn-text">
-                    <span class="icon">LG</span> Logout
+                    <span class="icon"><i data-lucide="log-out"></i></span> Logout
                 </button>
             </div>
         </aside>
@@ -65,7 +66,7 @@
                         </select>
                     </div>
                     <button id="install-app-btn" class="btn btn-sm btn-primary install-btn" title="Install App / Add to Home Screen">
-                        <span class="icon">+</span><span class="install-text"> Install App</span>
+                        <span class="icon"><i data-lucide="download"></i></span><span class="install-text"> Install App</span>
                     </button>
                 </div>
             </header>
@@ -79,27 +80,27 @@
         <!-- Bottom Navigation (mobile only) -->
         <nav class="bottom-nav" id="bottom-nav">
             <a href="/" class="bottom-nav-item active" data-route="dashboard">
-                <span class="bottom-nav-icon">DB</span>
+                <span class="bottom-nav-icon"><i data-lucide="layout-dashboard"></i></span>
                 <span class="bottom-nav-label">Dashboard</span>
             </a>
             <a href="/members" class="bottom-nav-item" data-route="members">
-                <span class="bottom-nav-icon">MB</span>
+                <span class="bottom-nav-icon"><i data-lucide="users"></i></span>
                 <span class="bottom-nav-label">Members</span>
             </a>
             <a href="/expenses" class="bottom-nav-item" data-route="expenses">
-                <span class="bottom-nav-icon">EX</span>
+                <span class="bottom-nav-icon"><i data-lucide="receipt"></i></span>
                 <span class="bottom-nav-label">Expenses</span>
             </a>
             <a href="/reports" class="bottom-nav-item" data-route="reports">
-                <span class="bottom-nav-icon">RP</span>
+                <span class="bottom-nav-icon"><i data-lucide="bar-chart-3"></i></span>
                 <span class="bottom-nav-label">Reports</span>
             </a>
             <a href="/settings" class="bottom-nav-item" data-route="settings">
-                <span class="bottom-nav-icon">ST</span>
+                <span class="bottom-nav-icon"><i data-lucide="settings"></i></span>
                 <span class="bottom-nav-label">Settings</span>
             </a>
             <button class="bottom-nav-item" id="bottom-logout-btn" style="border:none;background:none;cursor:pointer;font-family:inherit;">
-                <span class="bottom-nav-icon">LG</span>
+                <span class="bottom-nav-icon"><i data-lucide="log-out"></i></span>
                 <span class="bottom-nav-label">Logout</span>
             </button>
         </nav>

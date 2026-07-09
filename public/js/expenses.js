@@ -4,6 +4,12 @@ import { utils } from './utils.js';
 let appInstance = null;
 let allExpenses = [];
 
+function renderIcons() {
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+    }
+}
+
 export async function init(app) {
     appInstance = app;
     if (!app.isReadOnly()) {
@@ -138,7 +144,7 @@ function renderTable() {
     filtered.forEach(function(exp) {
         var tr = document.createElement('tr');
         var act = '<span class="text-muted text-sm">-</span>';
-        if (!ro) act = '<div class="flex gap-sm"><button class="btn-icon" title="Edit" onclick="window.expensesJS.openEditModal(' + exp._rowId + ')">Ed</button><button class="btn-icon text-danger" title="Delete" onclick="window.expensesJS.deleteExpense(' + exp._rowId + ')">Del</button></div>';
+        if (!ro) act = '<div class="flex gap-sm"><button class="btn-icon" title="Edit" onclick="window.expensesJS.openEditModal(' + exp._rowId + ')"><i data-lucide="pencil"></i></button><button class="btn-icon text-danger" title="Delete" onclick="window.expensesJS.deleteExpense(' + exp._rowId + ')"><i data-lucide="trash-2"></i></button></div>';
         tr.innerHTML = '<td class="text-sm">' + utils.formatDate(exp.Date) + '</td>' +
             '<td>' + (exp.Description || '-') + '</td>' +
             '<td class="font-bold text-danger">' + utils.formatCurrency(exp.Amount) + '</td>' +
@@ -147,6 +153,7 @@ function renderTable() {
             '<td>' + act + '</td>';
         tbody.appendChild(tr);
     });
+    renderIcons();
 }
 
 function setupEventListeners() {
