@@ -28,6 +28,14 @@ class App {
         return this.state.userRole === 'reader';
     }
 
+    updateRoleBadge() {
+        const badge = document.getElementById('user-role-badge');
+        if (!badge) return;
+        const readOnly = this.isReadOnly();
+        badge.textContent = readOnly ? 'Read Only' : 'Admin';
+        badge.className = 'role-badge ' + (readOnly ? 'role-reader' : 'role-admin');
+    }
+
     async init() {
         // Check auth status first
         try {
@@ -42,6 +50,7 @@ class App {
             }
             if (authStatus.authenticated) {
                 this.state.userRole = authStatus.role || 'admin';
+                this.updateRoleBadge();
             }
         } catch (error) {
             console.error('Auth check failed:', error);

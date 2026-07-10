@@ -9,8 +9,8 @@
         </div>
         <div class="card p-0">
             <div class="table-responsive">
-                <table class="table"><thead><tr><th>Date</th><th>Desc</th><th>Amount</th><th>Paid By</th><th>Remarks</th><th>Actions</th></tr></thead>
-                    <tbody><tr><td colspan="6"><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div></td></tr></tbody>
+                <table class="table"><thead><tr><th>Date</th><th>Category</th><th>Desc</th><th>Amount</th><th>Paid By</th><th>Remarks</th><th>Actions</th></tr></thead>
+                    <tbody><tr><td colspan="7"><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div></td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -43,9 +43,10 @@
 
         <div class="card p-0">
             <div class="table-responsive">
-                <table class="table" id="expenses-table">
+                <table class="table mobile-card-table" id="expenses-table">
                     <thead><tr>
                         <th data-sort="Date" class="sortable">Date <span class="sort-arrow"></span></th>
+                        <th data-sort="Category" class="sortable">Category <span class="sort-arrow"></span></th>
                         <th data-sort="Description" class="sortable">Description <span class="sort-arrow"></span></th>
                         <th data-sort="Amount" class="sortable">Amount <span class="sort-arrow"></span></th>
                         <th data-sort="Paid By" class="sortable">Paid By <span class="sort-arrow"></span></th>
@@ -65,7 +66,8 @@
     <div class="modal-body">
         <form id="expense-form"><input type="hidden" id="e-id">
             <div class="form-group"><label>Date</label><input type="date" id="e-date" class="form-control" required></div>
-            <div class="form-group"><label>Description</label><input type="text" id="e-description" class="form-control" required placeholder="What was this expense for? (include category, details etc.)"></div>
+            <div class="form-group"><label>Category</label><input type="text" id="e-category" class="form-control" required placeholder="e.g. Rent, Electricity, Maintenance, Event"></div>
+            <div class="form-group"><label>Description</label><input type="text" id="e-description" class="form-control" required placeholder="What was this expense for?"></div>
             <div class="grid grid-cols-2"><div class="form-group"><label>Amount (Rs.)</label><input type="number" id="e-amount" class="form-control" required min="1"></div><div class="form-group"><label>Paid By</label><input type="text" id="e-paid-by" class="form-control" required placeholder="Who paid?"></div></div>
             <div class="form-group"><label>Remarks</label><input type="text" id="e-remarks" class="form-control"></div>
         </form>

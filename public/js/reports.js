@@ -36,6 +36,7 @@ async function loadReportData() {
         document.getElementById('reports-content').style.display = 'block';
 
         updateStats(members, expenses);
+        renderExpenseCategoryBreakdown(expenses);
         renderChart(members);
     } catch (error) {
         utils.showToast('Failed to load report data', 'error');
@@ -188,6 +189,36 @@ function renderChart(members) {
             }
         }
     });
+}
+
+function renderExpenseCategoryBreakdown(expenses) {
+    const tbody = document.getElementById('r-expense-category-tbody');
+    if (!tbody) return;
+    const total = expenses.reduce(function(sum, e) { return sum + (Number(e.Amount) || 0); }, 0);
+    const categories = {};
+    expenses.forEach(function(e) {
+        const category = e.Category || 'Uncategorized';
+        if (!categories[category]) categories[category] = { count: 0, total: 0 };
+        categories[category].count += 1;
+        categories[category].total += Number(e.Amount) || 0;
+    });
+    const rows = Object.keys(categories).sort(function(a, b) {
+        return categories[b].total - categories[a].total;
+    });
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted p-md">No expenses recorded.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(function(category) {
+        const item = categories[category];
+        const share = total > 0 ? Math.round((item.total / total) * 100) : 0;
+        return '<tr>' +
+            '<td data-label="Category"><span class="badge badge-default">' + category + '</span></td>' +
+            '<td data-label="Transactions">' + item.count + '</td>' +
+            '<td data-label="Total Amount" class="font-bold text-danger">' + utils.formatCurrency(item.total) + '</td>' +
+            '<td data-label="Share">' + share + '%</td>' +
+            '</tr>';
+    }).join('');
 }
 
 function setupWhatsAppReport() {

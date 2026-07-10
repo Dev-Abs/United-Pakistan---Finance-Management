@@ -12,10 +12,12 @@
             <div>
                 <span>Total Due</span>
                 <strong id="stat-total-due">Rs. 0</strong>
+                <small id="compare-total-due">No previous month</small>
             </div>
             <div>
                 <span>Collection Rate</span>
                 <strong id="stat-collection-rate">0%</strong>
+                <small id="compare-collection-rate">No previous month</small>
             </div>
         </div>
     </div>
@@ -57,7 +59,7 @@
             <div class="dash-stat-loaded" style="display:none;">
                 <div class="metric-label">Expenses Made</div>
                 <div class="metric-value text-danger" id="stat-expense">Rs. 0</div>
-                <div class="metric-meta"><span id="stat-expense-count">0</span> transactions</div>
+                <div class="metric-meta"><span><span id="stat-expense-count">0</span> transactions<br><small id="compare-expenses">No previous month</small></span></div>
             </div>
         </div>
         <div class="card stat-card stat-card-success metric-card">
@@ -65,7 +67,7 @@
             <div class="dash-stat-loaded" style="display:none;">
                 <div class="metric-label">Monthly Fund Collected</div>
                 <div class="metric-value text-success" id="stat-monthly-collected">Rs. 0</div>
-                <div class="metric-meta">Before expenses</div>
+                <div class="metric-meta"><span>Before expenses<br><small id="compare-collected">No previous month</small></span></div>
             </div>
         </div>
         <div class="card stat-card stat-card-balance metric-card">
@@ -73,7 +75,7 @@
             <div class="dash-stat-loaded" style="display:none;">
                 <div class="metric-label">Remaining After Expense</div>
                 <div class="metric-value" id="stat-net">Rs. 0</div>
-                <div class="metric-meta" id="stat-net-label">Monthly fund minus expenses</div>
+                <div class="metric-meta"><span><span id="stat-net-label">Monthly fund minus expenses</span><br><small id="compare-remaining">No previous month</small></span></div>
             </div>
         </div>
     </div>
@@ -83,7 +85,7 @@
             <div class="finance-detail-header">
                 <div>
                     <h3 class="font-bold">Payment Status</h3>
-                    <p class="text-sm text-muted">Member payment position for the selected month.</p>
+                    <p class="text-sm text-muted">Member payment position for the selected month. <span id="compare-pending">No previous month</span></p>
                 </div>
                 <div class="badge badge-default"><span id="stat-status-total-members">0</span> members</div>
             </div>
@@ -137,6 +139,51 @@
                 <strong id="stat-outstanding">Rs. 0</strong>
             </div>
         </div>
+        </div>
+    </div>
+
+    <div class="dashboard-action-grid mb-md">
+        <div class="card dashboard-health-card">
+            <div class="dashboard-card-header">
+                <div>
+                    <h3>Collection Health</h3>
+                    <p>Based on collection rate, dues, and expenses.</p>
+                </div>
+                <span class="health-badge" id="collection-health-badge">Loading</span>
+            </div>
+            <div class="health-score" id="collection-health-rate">0%</div>
+            <p class="text-sm text-muted" id="collection-health-text">Waiting for monthly data.</p>
+        </div>
+
+        <div class="card dashboard-list-card">
+            <div class="dashboard-card-header">
+                <div>
+                    <h3>Top Pending Members</h3>
+                    <p>Largest dues that need follow-up.</p>
+                </div>
+                <button class="btn-text" onclick="app.navigate('members')">View All</button>
+            </div>
+            <div class="dashboard-list" id="top-pending-list"></div>
+        </div>
+
+        <div class="card dashboard-share-card">
+            <div class="dashboard-card-header">
+                <div>
+                    <h3>WhatsApp Summary</h3>
+                    <p>Copy and share the month summary in the sector group.</p>
+                </div>
+            </div>
+            <button class="btn btn-primary w-full" id="btn-dashboard-whatsapp-report"><i data-lucide="send"></i> Share Monthly Summary</button>
+        </div>
+
+        <div class="card dashboard-list-card">
+            <div class="dashboard-card-header">
+                <div>
+                    <h3>Activity Log</h3>
+                    <p>Recent payments and expenses.</p>
+                </div>
+            </div>
+            <div class="dashboard-list" id="dashboard-activity-list"></div>
         </div>
     </div>
 

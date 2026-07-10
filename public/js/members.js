@@ -104,16 +104,16 @@ function renderTable() {
         const prevBal = Number(m['Previous Balance']) || 0;
 
         tr.innerHTML =
-            '<td class="font-bold">' +
+            '<td data-label="Name" class="font-bold">' +
             '<a href="#" class="text-primary" style="text-decoration:none;" onclick="window.membersJS.showHistory(' + m._rowId + '); return false;">' + (m['Name'] || '') + '</a></td>' +
-            '<td>' + (m['Phone Number'] || '') + '</td>' +
-            '<td>' + utils.formatCurrency(m['Monthly Fund']) + '</td>' +
-            '<td class="' + (prevBal > 0 ? 'text-danger' : 'text-muted') + '">' + utils.formatCurrency(prevBal) + '</td>' +
-            '<td class="font-bold">' + utils.formatCurrency(m['Total Payable']) + '</td>' +
-            '<td class="text-success">' + utils.formatCurrency(m['Amount Paid']) + '</td>' +
-            '<td class="text-danger">' + utils.formatCurrency(m['Remaining Balance']) + '</td>' +
-            '<td>' + statusBadge + '</td>' +
-            '<td>' + actionsHtml + '</td>';
+            '<td data-label="Phone">' + (m['Phone Number'] || '') + '</td>' +
+            '<td data-label="Monthly Fund">' + utils.formatCurrency(m['Monthly Fund']) + '</td>' +
+            '<td data-label="Previous Balance" class="' + (prevBal > 0 ? 'text-danger' : 'text-muted') + '">' + utils.formatCurrency(prevBal) + '</td>' +
+            '<td data-label="Total Due" class="font-bold">' + utils.formatCurrency(m['Total Payable']) + '</td>' +
+            '<td data-label="Paid" class="text-success">' + utils.formatCurrency(m['Amount Paid']) + '</td>' +
+            '<td data-label="Remaining" class="text-danger">' + utils.formatCurrency(m['Remaining Balance']) + '</td>' +
+            '<td data-label="Status">' + statusBadge + '</td>' +
+            '<td data-label="Actions">' + actionsHtml + '</td>';
         tbody.appendChild(tr);
     });
     renderIcons();

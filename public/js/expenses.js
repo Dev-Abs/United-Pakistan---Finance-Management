@@ -103,7 +103,7 @@ function updateStats() {
     var total = 0, maxAmt = 0, maxDesc = '-';
     allExpenses.forEach(function(exp) {
         var amt = Number(exp.Amount) || 0; total += amt;
-        if (amt > maxAmt) { maxAmt = amt; maxDesc = exp.Description || '-'; }
+        if (amt > maxAmt) { maxAmt = amt; maxDesc = (exp.Category || 'Uncategorized') + ' - ' + (exp.Description || '-'); }
     });
     document.getElementById('exp-total').textContent = utils.formatCurrency(total);
     document.getElementById('exp-highest').textContent = utils.formatCurrency(maxAmt);
@@ -130,14 +130,15 @@ function renderTable() {
     tbody.innerHTML = '';
     var st = document.getElementById('exp-search').value.toLowerCase();
     var filtered = allExpenses.filter(function(exp) {
+        var category = (exp.Category || '').toLowerCase();
         var desc = (exp.Description || '').toLowerCase();
         var paid = (exp['Paid By'] || '').toLowerCase();
         var remarks = (exp.Remarks || '').toLowerCase();
-        return desc.indexOf(st) >= 0 || paid.indexOf(st) >= 0 || remarks.indexOf(st) >= 0;
+        return category.indexOf(st) >= 0 || desc.indexOf(st) >= 0 || paid.indexOf(st) >= 0 || remarks.indexOf(st) >= 0;
     });
     filtered = sortExpenses(filtered);
     if (!filtered.length) {
-        tbody.innerHTML = '<tr><td colspan=6 class="text-center text-muted p-md">No expenses found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan=7 class="text-center text-muted p-md">No expenses found.</td></tr>';
         return;
     }
     var ro = appInstance.isReadOnly();
@@ -145,12 +146,13 @@ function renderTable() {
         var tr = document.createElement('tr');
         var act = '<span class="text-muted text-sm">-</span>';
         if (!ro) act = '<div class="flex gap-sm"><button class="btn-icon" title="Edit" onclick="window.expensesJS.openEditModal(' + exp._rowId + ')"><i data-lucide="pencil"></i></button><button class="btn-icon text-danger" title="Delete" onclick="window.expensesJS.deleteExpense(' + exp._rowId + ')"><i data-lucide="trash-2"></i></button></div>';
-        tr.innerHTML = '<td class="text-sm">' + utils.formatDate(exp.Date) + '</td>' +
-            '<td>' + (exp.Description || '-') + '</td>' +
-            '<td class="font-bold text-danger">' + utils.formatCurrency(exp.Amount) + '</td>' +
-            '<td>' + (exp['Paid By'] || '-') + '</td>' +
-            '<td class="text-sm text-muted">' + (exp.Remarks || '-') + '</td>' +
-            '<td>' + act + '</td>';
+        tr.innerHTML = '<td data-label="Date" class="text-sm">' + utils.formatDate(exp.Date) + '</td>' +
+            '<td data-label="Category"><span class="badge badge-default">' + (exp.Category || 'Uncategorized') + '</span></td>' +
+            '<td data-label="Description">' + (exp.Description || '-') + '</td>' +
+            '<td data-label="Amount" class="font-bold text-danger">' + utils.formatCurrency(exp.Amount) + '</td>' +
+            '<td data-label="Paid By">' + (exp['Paid By'] || '-') + '</td>' +
+            '<td data-label="Remarks" class="text-sm text-muted">' + (exp.Remarks || '-') + '</td>' +
+            '<td data-label="Actions">' + act + '</td>';
         tbody.appendChild(tr);
     });
     renderIcons();
@@ -171,6 +173,7 @@ function setupEventListeners() {
         var data = {
             Month: appInstance.state.currentMonth,
             Date: document.getElementById('e-date').value,
+            Category: document.getElementById('e-category').value,
             Description: document.getElementById('e-description').value,
             Amount: document.getElementById('e-amount').value,
             'Paid By': document.getElementById('e-paid-by').value,
@@ -194,6 +197,7 @@ window.expensesJS = {
         if (!exp) return;
         document.getElementById('e-id').value = exp._rowId;
         document.getElementById('e-date').value = exp.Date || '';
+        document.getElementById('e-category').value = exp.Category || '';
         document.getElementById('e-description').value = exp.Description || '';
         document.getElementById('e-amount').value = exp.Amount || '';
         document.getElementById('e-paid-by').value = exp['Paid By'] || '';

@@ -112,9 +112,130 @@
     letter-spacing: 0.06em;
 }
 
+.dashboard-header-metrics small,
+.comparison-note {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 650;
+}
+
+.comparison-good {
+    color: var(--success);
+}
+
+.comparison-bad {
+    color: var(--danger);
+}
+
 .dashboard-header-metrics strong {
     font-size: 22px;
     letter-spacing: -0.02em;
+}
+
+.dashboard-action-grid {
+    display: grid;
+    grid-template-columns: 0.9fr 1.35fr 0.9fr 1.35fr;
+    gap: 20px;
+}
+
+.dashboard-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.dashboard-card-header h3 {
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    margin-bottom: 3px;
+}
+
+.dashboard-card-header p {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+.health-badge {
+    border-radius: 999px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 5px 9px;
+}
+
+.health-good {
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+.health-warning {
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.health-critical {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+.health-score {
+    font-size: 34px;
+    font-weight: 850;
+    letter-spacing: -0.04em;
+    margin-bottom: 6px;
+}
+
+.dashboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dashboard-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.dashboard-list-item:last-child {
+    border-bottom: 0;
+}
+
+.dashboard-list-item strong {
+    display: block;
+    font-size: 13px;
+}
+
+.dashboard-list-item span {
+    color: var(--text-muted);
+    display: block;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.dashboard-list-item b {
+    font-size: 12px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.dashboard-share-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.empty-list {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 12px 0;
 }
 
 .dashboard-insight-grid {
@@ -252,6 +373,13 @@
     font-size: 12px;
     line-height: 1.25;
     min-height: 30px;
+}
+
+.metric-meta small {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 2px;
 }
 
 .stat-card h3 {
@@ -671,3 +799,24 @@ label {
 .toast-success { border-left-color: var(--success); }
 .toast-error { border-left-color: var(--danger); }
 .toast-warning { border-left-color: var(--warning); }
+
+.role-badge {
+    align-items: center;
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 800;
+    min-height: 34px;
+    padding: 6px 10px;
+    white-space: nowrap;
+}
+
+.role-admin {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.role-reader {
+    background: var(--warning-bg);
+    color: var(--warning);
+}

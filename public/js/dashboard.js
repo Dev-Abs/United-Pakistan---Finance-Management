@@ -3,6 +3,9 @@ import { utils } from './utils.js';
 
 let appInstance = null;
 let chartInstances = {};
+let currentDashboardSummary = null;
+let currentDashboardMembers = [];
+let currentDashboardExpenses = [];
 
 export async function init(app) {
     appInstance = app;
@@ -12,6 +15,8 @@ export async function init(app) {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
+        const shareBtn = document.getElementById('btn-dashboard-whatsapp-report');
+        if (shareBtn) shareBtn.style.display = 'none';
     }
 
     if (app.state.currentMonth) {
@@ -35,6 +40,7 @@ async function loadDashboardData() {
     if (!appInstance.state.currentMonth) return;
 
     try {
+        const prevMonth = getPreviousMonth();
         const [membersRes, expensesRes] = await Promise.all([
             api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth)),
             api.get('/api/expenses?month=' + encodeURIComponent(appInstance.state.currentMonth))
@@ -43,8 +49,24 @@ async function loadDashboardData() {
         if (membersRes.success) {
             const members = membersRes.data || [];
             const expenses = (expensesRes.success ? expensesRes.data : []) || [];
+            let previousSummary = null;
+            if (prevMonth) {
+                try {
+                    const [prevMembersRes, prevExpensesRes] = await Promise.all([
+                        api.get('/api/members?month=' + encodeURIComponent(prevMonth)),
+                        api.get('/api/expenses?month=' + encodeURIComponent(prevMonth))
+                    ]);
+                    previousSummary = buildSummary(prevMembersRes.success ? prevMembersRes.data || [] : [], prevExpensesRes.success ? prevExpensesRes.data || [] : []);
+                } catch (e) {
+                    previousSummary = null;
+                }
+            }
+            currentDashboardMembers = members;
+            currentDashboardExpenses = expenses;
             showDashboardContent();
-            updateStats(members, expenses);
+            updateStats(members, expenses, previousSummary);
+            updateTopPendingMembers(members);
+            updateActivityLog(members, expenses);
             updateRecentPayments(members);
             updateRecentExpenses(expenses);
             renderCharts(members, expenses);
@@ -56,7 +78,13 @@ async function loadDashboardData() {
     }
 }
 
-function updateStats(members, expenses) {
+function getPreviousMonth() {
+    const months = appInstance.state.months || [];
+    const index = months.indexOf(appInstance.state.currentMonth);
+    return index > 0 ? months[index - 1] : '';
+}
+
+function buildSummary(members, expenses) {
     let totalCollected = 0;
     let totalOutstanding = 0;
     let totalDue = 0;
@@ -103,25 +131,55 @@ function updateStats(members, expenses) {
     const partialPct = memberTotal > 0 ? Math.round((partialCount / memberTotal) * 100) : 0;
     const pendingPct = memberTotal > 0 ? Math.max(0, 100 - paidPct - partialPct) : 0;
 
+    return {
+        totalCollected,
+        totalOutstanding,
+        totalDue,
+        totalMonthlyFund,
+        totalPreviousBalance,
+        monthlyFundCollected,
+        previousBalanceCollected,
+        dueMonthlyFund,
+        duePreviousBalance,
+        paidCount,
+        pendingCount,
+        partialCount,
+        totalExpense,
+        netAmount,
+        monthlyFundCollectionPct: pct,
+        collectionRate,
+        memberTotal,
+        paidPct,
+        partialPct,
+        pendingPct
+    };
+}
+
+function updateStats(members, expenses, previousSummary) {
+    const summary = buildSummary(members, expenses);
+    currentDashboardSummary = summary;
+
     document.getElementById('dashboard-month-label').textContent = appInstance.state.currentMonth || 'Current month';
-    document.getElementById('stat-total-due').textContent = utils.formatCurrency(totalDue);
-    document.getElementById('stat-collection-rate').textContent = collectionRate + '%';
-    document.getElementById('stat-monthly-total').textContent = utils.formatCurrency(totalMonthlyFund);
-    document.getElementById('stat-monthly-due').textContent = utils.formatCurrency(dueMonthlyFund);
-    document.getElementById('stat-prev-due').textContent = utils.formatCurrency(duePreviousBalance);
-    document.getElementById('stat-monthly-collected').textContent = utils.formatCurrency(monthlyFundCollected);
-    document.getElementById('stat-monthly-collected-pct').textContent = pct;
-    document.getElementById('stat-collected').textContent = utils.formatCurrency(totalCollected);
-    document.getElementById('stat-prev-total').textContent = utils.formatCurrency(totalPreviousBalance);
-    document.getElementById('stat-prev-collected').textContent = utils.formatCurrency(previousBalanceCollected);
-    document.getElementById('stat-outstanding').textContent = utils.formatCurrency(totalOutstanding);
-    document.getElementById('stat-expense').textContent = utils.formatCurrency(totalExpense);
+    document.getElementById('stat-total-due').textContent = utils.formatCurrency(summary.totalDue);
+    document.getElementById('stat-collection-rate').textContent = summary.collectionRate + '%';
+    document.getElementById('stat-monthly-total').textContent = utils.formatCurrency(summary.totalMonthlyFund);
+    document.getElementById('stat-monthly-due').textContent = utils.formatCurrency(summary.dueMonthlyFund);
+    document.getElementById('stat-prev-due').textContent = utils.formatCurrency(summary.duePreviousBalance);
+    document.getElementById('stat-monthly-collected').textContent = utils.formatCurrency(summary.monthlyFundCollected);
+    document.getElementById('stat-monthly-collected-pct').textContent = summary.monthlyFundCollectionPct;
+    document.getElementById('stat-collected').textContent = utils.formatCurrency(summary.totalCollected);
+    document.getElementById('stat-prev-total').textContent = utils.formatCurrency(summary.totalPreviousBalance);
+    document.getElementById('stat-prev-collected').textContent = utils.formatCurrency(summary.previousBalanceCollected);
+    document.getElementById('stat-outstanding').textContent = utils.formatCurrency(summary.totalOutstanding);
+    document.getElementById('stat-expense').textContent = utils.formatCurrency(summary.totalExpense);
     document.getElementById('stat-expense-count').textContent = expenses.length;
+    updateComparison(previousSummary, summary);
+    updateCollectionHealth(summary);
 
     var netEl = document.getElementById('stat-net');
     var netLabel = document.getElementById('stat-net-label');
-    netEl.textContent = utils.formatCurrency(netAmount);
-    if (netAmount < 0) {
+    netEl.textContent = utils.formatCurrency(summary.netAmount);
+    if (summary.netAmount < 0) {
         netEl.className = 'metric-value text-danger';
         netLabel.textContent = 'Expenses exceed monthly fund collected';
     } else {
@@ -129,16 +187,170 @@ function updateStats(members, expenses) {
         netLabel.textContent = 'Monthly fund left after expenses';
     }
 
-    document.getElementById('stat-paid-members').textContent = paidCount;
-    document.getElementById('stat-paid-members-badge').textContent = paidCount;
-    document.getElementById('stat-partial-members').textContent = partialCount;
+    document.getElementById('stat-paid-members').textContent = summary.paidCount;
+    document.getElementById('stat-paid-members-badge').textContent = summary.paidCount;
+    document.getElementById('stat-partial-members').textContent = summary.partialCount;
     document.getElementById('stat-total-members').textContent = members.length;
     document.getElementById('stat-status-total-members').textContent = members.length;
-    document.getElementById('stat-pending-members').textContent = pendingCount;
-    document.getElementById('stat-pending-members-badge').textContent = pendingCount;
-    document.getElementById('status-paid-bar').style.width = paidPct + '%';
-    document.getElementById('status-partial-bar').style.width = partialPct + '%';
-    document.getElementById('status-pending-bar').style.width = pendingPct + '%';
+    document.getElementById('stat-pending-members').textContent = summary.pendingCount;
+    document.getElementById('stat-pending-members-badge').textContent = summary.pendingCount;
+    document.getElementById('status-paid-bar').style.width = summary.paidPct + '%';
+    document.getElementById('status-partial-bar').style.width = summary.partialPct + '%';
+    document.getElementById('status-pending-bar').style.width = summary.pendingPct + '%';
+}
+
+function updateComparison(previousSummary, summary) {
+    setComparisonText('compare-total-due', previousSummary, summary.totalDue, previousSummary ? previousSummary.totalDue : 0, true, 'currency');
+    setComparisonText('compare-collection-rate', previousSummary, summary.collectionRate, previousSummary ? previousSummary.collectionRate : 0, false, 'percent');
+    setComparisonText('compare-collected', previousSummary, summary.totalCollected, previousSummary ? previousSummary.totalCollected : 0, false, 'currency');
+    setComparisonText('compare-expenses', previousSummary, summary.totalExpense, previousSummary ? previousSummary.totalExpense : 0, true, 'currency');
+    setComparisonText('compare-remaining', previousSummary, summary.netAmount, previousSummary ? previousSummary.netAmount : 0, false, 'currency');
+    setComparisonText('compare-pending', previousSummary, summary.pendingCount, previousSummary ? previousSummary.pendingCount : 0, true, 'count');
+}
+
+function setComparisonText(id, previousSummary, currentValue, previousValue, lowerIsBetter, format) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!previousSummary) {
+        el.textContent = 'No previous month';
+        el.className = 'comparison-note';
+        return;
+    }
+    const diff = currentValue - previousValue;
+    if (diff === 0) {
+        el.textContent = 'No change vs previous month';
+        el.className = 'comparison-note';
+        return;
+    }
+    const improved = lowerIsBetter ? diff < 0 : diff > 0;
+    const sign = diff > 0 ? '+' : '-';
+    let display = sign + Math.abs(diff);
+    if (format === 'currency') display = sign + utils.formatCurrency(Math.abs(diff));
+    if (format === 'percent') display = sign + Math.abs(diff) + '%';
+    if (format === 'count') display = sign + Math.abs(diff);
+    el.textContent = display + ' vs previous month';
+    el.className = 'comparison-note ' + (improved ? 'comparison-good' : 'comparison-bad');
+}
+
+function updateCollectionHealth(summary) {
+    const badge = document.getElementById('collection-health-badge');
+    const rate = document.getElementById('collection-health-rate');
+    const text = document.getElementById('collection-health-text');
+    if (!badge || !rate || !text) return;
+
+    let status = 'Healthy';
+    let className = 'health-badge health-good';
+    let message = 'Collections are in a strong position for this month.';
+
+    if (summary.collectionRate < 60 || summary.netAmount < 0) {
+        status = 'Critical';
+        className = 'health-badge health-critical';
+        message = 'Collection needs urgent attention, especially pending dues and expenses.';
+    } else if (summary.collectionRate < 85 || summary.pendingCount > 0) {
+        status = 'Needs Attention';
+        className = 'health-badge health-warning';
+        message = 'Follow up pending and partially paid members to improve collection health.';
+    }
+
+    badge.textContent = status;
+    badge.className = className;
+    rate.textContent = summary.collectionRate + '%';
+    text.textContent = message;
+}
+
+function updateTopPendingMembers(members) {
+    const list = document.getElementById('top-pending-list');
+    if (!list) return;
+    const pending = members
+        .filter(function(m) { return (Number(m['Remaining Balance']) || 0) > 0; })
+        .sort(function(a, b) { return (Number(b['Remaining Balance']) || 0) - (Number(a['Remaining Balance']) || 0); })
+        .slice(0, 5);
+
+    if (!pending.length) {
+        list.innerHTML = '<div class="empty-list">No pending dues. Everyone is clear.</div>';
+        return;
+    }
+
+    list.innerHTML = pending.map(function(m) {
+        return '<div class="dashboard-list-item">' +
+            '<div><strong>' + (m['Name'] || 'Member') + '</strong><span>' + (m['Payment Status'] || 'Pending') + '</span></div>' +
+            '<b class="text-danger">' + utils.formatCurrency(m['Remaining Balance']) + '</b>' +
+            '</div>';
+    }).join('');
+}
+
+function updateActivityLog(members, expenses) {
+    const list = document.getElementById('dashboard-activity-list');
+    if (!list) return;
+    const paymentActivities = members
+        .filter(function(m) { return (Number(m['Amount Paid']) || 0) > 0; })
+        .map(function(m) {
+            return {
+                date: m['Payment Date'] || '',
+                title: (m['Name'] || 'Member') + ' payment',
+                detail: utils.formatCurrency(m['Amount Paid']) + ' collected',
+                type: 'Payment'
+            };
+        });
+    const expenseActivities = expenses.map(function(e) {
+        return {
+            date: e.Date || '',
+            title: e.Description || 'Expense',
+            detail: utils.formatCurrency(e.Amount) + ' - ' + (e.Category || 'Uncategorized'),
+            type: 'Expense'
+        };
+    });
+    const items = paymentActivities.concat(expenseActivities)
+        .sort(function(a, b) { return new Date(b.date || 0) - new Date(a.date || 0); })
+        .slice(0, 5);
+
+    if (!items.length) {
+        list.innerHTML = '<div class="empty-list">No recent activity for this month.</div>';
+        return;
+    }
+
+    list.innerHTML = items.map(function(item) {
+        return '<div class="dashboard-list-item">' +
+            '<div><strong>' + item.title + '</strong><span>' + item.type + ' - ' + utils.formatDate(item.date) + '</span></div>' +
+            '<b>' + item.detail + '</b>' +
+            '</div>';
+    }).join('');
+}
+
+async function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    if (!copied) throw new Error('Copy failed');
+}
+
+function buildDashboardWhatsAppMessage() {
+    const summary = currentDashboardSummary || buildSummary(currentDashboardMembers, currentDashboardExpenses);
+    let msg = '*United Pakistan - Monthly Finance Summary*\n';
+    msg += '*' + (appInstance.state.currentMonth || 'Current Month') + '*\n\n';
+    msg += '*Collection Health:* ' + summary.collectionRate + '%\n';
+    msg += '- Total Members: ' + summary.memberTotal + '\n';
+    msg += '- Paid: ' + summary.paidCount + '\n';
+    msg += '- Partially Paid: ' + summary.partialCount + '\n';
+    msg += '- Pending: ' + summary.pendingCount + '\n\n';
+    msg += '*Financial Position*\n';
+    msg += '- Total Due: ' + utils.formatCurrency(summary.totalDue) + '\n';
+    msg += '- Total Collected: ' + utils.formatCurrency(summary.totalCollected) + '\n';
+    msg += '- Outstanding: ' + utils.formatCurrency(summary.totalOutstanding) + '\n';
+    msg += '- Expenses: ' + utils.formatCurrency(summary.totalExpense) + '\n';
+    msg += '- Remaining After Expenses: ' + utils.formatCurrency(summary.netAmount) + '\n\n';
+    msg += 'Please clear pending dues as soon as possible.';
+    return msg;
 }
 
 function updateRecentPayments(members) {
@@ -266,6 +478,21 @@ function setupEventListeners() {
         var date = new Date();
         date.setMonth(date.getMonth() + 1);
         document.getElementById('new-month-name').value = date.toLocaleString('default', { month: 'long' }) + ' ' + date.getFullYear();
+    });
+
+    document.getElementById('btn-dashboard-whatsapp-report')?.addEventListener('click', async function() {
+        if (appInstance.isReadOnly()) {
+            utils.showToast('Only admins can share WhatsApp summaries', 'warning');
+            return;
+        }
+        try {
+            const message = buildDashboardWhatsAppMessage();
+            await copyText(message);
+            utils.showToast('Monthly summary copied');
+            window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank');
+        } catch (error) {
+            utils.showToast('Could not copy monthly summary', 'error');
+        }
     });
 
     document.getElementById('new-month-form')?.addEventListener('submit', async function(e) {

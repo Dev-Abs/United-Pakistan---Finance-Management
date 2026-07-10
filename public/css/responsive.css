@@ -132,6 +132,10 @@
         grid-template-columns: 1fr;
     }
 
+    .dashboard-action-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .finance-detail-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -183,7 +187,8 @@
     }
 
     .dashboard-header-metrics,
-    .status-breakdown {
+    .status-breakdown,
+    .dashboard-action-grid {
         grid-template-columns: 1fr;
     }
 
@@ -249,6 +254,52 @@
         padding: 11px 12px;
     }
 
+    .mobile-card-table,
+    .mobile-card-table thead,
+    .mobile-card-table tbody,
+    .mobile-card-table tr,
+    .mobile-card-table th,
+    .mobile-card-table td {
+        display: block;
+    }
+
+    .mobile-card-table thead {
+        display: none;
+    }
+
+    .mobile-card-table tr {
+        margin: 12px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--border-radius);
+        background: #ffffff;
+    }
+
+    .mobile-card-table td {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+        text-align: right;
+    }
+
+    .mobile-card-table td:last-child {
+        border-bottom: 0;
+    }
+
+    .mobile-card-table td::before {
+        content: attr(data-label);
+        color: var(--text-muted);
+        flex: 0 0 42%;
+        font-size: 12px;
+        font-weight: 800;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
     .modal {
         width: 95%;
         margin: 10px auto;
@@ -311,6 +362,10 @@
     }
 
     .install-btn .install-text {
+        display: none;
+    }
+
+    .role-badge {
         display: none;
     }
 }
