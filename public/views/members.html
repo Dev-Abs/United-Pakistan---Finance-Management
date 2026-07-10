@@ -4,8 +4,8 @@
         <div class="card mb-md"><div class="skeleton skeleton-card" style="height:50px;"></div></div>
         <div class="card p-0">
             <div class="table-responsive">
-                <table class="table"><thead><tr><th>Name</th><th>Phone</th><th>Fund</th><th>Prev</th><th>Due</th><th>Paid</th><th>Remain</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody><tr><td colspan="9"><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div></td></tr></tbody>
+                <table class="table"><thead><tr><th>Name</th><th>Phone</th><th>Category</th><th>Fund</th><th>Prev</th><th>Due</th><th>Paid</th><th>Remain</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody><tr><td colspan="10"><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div></td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -35,6 +35,7 @@
                     <thead><tr>
                         <th data-sort="Name" class="sortable">Name <span class="sort-arrow"></span></th>
                         <th data-sort="Phone Number" class="sortable">Phone <span class="sort-arrow"></span></th>
+                        <th data-sort="Member Category" class="sortable">Category <span class="sort-arrow"></span></th>
                         <th data-sort="Monthly Fund" class="sortable">Monthly Fund <span class="sort-arrow"></span></th>
                         <th data-sort="Previous Balance" class="sortable">Prev Balance <span class="sort-arrow"></span></th>
                         <th data-sort="Total Payable" class="sortable">Total Due <span class="sort-arrow"></span></th>
@@ -56,7 +57,17 @@
     <div class="modal-body">
         <form id="member-form"><input type="hidden" id="member-id">
             <div class="grid grid-cols-2"><div class="form-group"><label>Name</label><input type="text" id="m-name" class="form-control" required></div><div class="form-group"><label>Phone Number</label><input type="text" id="m-phone" class="form-control" required></div></div>
-            <div class="form-group"><label>Designation</label><input type="text" id="m-designation" class="form-control"></div>
+            <div class="grid grid-cols-2">
+                <div class="form-group"><label>Designation</label><input type="text" id="m-designation" class="form-control"></div>
+                <div class="form-group">
+                    <label>Member Category</label>
+                    <select id="m-category" class="form-control" required>
+                        <option value="Jaiza Pass Member(JP)">Jaiza Pass Member(JP)</option>
+                        <option value="Study Circle Member (SC)">Study Circle Member (SC)</option>
+                        <option value="Fellow Member (FM)">Fellow Member (FM)</option>
+                    </select>
+                </div>
+            </div>
             <div class="grid grid-cols-2"><div class="form-group"><label>Monthly Fund (Rs.)</label><input type="number" id="m-fund" class="form-control" required></div><div class="form-group"><label>Previous Balance (Rs.)</label><input type="number" id="m-prev-balance" class="form-control" value="0"></div></div>
             <div class="form-group"><label>Remarks</label><input type="text" id="m-remarks" class="form-control"></div>
         </form>

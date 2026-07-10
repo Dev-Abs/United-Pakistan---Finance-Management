@@ -59,13 +59,14 @@ function renderTable() {
 
     let filtered = allMembers.filter(function (m) {
         const matchesSearch = (m['Name'] || '').toLowerCase().includes(searchTerm) ||
-            (m['Phone Number'] || '').includes(searchTerm);
+            (m['Phone Number'] || '').includes(searchTerm) ||
+            (m['Member Category'] || '').toLowerCase().includes(searchTerm);
         const matchesStatus = statusFilter === 'all' || m['Payment Status'] === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted p-md">No members found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted p-md">No members found.</td></tr>';
         return;
     }
 
@@ -107,6 +108,7 @@ function renderTable() {
             '<td data-label="Name" class="font-bold">' +
             '<a href="#" class="text-primary" style="text-decoration:none;" onclick="window.membersJS.showHistory(' + m._rowId + '); return false;">' + (m['Name'] || '') + '</a></td>' +
             '<td data-label="Phone">' + (m['Phone Number'] || '') + '</td>' +
+            '<td data-label="Category"><span class="badge badge-default">' + (m['Member Category'] || 'Fellow Member (FM)') + '</span></td>' +
             '<td data-label="Monthly Fund">' + utils.formatCurrency(m['Monthly Fund']) + '</td>' +
             '<td data-label="Previous Balance" class="' + (prevBal > 0 ? 'text-danger' : 'text-muted') + '">' + utils.formatCurrency(prevBal) + '</td>' +
             '<td data-label="Total Due" class="font-bold">' + utils.formatCurrency(m['Total Payable']) + '</td>' +
@@ -133,7 +135,7 @@ function setupEventListeners() {
             table.dataset.sortDir = (field === currentField && currentDir === 'asc') ? 'desc' : 'asc';
             document.querySelectorAll('#members-table thead th.sortable .sort-arrow').forEach(function (a) { a.textContent = ''; });
             const arrow = this.querySelector('.sort-arrow');
-            if (arrow) arrow.textContent = table.dataset.sortDir === 'asc' ? ' ▲' : ' ▼';
+            if (arrow) arrow.textContent = table.dataset.sortDir === 'asc' ? ' asc' : ' desc';
             renderTable();
         });
     });
@@ -142,6 +144,7 @@ function setupEventListeners() {
         document.getElementById('member-form').reset();
         document.getElementById('member-id').value = '';
         document.getElementById('member-modal-title').textContent = 'Add Member';
+        document.getElementById('m-category').value = 'Fellow Member (FM)';
         document.getElementById('m-fund').value = appSettings['DEFAULT_MONTHLY_FUND'] || 500;
         document.getElementById('member-modal').classList.add('active');
     });
@@ -153,6 +156,7 @@ function setupEventListeners() {
             'Name': document.getElementById('m-name').value,
             'Phone Number': document.getElementById('m-phone').value,
             'Designation': document.getElementById('m-designation').value,
+            'Member Category': document.getElementById('m-category').value,
             'Monthly Fund': document.getElementById('m-fund').value,
             'Remarks': document.getElementById('m-remarks').value
         };
@@ -222,6 +226,7 @@ window.membersJS = {
         document.getElementById('m-name').value = m['Name'];
         document.getElementById('m-phone').value = m['Phone Number'];
         document.getElementById('m-designation').value = m['Designation'];
+        document.getElementById('m-category').value = m['Member Category'] || 'Fellow Member (FM)';
         document.getElementById('m-fund').value = m['Monthly Fund'];
         document.getElementById('m-prev-balance').value = m['Previous Balance'] || 0;
         document.getElementById('m-remarks').value = m['Remarks'];
@@ -284,7 +289,7 @@ window.membersJS = {
                     html = '<div class="text-center text-muted p-md">No history found.</div>';
                 } else {
                     html = '<div class="table-responsive"><table class="table"><thead><tr>' +
-                        '<th>Month</th><th>Monthly Fund</th><th>Prev Bal</th><th>Total Payable</th>' +
+                        '<th>Month</th><th>Category</th><th>Monthly Fund</th><th>Prev Bal</th><th>Total Payable</th>' +
                         '<th>Amount Paid</th><th>Remaining</th><th>Status</th><th>Payment Date</th></tr></thead><tbody>';
                     var totalPaid = 0;
                     history.forEach(function (h) {
@@ -294,6 +299,7 @@ window.membersJS = {
                         if (h['Payment Status'] === 'Partially Paid') sBadge = '<span class="badge badge-warning">Partially Paid</span>';
                         if (h['Payment Status'] === 'Pending') sBadge = '<span class="badge badge-danger">Pending</span>';
                         html += '<tr><td>' + (h.month || '') + '</td>' +
+                            '<td>' + (h['Member Category'] || 'Fellow Member (FM)') + '</td>' +
                             '<td>' + utils.formatCurrency(h['Monthly Fund']) + '</td>' +
                             '<td>' + utils.formatCurrency(h['Previous Balance']) + '</td>' +
                             '<td>' + utils.formatCurrency(h['Total Payable']) + '</td>' +
@@ -338,6 +344,7 @@ function generateReminderText(m) {
     msg += 'Assalamu Alaikum ' + (m['Name'] || '') + ' sb!\n\n';
     msg += 'This is a gentle reminder regarding your monthly fund.\n\n';
     msg += 'Fund Details:\n';
+    msg += '- Member Category: ' + (m['Member Category'] || 'Fellow Member (FM)') + '\n';
     msg += '- Monthly Fund: ' + utils.formatCurrency(m['Monthly Fund']) + '\n';
     if (Number(m['Previous Balance']) > 0) {
         msg += '- Previous Balance: ' + utils.formatCurrency(m['Previous Balance']) + '\n';
