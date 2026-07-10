@@ -2,7 +2,10 @@
     <div class="dashboard-report-header mb-md">
         <div>
             <p class="dashboard-eyebrow">Monthly Finance Overview</p>
-            <h2>Sector Fund Dashboard</h2>
+            <div class="dashboard-title-row">
+                <h2>Sector Fund Dashboard</h2>
+                <span id="dashboard-month-label">Current month</span>
+            </div>
             <p class="text-sm text-muted">Track collections, dues, previous balances, expenses, and member payment status in one view.</p>
         </div>
         <div class="dashboard-header-metrics">
@@ -17,54 +20,60 @@
         </div>
     </div>
 
-    <!-- Finance Summary -->
+    <div class="dashboard-section-title">
+        <div>
+            <h3>Financial Snapshot</h3>
+            <p>Core fund, dues, and expense position for this month.</p>
+        </div>
+    </div>
+
     <div class="finance-summary mb-md" id="dash-stats-grid">
-        <div class="card stat-card stat-card-primary">
+        <div class="card stat-card stat-card-primary metric-card">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Monthly Fund Total</h3>
-                <div class="text-2xl font-bold mt-sm" id="stat-monthly-total">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm"><span id="stat-total-members">0</span> members this month</div>
+                <div class="metric-label">Monthly Fund Total</div>
+                <div class="metric-value" id="stat-monthly-total">Rs. 0</div>
+                <div class="metric-meta"><span id="stat-total-members">0</span> members this month</div>
             </div>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card metric-card">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Due Monthly Fund</h3>
-                <div class="text-2xl font-bold mt-sm text-danger" id="stat-monthly-due">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm"><span id="stat-monthly-collected-pct">0</span>% current fund collected</div>
+                <div class="metric-label">Due Monthly Fund</div>
+                <div class="metric-value text-danger" id="stat-monthly-due">Rs. 0</div>
+                <div class="metric-meta"><span id="stat-monthly-collected-pct">0</span>% current fund collected</div>
             </div>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card metric-card">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Due Previous Balance</h3>
-                <div class="text-2xl font-bold mt-sm text-warning" id="stat-prev-due">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm">From carried balances</div>
+                <div class="metric-label">Due Previous Balance</div>
+                <div class="metric-value text-warning" id="stat-prev-due">Rs. 0</div>
+                <div class="metric-meta">From carried balances</div>
             </div>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card metric-card">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Expenses Made</h3>
-                <div class="text-2xl font-bold mt-sm text-danger" id="stat-expense">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm"><span id="stat-expense-count">0</span> transactions</div>
+                <div class="metric-label">Expenses Made</div>
+                <div class="metric-value text-danger" id="stat-expense">Rs. 0</div>
+                <div class="metric-meta"><span id="stat-expense-count">0</span> transactions</div>
             </div>
         </div>
-        <div class="card stat-card stat-card-success">
+        <div class="card stat-card stat-card-success metric-card">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Monthly Fund Collected</h3>
-                <div class="text-2xl font-bold mt-sm text-success" id="stat-monthly-collected">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm">Before expenses</div>
+                <div class="metric-label">Monthly Fund Collected</div>
+                <div class="metric-value text-success" id="stat-monthly-collected">Rs. 0</div>
+                <div class="metric-meta">Before expenses</div>
             </div>
         </div>
-        <div class="card stat-card stat-card-balance">
+        <div class="card stat-card stat-card-balance metric-card">
             <div class="skeleton skeleton-card"></div>
             <div class="dash-stat-loaded" style="display:none;">
-                <h3 class="text-muted text-sm uppercase">Remaining After Expense</h3>
-                <div class="text-2xl font-bold mt-sm" id="stat-net">Rs. 0</div>
-                <div class="text-sm text-muted mt-sm" id="stat-net-label">Monthly fund minus expenses</div>
+                <div class="metric-label">Remaining After Expense</div>
+                <div class="metric-value" id="stat-net">Rs. 0</div>
+                <div class="metric-meta" id="stat-net-label">Monthly fund minus expenses</div>
             </div>
         </div>
     </div>
@@ -131,7 +140,13 @@
         </div>
     </div>
 
-    <!-- Charts Row -->
+    <div class="dashboard-section-title">
+        <div>
+            <h3>Analysis</h3>
+            <p>Collection vs expense movement and category breakdown.</p>
+        </div>
+    </div>
+
     <div class="grid grid-cols-2 mb-md" id="dash-charts-grid">
         <div class="card">
             <div class="skeleton skeleton-card" style="height:300px;"></div>
@@ -151,7 +166,13 @@
         </div>
     </div>
 
-    <!-- Recent Activity Row -->
+    <div class="dashboard-section-title">
+        <div>
+            <h3>Recent Activity</h3>
+            <p>Latest payments and expenses recorded for this month.</p>
+        </div>
+    </div>
+
     <div class="grid grid-cols-2">
         <div class="card">
             <div class="flex justify-between align-center mb-md">

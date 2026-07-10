@@ -24,7 +24,7 @@ export async function init(app) {
 
 function showDashboardContent() {
     document.querySelectorAll('#dash-stats-grid .skeleton').forEach(function(el) { el.style.display = 'none'; });
-    document.querySelectorAll('#dash-stats-grid .dash-stat-loaded').forEach(function(el) { el.style.display = 'block'; });
+    document.querySelectorAll('#dash-stats-grid .dash-stat-loaded').forEach(function(el) { el.style.display = 'grid'; });
     document.querySelectorAll('#dash-charts-grid .skeleton').forEach(function(el) { el.style.display = 'none'; });
     document.querySelectorAll('#dash-charts-grid .dash-chart-loaded').forEach(function(el) { el.style.display = 'block'; });
     document.getElementById('dash-payments-tbody') && (document.getElementById('dash-payments-tbody').innerHTML = '');
@@ -103,6 +103,7 @@ function updateStats(members, expenses) {
     const partialPct = memberTotal > 0 ? Math.round((partialCount / memberTotal) * 100) : 0;
     const pendingPct = memberTotal > 0 ? Math.max(0, 100 - paidPct - partialPct) : 0;
 
+    document.getElementById('dashboard-month-label').textContent = appInstance.state.currentMonth || 'Current month';
     document.getElementById('stat-total-due').textContent = utils.formatCurrency(totalDue);
     document.getElementById('stat-collection-rate').textContent = collectionRate + '%';
     document.getElementById('stat-monthly-total').textContent = utils.formatCurrency(totalMonthlyFund);
@@ -121,10 +122,10 @@ function updateStats(members, expenses) {
     var netLabel = document.getElementById('stat-net-label');
     netEl.textContent = utils.formatCurrency(netAmount);
     if (netAmount < 0) {
-        netEl.className = 'text-2xl font-bold mt-sm text-danger';
+        netEl.className = 'metric-value text-danger';
         netLabel.textContent = 'Expenses exceed monthly fund collected';
     } else {
-        netEl.className = 'text-2xl font-bold mt-sm text-success';
+        netEl.className = 'metric-value text-success';
         netLabel.textContent = 'Monthly fund left after expenses';
     }
 
