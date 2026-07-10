@@ -59,6 +59,7 @@ async function loadDashboardData() {
 function updateStats(members, expenses) {
     let totalCollected = 0;
     let totalOutstanding = 0;
+    let totalDue = 0;
     let totalMonthlyFund = 0;
     let totalPreviousBalance = 0;
     let monthlyFundCollected = 0;
@@ -67,10 +68,12 @@ function updateStats(members, expenses) {
     let duePreviousBalance = 0;
     let paidCount = 0;
     let pendingCount = 0;
+    let partialCount = 0;
 
     members.forEach(function(m) {
         var paid = Number(m['Amount Paid']) || 0;
         var remaining = Number(m['Remaining Balance']) || 0;
+        var payable = Number(m['Total Payable']) || 0;
         var monthlyFund = Number(m['Monthly Fund']) || 0;
         var previousBalance = Number(m['Previous Balance']) || 0;
         var memberFundCollected = Math.min(paid, monthlyFund);
@@ -78,6 +81,7 @@ function updateStats(members, expenses) {
 
         totalCollected += paid;
         totalOutstanding += remaining;
+        totalDue += payable;
         totalMonthlyFund += monthlyFund;
         totalPreviousBalance += previousBalance;
         monthlyFundCollected += memberFundCollected;
@@ -86,13 +90,21 @@ function updateStats(members, expenses) {
         duePreviousBalance += Math.max(previousBalance - memberPrevCollected, 0);
 
         if (m['Payment Status'] === 'Paid') paidCount++;
-        if (m['Payment Status'] === 'Pending') pendingCount++;
+        else if (m['Payment Status'] === 'Partially Paid') partialCount++;
+        else pendingCount++;
     });
 
     const totalExpense = expenses.reduce(function(sum, e) { return sum + (Number(e['Amount']) || 0); }, 0);
     const netAmount = monthlyFundCollected - totalExpense;
     const pct = totalMonthlyFund > 0 ? Math.round((monthlyFundCollected / totalMonthlyFund) * 100) : 0;
+    const collectionRate = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
+    const memberTotal = members.length || 0;
+    const paidPct = memberTotal > 0 ? Math.round((paidCount / memberTotal) * 100) : 0;
+    const partialPct = memberTotal > 0 ? Math.round((partialCount / memberTotal) * 100) : 0;
+    const pendingPct = memberTotal > 0 ? Math.max(0, 100 - paidPct - partialPct) : 0;
 
+    document.getElementById('stat-total-due').textContent = utils.formatCurrency(totalDue);
+    document.getElementById('stat-collection-rate').textContent = collectionRate + '%';
     document.getElementById('stat-monthly-total').textContent = utils.formatCurrency(totalMonthlyFund);
     document.getElementById('stat-monthly-due').textContent = utils.formatCurrency(dueMonthlyFund);
     document.getElementById('stat-prev-due').textContent = utils.formatCurrency(duePreviousBalance);
@@ -117,8 +129,15 @@ function updateStats(members, expenses) {
     }
 
     document.getElementById('stat-paid-members').textContent = paidCount;
+    document.getElementById('stat-paid-members-badge').textContent = paidCount;
+    document.getElementById('stat-partial-members').textContent = partialCount;
     document.getElementById('stat-total-members').textContent = members.length;
+    document.getElementById('stat-status-total-members').textContent = members.length;
     document.getElementById('stat-pending-members').textContent = pendingCount;
+    document.getElementById('stat-pending-members-badge').textContent = pendingCount;
+    document.getElementById('status-paid-bar').style.width = paidPct + '%';
+    document.getElementById('status-partial-bar').style.width = partialPct + '%';
+    document.getElementById('status-pending-bar').style.width = pendingPct + '%';
 }
 
 function updateRecentPayments(members) {

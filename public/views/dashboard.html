@@ -1,4 +1,22 @@
 <div class="dashboard-container">
+    <div class="dashboard-report-header mb-md">
+        <div>
+            <p class="dashboard-eyebrow">Monthly Finance Overview</p>
+            <h2>Sector Fund Dashboard</h2>
+            <p class="text-sm text-muted">Track collections, dues, previous balances, expenses, and member payment status in one view.</p>
+        </div>
+        <div class="dashboard-header-metrics">
+            <div>
+                <span>Total Due</span>
+                <strong id="stat-total-due">Rs. 0</strong>
+            </div>
+            <div>
+                <span>Collection Rate</span>
+                <strong id="stat-collection-rate">0%</strong>
+            </div>
+        </div>
+    </div>
+
     <!-- Finance Summary -->
     <div class="finance-summary mb-md" id="dash-stats-grid">
         <div class="card stat-card stat-card-primary">
@@ -51,13 +69,46 @@
         </div>
     </div>
 
-    <div class="card finance-detail-card mb-md">
+    <div class="dashboard-insight-grid mb-md">
+        <div class="card payment-status-card">
+            <div class="finance-detail-header">
+                <div>
+                    <h3 class="font-bold">Payment Status</h3>
+                    <p class="text-sm text-muted">Member payment position for the selected month.</p>
+                </div>
+                <div class="badge badge-default"><span id="stat-status-total-members">0</span> members</div>
+            </div>
+            <div class="status-progress">
+                <span class="status-paid" id="status-paid-bar"></span>
+                <span class="status-partial" id="status-partial-bar"></span>
+                <span class="status-pending" id="status-pending-bar"></span>
+            </div>
+            <div class="status-breakdown">
+                <div>
+                    <span class="status-dot status-dot-paid"></span>
+                    <small>Paid</small>
+                    <strong id="stat-paid-members">0</strong>
+                </div>
+                <div>
+                    <span class="status-dot status-dot-partial"></span>
+                    <small>Partially Paid</small>
+                    <strong id="stat-partial-members">0</strong>
+                </div>
+                <div>
+                    <span class="status-dot status-dot-pending"></span>
+                    <small>Pending</small>
+                    <strong id="stat-pending-members">0</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="card finance-detail-card">
         <div class="finance-detail-header">
             <div>
                 <h3 class="font-bold">Collection Details</h3>
                 <p class="text-sm text-muted">Monthly fund and previous balances are tracked separately for clearer decisions.</p>
             </div>
-            <div class="badge badge-default"><span id="stat-paid-members">0</span> paid / <span id="stat-pending-members">0</span> pending</div>
+            <div class="badge badge-default"><span id="stat-paid-members-badge">0</span> paid / <span id="stat-pending-members-badge">0</span> pending</div>
         </div>
         <div class="finance-detail-grid">
             <div>
@@ -76,6 +127,7 @@
                 <span class="text-sm text-muted">Overall outstanding</span>
                 <strong id="stat-outstanding">Rs. 0</strong>
             </div>
+        </div>
         </div>
     </div>
 

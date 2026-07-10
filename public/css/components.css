@@ -18,6 +18,153 @@
     gap: 16px;
 }
 
+.dashboard-report-header {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    background:
+        linear-gradient(135deg, rgba(239, 246, 255, 0.88), rgba(255, 255, 255, 0.96) 46%),
+        var(--bg-card);
+    box-shadow: var(--shadow-sm);
+}
+
+.dashboard-eyebrow {
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+}
+
+.dashboard-report-header h2 {
+    font-size: 24px;
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+}
+
+.dashboard-header-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 12px;
+    min-width: 320px;
+}
+
+.dashboard-header-metrics > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.dashboard-header-metrics span {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.dashboard-header-metrics strong {
+    font-size: 22px;
+    letter-spacing: -0.02em;
+}
+
+.dashboard-insight-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.4fr);
+    gap: 20px;
+}
+
+.payment-status-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.status-progress {
+    display: flex;
+    height: 14px;
+    margin: 22px 22px 18px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--bg-subtle);
+}
+
+.status-progress span {
+    min-width: 0;
+    transition: width 0.25s ease;
+}
+
+.status-paid {
+    background: var(--success);
+}
+
+.status-partial {
+    background: var(--warning);
+}
+
+.status-pending {
+    background: var(--danger);
+}
+
+.status-breakdown {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--border);
+}
+
+.status-breakdown > div {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 3px 8px;
+    padding: 18px 20px;
+    border-right: 1px solid var(--border);
+}
+
+.status-breakdown > div:last-child {
+    border-right: 0;
+}
+
+.status-breakdown small {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.status-breakdown strong {
+    grid-column: 2;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.status-dot {
+    width: 9px;
+    height: 9px;
+    margin-top: 5px;
+    border-radius: 50%;
+}
+
+.status-dot-paid {
+    background: var(--success);
+}
+
+.status-dot-partial {
+    background: var(--warning);
+}
+
+.status-dot-pending {
+    background: var(--danger);
+}
+
 .stat-card {
     min-height: 128px;
     position: relative;

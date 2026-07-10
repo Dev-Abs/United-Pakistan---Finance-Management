@@ -120,6 +120,18 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
+    .dashboard-report-header {
+        flex-direction: column;
+    }
+
+    .dashboard-header-metrics {
+        min-width: 0;
+    }
+
+    .dashboard-insight-grid {
+        grid-template-columns: 1fr;
+    }
+
     .finance-detail-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -168,6 +180,20 @@
     .finance-summary,
     .finance-detail-grid {
         grid-template-columns: 1fr;
+    }
+
+    .dashboard-header-metrics,
+    .status-breakdown {
+        grid-template-columns: 1fr;
+    }
+
+    .status-breakdown > div {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .status-breakdown > div:last-child {
+        border-bottom: 0;
     }
 
     .finance-detail-header {
