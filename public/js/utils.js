@@ -48,13 +48,19 @@ export const utils = {
     },
     
     generateWhatsAppLink(phone, message) {
-        if (!phone) return '#';
+        const text = encodeURIComponent(message || '');
+        if (!phone) return `https://wa.me/?text=${text}`;
         // Clean phone number (remove non-digits)
         let cleaned = phone.toString().replace(/\D/g, '');
+        if (cleaned.startsWith('0092')) {
+            cleaned = cleaned.substring(2);
+        }
         // Default to Pakistan code if starts with 0
         if (cleaned.startsWith('0')) {
             cleaned = '92' + cleaned.substring(1);
+        } else if (cleaned.length === 10 && cleaned.startsWith('3')) {
+            cleaned = '92' + cleaned;
         }
-        return `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`;
+        return `https://wa.me/${cleaned}?text=${text}`;
     }
 };

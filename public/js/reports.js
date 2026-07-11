@@ -250,13 +250,22 @@ function setupWhatsAppReport() {
 
         const message = buildWhatsAppReportMessage();
         try {
+            const opened = openWhatsAppSummary(message);
             await copyText(message);
-            utils.showToast('WhatsApp report copied');
-            window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank');
+            utils.showToast(opened ? 'WhatsApp report copied and opened' : 'WhatsApp report copied. Allow popups to open WhatsApp.');
         } catch (error) {
             utils.showToast('Could not copy report. Please try again.', 'error');
         }
     });
+}
+
+function openWhatsAppSummary(message) {
+    const win = window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank');
+    if (win) {
+        try { win.opener = null; } catch (e) {}
+        return true;
+    }
+    return false;
 }
 
 function buildWhatsAppReportMessage() {

@@ -637,9 +637,9 @@ function setupEventListeners() {
         }
         try {
             const message = buildDashboardWhatsAppMessage();
+            const opened = openWhatsAppSummary(message);
             await copyText(message);
-            utils.showToast('Monthly summary copied');
-            window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank');
+            utils.showToast(opened ? 'Monthly summary copied and WhatsApp opened' : 'Monthly summary copied. Allow popups to open WhatsApp.');
         } catch (error) {
             utils.showToast('Could not copy monthly summary', 'error');
         }
@@ -666,4 +666,13 @@ function setupEventListeners() {
             btn.textContent = 'Create Month';
         }
     });
+}
+
+function openWhatsAppSummary(message) {
+    const win = window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank');
+    if (win) {
+        try { win.opener = null; } catch (e) {}
+        return true;
+    }
+    return false;
 }

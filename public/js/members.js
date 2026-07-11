@@ -108,9 +108,13 @@ function renderTable() {
 
         let actionsHtml = '<span class="text-muted text-sm">Read only</span>';
         if (!isReadOnly) {
+            const canRemind = (Number(m['Remaining Balance']) || 0) > 0 && m['Payment Status'] !== 'Paid';
+            const whatsappAction = canRemind
+                ? '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')"><i data-lucide="message-circle"></i></button>'
+                : '<button class="btn-icon" title="Fully paid - no reminder needed" disabled><i data-lucide="message-circle"></i></button>';
             actionsHtml = '<div class="flex gap-sm">' +
                 '<button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(' + m._rowId + ')"><i data-lucide="dollar-sign"></i></button>' +
-                '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')"><i data-lucide="message-circle"></i></button>' +
+                whatsappAction +
                 '<button class="btn-icon" title="Log Reply" onclick="window.membersJS.openFollowUpModal(' + m._rowId + ')"><i data-lucide="message-square-plus"></i></button>' +
                 '<button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(' + m._rowId + ')"><i data-lucide="pencil"></i></button>' +
                 '<button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(' + m._rowId + ')"><i data-lucide="trash-2"></i></button>' +
@@ -432,8 +436,12 @@ window.membersJS = {
     sendWhatsApp: async function (id) {
         const m = allMembers.find(function (x) { return x._rowId === id; });
         if (!m) return;
+        if (m['Payment Status'] === 'Paid' || (Number(m['Remaining Balance']) || 0) <= 0) {
+            utils.showToast('This member is fully paid. No reminder needed.', 'warning');
+            return;
+        }
         const msg = generateReminderText(m);
-        const link = utils.generateWhatsAppLink(m['Phone Number'], msg);
+        const opened = openWhatsAppLink(m['Phone Number'], msg);
         try {
             await recordFollowUp(m, {
                 'Event Type': 'Reminder Sent',
@@ -443,9 +451,8 @@ window.membersJS = {
             });
             await loadMembers();
         } catch (error) {
-            utils.showToast('WhatsApp opened, but reminder history was not saved', 'warning');
+            utils.showToast((opened ? 'WhatsApp opened' : 'WhatsApp link prepared') + ', but reminder history was not saved', 'warning');
         }
-        window.open(link, '_blank');
     },
 
     copyText: function (btn, text) {
@@ -683,24 +690,24 @@ function renderReminderSection(list, title, members) {
         item.querySelector('.copy-btn').addEventListener('click', function () {
             window.membersJS.copyText(this, msg);
         });
-        item.querySelector('.whatsapp-btn').addEventListener('click', async function () {
-            this.disabled = true;
-            this.textContent = 'Opening...';
-            try {
-                await recordFollowUp(m, {
-                    'Event Type': 'Reminder Sent',
-                    'Reply Status': 'No Reply',
-                    'Notes': 'WhatsApp reminder opened from ' + title.toLowerCase()
-                });
-                window.open(utils.generateWhatsAppLink(m['Phone Number'], msg), '_blank');
-                this.textContent = 'Recorded';
-                renderTable();
-            } catch (error) {
-                this.disabled = false;
-                this.textContent = 'WhatsApp';
-                utils.showToast('Could not record reminder', 'error');
-            }
-        });
+            item.querySelector('.whatsapp-btn').addEventListener('click', async function () {
+                this.disabled = true;
+                this.textContent = 'Opening...';
+                const opened = openWhatsAppLink(m['Phone Number'], msg);
+                try {
+                    await recordFollowUp(m, {
+                        'Event Type': 'Reminder Sent',
+                        'Reply Status': 'No Reply',
+                        'Notes': 'WhatsApp reminder opened from ' + title.toLowerCase()
+                    });
+                    this.textContent = opened ? 'Recorded' : 'Copied';
+                    renderTable();
+                } catch (error) {
+                    this.disabled = false;
+                    this.textContent = 'WhatsApp';
+                    utils.showToast((opened ? 'WhatsApp opened, but could not record reminder' : 'Could not open or record reminder'), 'error');
+                }
+            });
         section.appendChild(item);
     });
     list.appendChild(section);
@@ -745,19 +752,23 @@ async function openReminderQueueByStatus(status) {
     }
     btn.disabled = true;
     btn.textContent = 'Opening...';
-    var opened = 0;
+    const openedQueue = members.map(function (m) {
+        const msg = generateReminderText(m);
+        return {
+            member: m,
+            opened: openWhatsAppLink(m['Phone Number'], msg, true)
+        };
+    });
+    var opened = openedQueue.filter(function (item) { return item.opened; }).length;
     try {
-        for (const m of members) {
-            const msg = generateReminderText(m);
-            await recordFollowUp(m, {
+        for (const item of openedQueue) {
+            await recordFollowUp(item.member, {
                 'Event Type': 'Reminder Sent',
                 'Reply Status': 'No Reply',
                 'Notes': 'WhatsApp queue opened'
             }, true);
-            const win = window.open(utils.generateWhatsAppLink(m['Phone Number'], msg), '_blank');
-            if (win) opened++;
         }
-        utils.showToast(opened + ' WhatsApp reminder tabs opened');
+        utils.showToast(opened + ' WhatsApp reminder tabs opened' + (opened < members.length ? '. Allow popups if some did not open.' : ''));
         await loadMembers();
         document.getElementById('reminders-modal').classList.remove('active');
     } catch (error) {
@@ -766,4 +777,20 @@ async function openReminderQueueByStatus(status) {
         btn.disabled = false;
         updateReminderQueueButtons();
     }
+}
+
+function openWhatsAppLink(phone, message, skipCopyOnBlock) {
+    const link = utils.generateWhatsAppLink(phone, message);
+    const win = window.open(link, '_blank');
+    if (win) {
+        try { win.opener = null; } catch (e) {}
+        return true;
+    }
+    if (!skipCopyOnBlock && navigator.clipboard) {
+        navigator.clipboard.writeText(message).catch(function () {});
+    }
+    if (!skipCopyOnBlock) {
+        utils.showToast('WhatsApp popup was blocked. Please allow popups; message copied when possible.', 'warning');
+    }
+    return false;
 }
