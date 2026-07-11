@@ -102,13 +102,13 @@ function renderTable() {
         const tr = document.createElement('tr');
         const followSummary = getFollowUpSummary(m);
         let statusBadge = '<span class="badge badge-default">' + (m['Payment Status'] || '') + '</span>';
-        if (m['Payment Status'] === 'Paid') statusBadge = '<span class="badge badge-success">Paid</span>';
-        if (m['Payment Status'] === 'Partially Paid') statusBadge = '<span class="badge badge-warning">Partially Paid</span>';
-        if (m['Payment Status'] === 'Pending') statusBadge = '<span class="badge badge-danger">Pending</span>';
+        if (normalizeStatus(m['Payment Status']) === 'paid') statusBadge = '<span class="badge badge-success">Paid</span>';
+        if (normalizeStatus(m['Payment Status']) === 'partially paid') statusBadge = '<span class="badge badge-warning">Partially Paid</span>';
+        if (normalizeStatus(m['Payment Status']) === 'pending') statusBadge = '<span class="badge badge-danger">Pending</span>';
 
         let actionsHtml = '<span class="text-muted text-sm">Read only</span>';
         if (!isReadOnly) {
-            const canRemind = (Number(m['Remaining Balance']) || 0) > 0 && m['Payment Status'] !== 'Paid';
+            const canRemind = !isPaidOrSettled(m);
             const whatsappAction = canRemind
                 ? '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')"><i data-lucide="message-circle"></i></button>'
                 : '<button class="btn-icon" title="Fully paid - no reminder needed" disabled><i data-lucide="message-circle"></i></button>';
@@ -167,8 +167,7 @@ function getFollowUpSummary(member) {
     const latestResponseLog = responseLogs[responseLogs.length - 1] || null;
     const latestItem = items[items.length - 1] || null;
     const nextDate = latestItem ? latestItem['Next Reminder Date'] : '';
-    const paymentStatus = member['Payment Status'] || 'Pending';
-    const paid = paymentStatus === 'Paid' || (Number(member['Remaining Balance']) || 0) <= 0;
+    const paid = isPaidOrSettled(member);
     const nextDue = !paid && nextDate && startOfDay(nextDate) <= startOfDay(new Date());
     const awaitingReply = !paid && !!latestReminder && (!latestReply || new Date(latestReply['Event Date'] || 0) < new Date(latestReminder['Event Date'] || 0));
     return {
@@ -436,7 +435,7 @@ window.membersJS = {
     sendWhatsApp: async function (id) {
         const m = allMembers.find(function (x) { return x._rowId === id; });
         if (!m) return;
-        if (m['Payment Status'] === 'Paid' || (Number(m['Remaining Balance']) || 0) <= 0) {
+        if (isPaidOrSettled(m)) {
             utils.showToast('This member is fully paid. No reminder needed.', 'warning');
             return;
         }
@@ -522,9 +521,6 @@ async function recordFollowUp(member, extraData, silent) {
     const res = await api.post('/api/followups', { data: data });
     if (res.success && res.data) {
         allFollowUps.push(res.data);
-        if (!silent && data['Event Type'] === 'Reminder Sent') {
-            utils.showToast('Reminder #' + res.data['Reminder Number'] + ' recorded');
-        }
     }
     return res;
 }
@@ -582,7 +578,7 @@ function renderMemberFollowUpHistory(member) {
 function generateReminderText(m) {
     const summary = getFollowUpSummary(m);
     const nextReminderNumber = summary.reminderCount + 1;
-    const isPartial = m['Payment Status'] === 'Partially Paid';
+    const isPartial = normalizeStatus(m['Payment Status']) === 'partially paid';
     const amountPaid = Number(m['Amount Paid']) || 0;
     const remainingDue = Number(m['Remaining Balance']) || 0;
     const totalPayable = Number(m['Total Payable']) || 0;
@@ -636,7 +632,7 @@ function buildReminderOpening(summary, nextReminderNumber, isPartial) {
 
 function getPendingMembers() {
     return allMembers.filter(function (m) {
-        return m['Payment Status'] === 'Pending' || m['Payment Status'] === 'Partially Paid';
+        return !isPaidOrSettled(m) && (normalizeStatus(m['Payment Status']) === 'pending' || normalizeStatus(m['Payment Status']) === 'partially paid');
     });
 }
 
@@ -663,8 +659,8 @@ function renderReminderModal(pending, title) {
     if (pending.length === 0) {
         list.innerHTML = '<div class="p-md text-center text-muted">No reminders are due right now.</div>';
     } else {
-        renderReminderSection(list, 'Pending Members', pending.filter(function (m) { return m['Payment Status'] === 'Pending'; }));
-        renderReminderSection(list, 'Partially Paid Members', pending.filter(function (m) { return m['Payment Status'] === 'Partially Paid'; }));
+        renderReminderSection(list, 'Pending Members', pending.filter(function (m) { return normalizeStatus(m['Payment Status']) === 'pending'; }));
+        renderReminderSection(list, 'Partially Paid Members', pending.filter(function (m) { return normalizeStatus(m['Payment Status']) === 'partially paid'; }));
     }
     updateReminderQueueButtons();
     document.getElementById('reminders-modal').classList.add('active');
@@ -714,8 +710,8 @@ function renderReminderSection(list, title, members) {
 }
 
 function updateReminderQueueButtons() {
-    const pendingCount = currentReminderMembers.filter(function (m) { return m['Payment Status'] === 'Pending'; }).length;
-    const partialCount = currentReminderMembers.filter(function (m) { return m['Payment Status'] === 'Partially Paid'; }).length;
+    const pendingCount = currentReminderMembers.filter(function (m) { return normalizeStatus(m['Payment Status']) === 'pending'; }).length;
+    const partialCount = currentReminderMembers.filter(function (m) { return normalizeStatus(m['Payment Status']) === 'partially paid'; }).length;
     const pendingBtn = document.getElementById('btn-open-pending-reminders');
     const partialBtn = document.getElementById('btn-open-partial-reminders');
     pendingBtn.disabled = pendingCount === 0;
@@ -744,7 +740,8 @@ function copyAllReminders() {
 
 async function openReminderQueueByStatus(status) {
     const source = currentReminderMembers.length ? currentReminderMembers : getDueReminderMembers();
-    const members = source.filter(function (m) { return m['Payment Status'] === status; });
+    const targetStatus = normalizeStatus(status);
+    const members = source.filter(function (m) { return normalizeStatus(m['Payment Status']) === targetStatus; });
     const btn = status === 'Partially Paid' ? document.getElementById('btn-open-partial-reminders') : document.getElementById('btn-open-pending-reminders');
     if (!members.length) {
         utils.showToast('No ' + status.toLowerCase() + ' reminders to open');
@@ -784,16 +781,7 @@ function openWhatsAppLink(phone, message, skipCopyOnBlock, preferNativeApp) {
     const webLink = utils.generateWhatsAppLink(phone, message);
 
     if (preferNativeApp && utils.normalizeWhatsAppPhone(phone)) {
-        let appOpened = false;
-        const markOpened = function () { if (document.hidden) appOpened = true; };
-        document.addEventListener('visibilitychange', markOpened, { once: true });
         window.location.href = appLink;
-        setTimeout(function () {
-            document.removeEventListener('visibilitychange', markOpened);
-            if (!appOpened) {
-                window.location.href = webLink;
-            }
-        }, 900);
         return true;
     }
 
@@ -809,4 +797,12 @@ function openWhatsAppLink(phone, message, skipCopyOnBlock, preferNativeApp) {
         utils.showToast('WhatsApp popup was blocked. Please allow popups; message copied when possible.', 'warning');
     }
     return false;
+}
+
+function normalizeStatus(status) {
+    return String(status || '').trim().toLowerCase();
+}
+
+function isPaidOrSettled(member) {
+    return normalizeStatus(member['Payment Status']) === 'paid' || (Number(member['Remaining Balance']) || 0) <= 0;
 }

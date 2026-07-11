@@ -10,11 +10,11 @@ class App {
             userRole: null
         };
         this.routes = {
-            'dashboard': { url: '/', title: 'Dashboard', script: '/js/dashboard.js' },
-            'members': { url: '/members', title: 'Members', script: '/js/members.js' },
-            'expenses': { url: '/expenses', title: 'Expenses', script: '/js/expenses.js' },
-            'reports': { url: '/reports', title: 'Reports', script: '/js/reports.js' },
-            'settings': { url: '/settings', title: 'Settings', script: '/js/settings.js' }
+            'dashboard': { url: '/', title: 'Dashboard', script: '/js/dashboard.js?v=20260711-whatsapp-native' },
+            'members': { url: '/members', title: 'Members', script: '/js/members.js?v=20260711-whatsapp-native' },
+            'expenses': { url: '/expenses', title: 'Expenses', script: '/js/expenses.js?v=20260711-whatsapp-native' },
+            'reports': { url: '/reports', title: 'Reports', script: '/js/reports.js?v=20260711-whatsapp-native' },
+            'settings': { url: '/settings', title: 'Settings', script: '/js/settings.js?v=20260711-whatsapp-native' }
         };
     }
 

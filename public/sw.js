@@ -1,4 +1,4 @@
-const CACHE_NAME = 'up-finance-v3';
+const CACHE_NAME = 'up-finance-v4-whatsapp-native';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/css/components.css',
@@ -33,7 +33,7 @@ self.addEventListener('fetch', event => {
 
   // Styles should update immediately after deployment. Old mobile layouts were
   // being kept alive by cache-first CSS responses.
-  if (url.includes('/css/')) {
+  if (url.includes('/css/') || url.includes('/js/') || url.includes('/views/')) {
     event.respondWith(
       fetch(event.request).then(response => {
         const clone = response.clone();
