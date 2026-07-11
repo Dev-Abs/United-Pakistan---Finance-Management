@@ -336,7 +336,8 @@ function setupEventListeners() {
     document.getElementById('btn-bulk-reminders').addEventListener('click', generateBulkReminders);
     document.getElementById('btn-due-reminders').addEventListener('click', generateDueReminders);
     document.getElementById('btn-copy-all-reminders').addEventListener('click', copyAllReminders);
-    document.getElementById('btn-open-all-reminders').addEventListener('click', openAllReminderQueue);
+    document.getElementById('btn-open-pending-reminders').addEventListener('click', function () { openReminderQueueByStatus('Pending'); });
+    document.getElementById('btn-open-partial-reminders').addEventListener('click', function () { openReminderQueueByStatus('Partially Paid'); });
     document.querySelectorAll('.reason-chip').forEach(function (chip) {
         chip.addEventListener('click', function () {
             const input = document.getElementById('f-reason');
@@ -574,9 +575,13 @@ function renderMemberFollowUpHistory(member) {
 function generateReminderText(m) {
     const summary = getFollowUpSummary(m);
     const nextReminderNumber = summary.reminderCount + 1;
+    const isPartial = m['Payment Status'] === 'Partially Paid';
+    const amountPaid = Number(m['Amount Paid']) || 0;
+    const remainingDue = Number(m['Remaining Balance']) || 0;
+    const totalPayable = Number(m['Total Payable']) || 0;
     let msg = '*United Pakistan - ' + (appSettings['SECTOR_NAME'] || '[Sector Name]') + '*\n\n';
     msg += 'Assalamu Alaikum ' + (m['Name'] || '') + ' sb!\n\n';
-    msg += buildReminderOpening(summary, nextReminderNumber);
+    msg += buildReminderOpening(summary, nextReminderNumber, isPartial);
     msg += '\n\n';
     msg += 'Fund Details:\n';
     msg += '- Member Category: ' + (m['Member Category'] || 'Fellow Member (FM)') + '\n';
@@ -584,19 +589,34 @@ function generateReminderText(m) {
     if (Number(m['Previous Balance']) > 0) {
         msg += '- Previous Balance: ' + utils.formatCurrency(m['Previous Balance']) + '\n';
     }
-    msg += '- Total Payable: ' + utils.formatCurrency(m['Total Payable']) + '\n\n';
+    msg += '- Total Payable: ' + utils.formatCurrency(totalPayable) + '\n';
+    if (isPartial) {
+        msg += '- Amount Paid: ' + utils.formatCurrency(amountPaid) + '\n';
+        msg += '- Remaining Due: ' + utils.formatCurrency(remainingDue) + '\n\n';
+    } else {
+        msg += '- Due Payable: ' + utils.formatCurrency(remainingDue || totalPayable) + '\n\n';
+    }
     msg += 'Payment Details:\n';
     msg += 'Easypaisa: ' + (appSettings['EASYPAISA_NUMBER'] || '[Number]') + '\n';
     msg += 'Account Title: ' + (appSettings['ACCOUNT_TITLE'] || '[Title]') + '\n\n';
-    msg += 'Kindly transfer the amount and share the receipt.\n\n';
+    msg += isPartial ? 'Kindly transfer the remaining amount and share the receipt.\n\n' : 'Kindly transfer the amount and share the receipt.\n\n';
     msg += 'Thank you.\n';
     msg += (appSettings['SECRETARY_NAME'] || '[Secretary Name]') + '\nSecretary Finance';
     return msg;
 }
 
-function buildReminderOpening(summary, nextReminderNumber) {
+function buildReminderOpening(summary, nextReminderNumber, isPartial) {
     if (summary.promised && summary.nextDate && startOfDay(summary.nextDate) <= startOfDay(new Date())) {
-        return 'You had kindly shared that payment would be made by ' + utils.formatDate(summary.nextDate) + '. This is a follow-up reminder regarding the pending monthly fund.';
+        return 'You had kindly shared that payment would be made by ' + utils.formatDate(summary.nextDate) + '. This is a follow-up reminder regarding the ' + (isPartial ? 'remaining balance.' : 'pending monthly fund.');
+    }
+    if (isPartial) {
+        if (nextReminderNumber <= 1) {
+            return 'Thank you for the partial payment. This is a gentle reminder for the remaining balance.';
+        }
+        if (nextReminderNumber === 2) {
+            return 'This is a follow-up reminder for your remaining balance. Kindly clear the balance at your earliest convenience.';
+        }
+        return 'This is another follow-up for the remaining balance. If there is any issue or delay, kindly reply with the reason so we can update our record.';
     }
     if (nextReminderNumber <= 1) {
         return 'This is a gentle reminder regarding your monthly fund.';
@@ -636,43 +656,65 @@ function renderReminderModal(pending, title) {
     if (pending.length === 0) {
         list.innerHTML = '<div class="p-md text-center text-muted">No reminders are due right now.</div>';
     } else {
-        pending.forEach(function (m) {
-            const summary = getFollowUpSummary(m);
-            const msg = generateReminderText(m);
-            const item = document.createElement('div');
-            item.className = 'p-md border-bottom';
-            item.innerHTML = '<div class="flex justify-between align-center mb-sm">' +
-                '<div><h4 class="font-bold">' + (m['Name'] || '') + '</h4><div class="text-sm text-muted">' + summary.reminderCount + ' reminders sent' + (summary.nextDate ? ' | Next: ' + utils.formatDate(summary.nextDate) : '') + '</div></div>' +
-                '<div class="flex gap-sm">' +
-                '<button class="btn btn-sm btn-outline copy-btn">Copy</button>' +
-                '<button class="btn btn-sm btn-primary whatsapp-btn">WhatsApp</button>' +
-                '</div></div>' +
-                '<pre class="text-sm bg-gray p-sm" style="white-space: pre-wrap; font-family: inherit; border-radius: 4px;">' + msg + '</pre>';
-            item.querySelector('.copy-btn').addEventListener('click', function () {
-                window.membersJS.copyText(this, msg);
-            });
-            item.querySelector('.whatsapp-btn').addEventListener('click', async function () {
-                this.disabled = true;
-                this.textContent = 'Opening...';
-                try {
-                    await recordFollowUp(m, {
-                        'Event Type': 'Reminder Sent',
-                        'Reply Status': 'No Reply',
-                        'Notes': 'WhatsApp reminder opened from bulk reminders'
-                    });
-                    window.open(utils.generateWhatsAppLink(m['Phone Number'], msg), '_blank');
-                    this.textContent = 'Recorded';
-                    renderTable();
-                } catch (error) {
-                    this.disabled = false;
-                    this.textContent = 'WhatsApp';
-                    utils.showToast('Could not record reminder', 'error');
-                }
-            });
-            list.appendChild(item);
-        });
+        renderReminderSection(list, 'Pending Members', pending.filter(function (m) { return m['Payment Status'] === 'Pending'; }));
+        renderReminderSection(list, 'Partially Paid Members', pending.filter(function (m) { return m['Payment Status'] === 'Partially Paid'; }));
     }
+    updateReminderQueueButtons();
     document.getElementById('reminders-modal').classList.add('active');
+}
+
+function renderReminderSection(list, title, members) {
+    if (!members.length) return;
+    const section = document.createElement('div');
+    section.className = 'reminder-section';
+    section.innerHTML = '<div class="reminder-section-title"><h4>' + title + '</h4><span>' + members.length + '</span></div>';
+    members.forEach(function (m) {
+        const summary = getFollowUpSummary(m);
+        const msg = generateReminderText(m);
+        const item = document.createElement('div');
+        item.className = 'p-md border-bottom';
+        item.innerHTML = '<div class="flex justify-between align-center mb-sm">' +
+            '<div><h4 class="font-bold">' + (m['Name'] || '') + '</h4><div class="text-sm text-muted">' + summary.reminderCount + ' reminders sent' + (summary.nextDate ? ' | Next: ' + utils.formatDate(summary.nextDate) : '') + ' | Due: ' + utils.formatCurrency(m['Remaining Balance']) + '</div></div>' +
+            '<div class="flex gap-sm">' +
+            '<button class="btn btn-sm btn-outline copy-btn">Copy</button>' +
+            '<button class="btn btn-sm btn-primary whatsapp-btn">WhatsApp</button>' +
+            '</div></div>' +
+            '<pre class="text-sm bg-gray p-sm" style="white-space: pre-wrap; font-family: inherit; border-radius: 4px;">' + msg + '</pre>';
+        item.querySelector('.copy-btn').addEventListener('click', function () {
+            window.membersJS.copyText(this, msg);
+        });
+        item.querySelector('.whatsapp-btn').addEventListener('click', async function () {
+            this.disabled = true;
+            this.textContent = 'Opening...';
+            try {
+                await recordFollowUp(m, {
+                    'Event Type': 'Reminder Sent',
+                    'Reply Status': 'No Reply',
+                    'Notes': 'WhatsApp reminder opened from ' + title.toLowerCase()
+                });
+                window.open(utils.generateWhatsAppLink(m['Phone Number'], msg), '_blank');
+                this.textContent = 'Recorded';
+                renderTable();
+            } catch (error) {
+                this.disabled = false;
+                this.textContent = 'WhatsApp';
+                utils.showToast('Could not record reminder', 'error');
+            }
+        });
+        section.appendChild(item);
+    });
+    list.appendChild(section);
+}
+
+function updateReminderQueueButtons() {
+    const pendingCount = currentReminderMembers.filter(function (m) { return m['Payment Status'] === 'Pending'; }).length;
+    const partialCount = currentReminderMembers.filter(function (m) { return m['Payment Status'] === 'Partially Paid'; }).length;
+    const pendingBtn = document.getElementById('btn-open-pending-reminders');
+    const partialBtn = document.getElementById('btn-open-partial-reminders');
+    pendingBtn.disabled = pendingCount === 0;
+    partialBtn.disabled = partialCount === 0;
+    pendingBtn.textContent = 'Open Pending Queue (' + pendingCount + ')';
+    partialBtn.textContent = 'Open Partial Queue (' + partialCount + ')';
 }
 
 function copyAllReminders() {
@@ -693,11 +735,12 @@ function copyAllReminders() {
     });
 }
 
-async function openAllReminderQueue() {
-    const members = currentReminderMembers.length ? currentReminderMembers : getDueReminderMembers();
-    const btn = document.getElementById('btn-open-all-reminders');
+async function openReminderQueueByStatus(status) {
+    const source = currentReminderMembers.length ? currentReminderMembers : getDueReminderMembers();
+    const members = source.filter(function (m) { return m['Payment Status'] === status; });
+    const btn = status === 'Partially Paid' ? document.getElementById('btn-open-partial-reminders') : document.getElementById('btn-open-pending-reminders');
     if (!members.length) {
-        utils.showToast('No reminders to open');
+        utils.showToast('No ' + status.toLowerCase() + ' reminders to open');
         return;
     }
     btn.disabled = true;
@@ -721,6 +764,6 @@ async function openAllReminderQueue() {
         utils.showToast(error.message || 'Could not open all reminders', 'error');
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Open WhatsApp Queue';
+        updateReminderQueueButtons();
     }
 }
