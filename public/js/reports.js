@@ -5,6 +5,7 @@ import { setupExportListeners } from './export.js';
 let appInstance = null;
 let chartInstance = null;
 let currentMembers = [];
+let currentFollowUps = [];
 let currentSummary = null;
 
 export async function init(app) {
@@ -23,19 +24,24 @@ async function loadReportData() {
     if (!appInstance.state.currentMonth) return;
 
     try {
-        const [membersRes, expensesRes] = await Promise.all([
+        const [membersRes, expensesRes, followUpsRes] = await Promise.all([
             api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth)),
-            api.get('/api/expenses?month=' + encodeURIComponent(appInstance.state.currentMonth))
+            api.get('/api/expenses?month=' + encodeURIComponent(appInstance.state.currentMonth)),
+            api.get('/api/followups?month=' + encodeURIComponent(appInstance.state.currentMonth)).catch(function () {
+                return { success: false, data: [] };
+            })
         ]);
 
         const members = membersRes.success ? membersRes.data : [];
         const expenses = expensesRes.success ? expensesRes.data : [];
+        const followUps = followUpsRes.success ? followUpsRes.data : [];
         currentMembers = members;
+        currentFollowUps = followUps;
 
         document.getElementById('reports-skeleton').style.display = 'none';
         document.getElementById('reports-content').style.display = 'block';
 
-        updateStats(members, expenses);
+        updateStats(members, expenses, followUps);
         renderExpenseCategoryBreakdown(expenses);
         renderChart(members);
     } catch (error) {
@@ -45,7 +51,7 @@ async function loadReportData() {
     }
 }
 
-function updateStats(members, expenses) {
+function updateStats(members, expenses, followUps) {
     let totalCollected = 0;
     let totalOutstanding = 0;
     let totalDue = 0;
@@ -153,7 +159,8 @@ function updateStats(members, expenses) {
         fundRemaining,
         totalExpense,
         fundAfterExpense,
-        collectionPct
+        collectionPct,
+        followUps: buildFollowUpReportSummary(members, followUps)
     };
 }
 
@@ -255,6 +262,7 @@ function setupWhatsAppReport() {
 function buildWhatsAppReportMessage() {
     const month = appInstance.state.currentMonth || 'Current Month';
     const summary = currentSummary;
+    const followSummary = summary.followUps || buildFollowUpReportSummary(currentMembers, currentFollowUps);
     const partialMembers = currentMembers.filter(function(m) { return m['Payment Status'] === 'Partially Paid'; });
     const pendingMembers = currentMembers.filter(function(m) {
         return m['Payment Status'] !== 'Paid' && m['Payment Status'] !== 'Partially Paid';
@@ -267,6 +275,12 @@ function buildWhatsAppReportMessage() {
     msg += '- Fully Paid: ' + summary.paidCount + '\n';
     msg += '- Partially Paid: ' + summary.partialCount + ' (' + utils.formatCurrency(summary.partialRemainingAmt) + ' remaining)\n';
     msg += '- Pending: ' + summary.pendingCount + ' (' + utils.formatCurrency(summary.pendingAmt) + ' due)\n\n';
+    msg += '*Follow-up Summary*\n';
+    msg += '- Members Reminded: ' + followSummary.reminded + '\n';
+    msg += '- Awaiting Reply: ' + followSummary.awaiting + '\n';
+    msg += '- Promised to Pay: ' + followSummary.promised + '\n';
+    msg += '- Due Follow-ups Today: ' + followSummary.due + '\n';
+    msg += '- Reasons Recorded: ' + followSummary.withReason + '\n\n';
 
     msg += '*Collection Summary*\n';
     msg += '- Total Due: ' + utils.formatCurrency(summary.totalDue) + '\n';
@@ -293,13 +307,70 @@ function buildWhatsAppReportMessage() {
     if (pendingMembers.length > 0) {
         msg += '\n*Pending Members*\n';
         pendingMembers.forEach(function(m) {
-            msg += '- ' + (m['Name'] || 'Member') + ': ' + utils.formatCurrency(m['Remaining Balance']) + ' due\n';
+            const follow = buildMemberFollowUpSummary(m, currentFollowUps);
+            msg += '- ' + (m['Name'] || 'Member') + ': ' + utils.formatCurrency(m['Remaining Balance']) + ' due';
+            if (follow.reminderCount > 0) msg += ', reminders ' + follow.reminderCount;
+            if (follow.latestReplyStatus) msg += ', ' + follow.latestReplyStatus;
+            if (follow.reason) msg += ', reason: ' + follow.reason;
+            msg += '\n';
         });
     }
 
     msg += '\nPlease clear remaining dues at the earliest.\n';
     msg += 'Thank you.';
     return msg;
+}
+
+function buildFollowUpReportSummary(members, followUps) {
+    const unpaid = members.filter(function(m) { return m['Payment Status'] !== 'Paid' && (Number(m['Remaining Balance']) || 0) > 0; });
+    const summaries = unpaid.map(function(member) { return buildMemberFollowUpSummary(member, followUps); });
+    return {
+        reminded: summaries.filter(function(item) { return item.reminderCount > 0; }).length,
+        awaiting: summaries.filter(function(item) { return item.awaitingReply; }).length,
+        promised: summaries.filter(function(item) { return item.latestReplyStatus === 'Promised'; }).length,
+        due: summaries.filter(function(item) { return item.reminderCount === 0 || item.nextDue; }).length,
+        withReason: summaries.filter(function(item) { return !!item.reason; }).length
+    };
+}
+
+function buildMemberFollowUpSummary(member, followUps) {
+    const phone = normalizePhone(member['Phone Number']);
+    const name = String(member['Name'] || '').trim().toLowerCase();
+    const items = followUps.filter(function(item) {
+        const samePhone = phone && normalizePhone(item['Phone Number']) === phone;
+        const sameName = name && String(item['Member Name'] || '').trim().toLowerCase() === name;
+        return samePhone || sameName;
+    }).sort(function(a, b) {
+        return new Date(a['Event Date'] || 0) - new Date(b['Event Date'] || 0);
+    });
+    const reminders = items.filter(function(item) { return item['Event Type'] === 'Reminder Sent'; });
+    const responseLogs = items.filter(function(item) { return item['Event Type'] === 'Reply Received'; });
+    const replies = responseLogs.filter(function(item) { return item['Reply Status'] !== 'No Reply'; });
+    const latestReminder = reminders[reminders.length - 1] || null;
+    const latestReply = replies[replies.length - 1] || null;
+    const latestResponseLog = responseLogs[responseLogs.length - 1] || null;
+    const latestItem = items[items.length - 1] || null;
+    const nextDate = latestItem ? latestItem['Next Reminder Date'] : '';
+    return {
+        reminderCount: reminders.length,
+        lastReminderDate: latestReminder ? latestReminder['Event Date'] : '',
+        awaitingReply: !!latestReminder && (!latestReply || new Date(latestReply['Event Date'] || 0) < new Date(latestReminder['Event Date'] || 0)),
+        latestReplyStatus: latestResponseLog ? latestResponseLog['Reply Status'] : '',
+        reason: latestResponseLog ? latestResponseLog['Reason / Reply'] : '',
+        nextDate: nextDate,
+        nextDue: nextDate && startOfDay(nextDate) <= startOfDay(new Date())
+    };
+}
+
+function normalizePhone(phone) {
+    return String(phone || '').replace(/\D/g, '');
+}
+
+function startOfDay(value) {
+    const d = value instanceof Date ? new Date(value) : new Date(value);
+    if (isNaN(d.getTime())) return new Date(8640000000000000);
+    d.setHours(0, 0, 0, 0);
+    return d;
 }
 
 async function copyText(text) {

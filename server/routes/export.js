@@ -11,18 +11,21 @@ router.get('/csv', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
     
-    const members = await sheetsService.getSheetData(month);
+    const [members, followUps] = await Promise.all([
+      sheetsService.getSheetData(month),
+      sheetsService.getFollowUps(month).catch(() => [])
+    ]);
     
     if (members.length === 0) {
       return res.status(404).send('No data found for this month');
     }
     
-    // Get headers from first object
-    const headers = Object.keys(members[0]).filter(k => k !== '_rowId');
+    const rows = enrichMembersWithFollowUps(members, followUps);
+    const headers = Object.keys(rows[0]).filter(k => k !== '_rowId');
     
     let csv = headers.join(',') + '\n';
     
-    members.forEach(m => {
+    rows.forEach(m => {
       const row = headers.map(h => {
         let val = m[h] !== undefined && m[h] !== null ? m[h].toString() : '';
         // Escape quotes and wrap in quotes if contains comma
@@ -118,17 +121,22 @@ router.get('/excel', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
     
-    const members = await sheetsService.getSheetData(month);
+    const [members, followUps] = await Promise.all([
+      sheetsService.getSheetData(month),
+      sheetsService.getFollowUps(month).catch(() => [])
+    ]);
     
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet(month);
     
-    if (members.length > 0) {
-      const headers = Object.keys(members[0]).filter(k => k !== '_rowId');
+    const rows = enrichMembersWithFollowUps(members, followUps);
+
+    if (rows.length > 0) {
+      const headers = Object.keys(rows[0]).filter(k => k !== '_rowId');
       
       sheet.columns = headers.map(h => ({ header: h, key: h, width: 20 }));
       
-      members.forEach(m => {
+      rows.forEach(m => {
         sheet.addRow(m);
       });
       
@@ -146,5 +154,49 @@ router.get('/excel', async (req, res) => {
     res.status(500).send('Error generating Excel: ' + error.message);
   }
 });
+
+function enrichMembersWithFollowUps(members, followUps) {
+  return members.map(member => {
+    const summary = buildMemberFollowUpSummary(member, followUps);
+    return {
+      ...member,
+      'Reminder Count': summary.reminderCount,
+      'Last Reminder Date': summary.lastReminderDate,
+      'Reply Status': summary.latestReplyStatus,
+      'Reason / Reply': summary.reason,
+      'Next Reminder Date': summary.nextDate,
+      'Awaiting Reply': summary.awaitingReply ? 'Yes' : 'No'
+    };
+  });
+}
+
+function buildMemberFollowUpSummary(member, followUps) {
+  const phone = normalizePhone(member['Phone Number']);
+  const name = String(member['Name'] || '').trim().toLowerCase();
+  const items = followUps.filter(item => {
+    const samePhone = phone && normalizePhone(item['Phone Number']) === phone;
+    const sameName = name && String(item['Member Name'] || '').trim().toLowerCase() === name;
+    return samePhone || sameName;
+  }).sort((a, b) => new Date(a['Event Date'] || 0) - new Date(b['Event Date'] || 0));
+  const reminders = items.filter(item => item['Event Type'] === 'Reminder Sent');
+  const responseLogs = items.filter(item => item['Event Type'] === 'Reply Received');
+  const replies = responseLogs.filter(item => item['Reply Status'] !== 'No Reply');
+  const latestReminder = reminders[reminders.length - 1] || null;
+  const latestReply = replies[replies.length - 1] || null;
+  const latestResponseLog = responseLogs[responseLogs.length - 1] || null;
+  const latestItem = items[items.length - 1] || null;
+  return {
+    reminderCount: reminders.length,
+    lastReminderDate: latestReminder ? latestReminder['Event Date'] : '',
+    latestReplyStatus: latestResponseLog ? latestResponseLog['Reply Status'] : '',
+    reason: latestResponseLog ? latestResponseLog['Reason / Reply'] : '',
+    nextDate: latestItem ? latestItem['Next Reminder Date'] : '',
+    awaitingReply: !!latestReminder && (!latestReply || new Date(latestReply['Event Date'] || 0) < new Date(latestReminder['Event Date'] || 0))
+  };
+}
+
+function normalizePhone(phone) {
+  return String(phone || '').replace(/\D/g, '');
+}
 
 module.exports = router;

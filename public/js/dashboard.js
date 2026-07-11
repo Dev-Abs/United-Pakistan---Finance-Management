@@ -437,6 +437,7 @@ async function copyText(text) {
 
 function buildDashboardWhatsAppMessage() {
     const summary = currentDashboardSummary || buildSummary(currentDashboardMembers, currentDashboardExpenses);
+    const followSummary = buildFollowUpReportSummary(currentDashboardMembers, currentDashboardFollowUps);
     let msg = '*United Pakistan - Monthly Finance Summary*\n';
     msg += '*' + (appInstance.state.currentMonth || 'Current Month') + '*\n\n';
     msg += '*Collection Health:* ' + summary.collectionRate + '%\n';
@@ -444,14 +445,40 @@ function buildDashboardWhatsAppMessage() {
     msg += '- Paid: ' + summary.paidCount + '\n';
     msg += '- Partially Paid: ' + summary.partialCount + '\n';
     msg += '- Pending: ' + summary.pendingCount + '\n\n';
+    msg += '*Follow-up Summary*\n';
+    msg += '- Members Reminded: ' + followSummary.reminded + '\n';
+    msg += '- Awaiting Reply: ' + followSummary.awaiting + '\n';
+    msg += '- Promised to Pay: ' + followSummary.promised + '\n';
+    msg += '- Due Follow-ups Today: ' + followSummary.due + '\n';
+    msg += '- Reasons Recorded: ' + followSummary.withReason + '\n\n';
     msg += '*Financial Position*\n';
     msg += '- Total Due: ' + utils.formatCurrency(summary.totalDue) + '\n';
     msg += '- Total Collected: ' + utils.formatCurrency(summary.totalCollected) + '\n';
     msg += '- Outstanding: ' + utils.formatCurrency(summary.totalOutstanding) + '\n';
     msg += '- Expenses: ' + utils.formatCurrency(summary.totalExpense) + '\n';
     msg += '- Remaining After Expenses: ' + utils.formatCurrency(summary.netAmount) + '\n\n';
+    if (followSummary.reasonItems.length > 0) {
+        msg += '*Pending Reasons / Replies*\n';
+        followSummary.reasonItems.slice(0, 8).forEach(function(item) {
+            msg += '- ' + (item.member['Name'] || 'Member') + ': ' + item.reason + '\n';
+        });
+        msg += '\n';
+    }
     msg += 'Please clear pending dues as soon as possible.';
     return msg;
+}
+
+function buildFollowUpReportSummary(members, followUps) {
+    const unpaid = members.filter(function(m) { return m['Payment Status'] !== 'Paid' && (Number(m['Remaining Balance']) || 0) > 0; });
+    const summaries = unpaid.map(function(member) { return buildMemberFollowUpSummary(member, followUps); });
+    return {
+        reminded: summaries.filter(function(item) { return item.reminderCount > 0; }).length,
+        awaiting: summaries.filter(function(item) { return item.awaitingReply; }).length,
+        promised: summaries.filter(function(item) { return item.latestReplyStatus === 'Promised'; }).length,
+        due: summaries.filter(function(item) { return item.reminderCount === 0 || item.nextDue; }).length,
+        withReason: summaries.filter(function(item) { return !!item.reason; }).length,
+        reasonItems: summaries.filter(function(item) { return !!item.reason; })
+    };
 }
 
 function updateRecentPayments(members) {
@@ -572,6 +599,28 @@ function setupEventListeners() {
 
     document.getElementById('btn-generate-reminders-dash')?.addEventListener('click', function() {
         appInstance.navigate('members');
+        setTimeout(function() {
+            var filter = document.getElementById('followup-filter');
+            if (filter) {
+                filter.value = 'due';
+                filter.dispatchEvent(new Event('change'));
+            }
+            var btn = document.getElementById('btn-due-reminders');
+            if (btn) btn.click();
+        }, 500);
+    });
+
+    document.getElementById('btn-dashboard-due-reminders')?.addEventListener('click', function() {
+        appInstance.navigate('members');
+        setTimeout(function() {
+            var filter = document.getElementById('followup-filter');
+            if (filter) {
+                filter.value = 'due';
+                filter.dispatchEvent(new Event('change'));
+            }
+            var btn = document.getElementById('btn-due-reminders');
+            if (btn) btn.click();
+        }, 500);
     });
 
     document.getElementById('btn-dash-new-month')?.addEventListener('click', function() {

@@ -31,7 +31,8 @@
                 </select>
             </div>
             <div class="flex gap-sm">
-                <button class="btn btn-outline" id="btn-bulk-reminders"><i data-lucide="message-square-text"></i> Bulk Reminders</button>
+                <button class="btn btn-outline" id="btn-due-reminders"><i data-lucide="bell-ring"></i> Due Reminders</button>
+                <button class="btn btn-outline" id="btn-bulk-reminders"><i data-lucide="message-square-text"></i> All Pending</button>
                 <button class="btn btn-primary" id="btn-add-member"><i data-lucide="user-plus"></i> Add Member</button>
             </div>
         </div>
@@ -114,6 +115,14 @@
                 <div class="form-group"><label>Next Reminder Date</label><input type="date" id="f-next-date" class="form-control"></div>
             </div>
             <div class="form-group"><label>Reason / Reply</label><textarea id="f-reason" class="form-control" rows="3" placeholder="Example: will pay after salary, no reply, disputed balance..."></textarea></div>
+            <div class="reason-chip-row" aria-label="Reason shortcuts">
+                <button type="button" class="reason-chip" data-reason="Salary pending">Salary pending</button>
+                <button type="button" class="reason-chip" data-reason="Will pay later">Will pay later</button>
+                <button type="button" class="reason-chip" data-reason="Out of city">Out of city</button>
+                <button type="button" class="reason-chip" data-reason="Already paid, receipt pending">Receipt pending</button>
+                <button type="button" class="reason-chip" data-reason="Disputed balance">Disputed balance</button>
+                <button type="button" class="reason-chip" data-reason="Financial issue">Financial issue</button>
+            </div>
             <div class="form-group"><label>Notes</label><input type="text" id="f-notes" class="form-control" placeholder="Optional internal note"></div>
         </form>
     </div>
@@ -123,5 +132,5 @@
 <div id="reminders-modal" class="modal-overlay"><div class="modal" style="max-width: 600px;">
     <div class="modal-header"><h3 class="modal-title">Pending Reminders</h3><button class="modal-close" onclick="document.getElementById('reminders-modal').classList.remove('active')">&times;</button></div>
     <div class="modal-body p-0"><div id="reminders-list" class="flex flex-col"></div></div>
-    <div class="modal-footer"><button class="btn btn-outline" id="btn-copy-all-reminders">Copy All Text</button><button class="btn btn-primary" onclick="document.getElementById('reminders-modal').classList.remove('active')">Done</button></div>
+    <div class="modal-footer"><button class="btn btn-outline" id="btn-copy-all-reminders">Copy All Text</button><button class="btn btn-primary" id="btn-open-all-reminders">Open WhatsApp Queue</button><button class="btn btn-outline" onclick="document.getElementById('reminders-modal').classList.remove('active')">Done</button></div>
 </div></div>

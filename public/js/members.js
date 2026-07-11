@@ -4,6 +4,7 @@ import { utils } from './utils.js';
 let appInstance = null;
 let allMembers = [];
 let allFollowUps = [];
+let currentReminderMembers = [];
 let appSettings = {};
 
 function renderIcons() {
@@ -19,6 +20,8 @@ export async function init(app) {
         let el = document.getElementById('btn-add-member');
         if (el) el.style.display = 'none';
         el = document.getElementById('btn-bulk-reminders');
+        if (el) el.style.display = 'none';
+        el = document.getElementById('btn-due-reminders');
         if (el) el.style.display = 'none';
     }
 
@@ -331,7 +334,17 @@ function setupEventListeners() {
     });
 
     document.getElementById('btn-bulk-reminders').addEventListener('click', generateBulkReminders);
+    document.getElementById('btn-due-reminders').addEventListener('click', generateDueReminders);
     document.getElementById('btn-copy-all-reminders').addEventListener('click', copyAllReminders);
+    document.getElementById('btn-open-all-reminders').addEventListener('click', openAllReminderQueue);
+    document.querySelectorAll('.reason-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            const input = document.getElementById('f-reason');
+            const reason = this.dataset.reason || '';
+            input.value = input.value ? input.value + '; ' + reason : reason;
+            input.focus();
+        });
+    });
     document.getElementById('followup-form').addEventListener('submit', async function (e) {
         e.preventDefault();
         const id = document.getElementById('f-member-id').value;
@@ -425,7 +438,6 @@ window.membersJS = {
                 'Event Type': 'Reminder Sent',
                 'Reply Status': 'No Reply',
                 'Reason / Reply': '',
-                'Next Reminder Date': defaultNextReminderDate(),
                 'Notes': 'WhatsApp reminder opened from members table'
             });
             await loadMembers();
@@ -509,12 +521,6 @@ async function recordFollowUp(member, extraData, silent) {
     return res;
 }
 
-function defaultNextReminderDate() {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toISOString().split('T')[0];
-}
-
 function dateInputValue(value) {
     if (!value) return '';
     const d = new Date(value);
@@ -566,9 +572,12 @@ function renderMemberFollowUpHistory(member) {
 }
 
 function generateReminderText(m) {
+    const summary = getFollowUpSummary(m);
+    const nextReminderNumber = summary.reminderCount + 1;
     let msg = '*United Pakistan - ' + (appSettings['SECTOR_NAME'] || '[Sector Name]') + '*\n\n';
     msg += 'Assalamu Alaikum ' + (m['Name'] || '') + ' sb!\n\n';
-    msg += 'This is a gentle reminder regarding your monthly fund.\n\n';
+    msg += buildReminderOpening(summary, nextReminderNumber);
+    msg += '\n\n';
     msg += 'Fund Details:\n';
     msg += '- Member Category: ' + (m['Member Category'] || 'Fellow Member (FM)') + '\n';
     msg += '- Monthly Fund: ' + utils.formatCurrency(m['Monthly Fund']) + '\n';
@@ -585,21 +594,55 @@ function generateReminderText(m) {
     return msg;
 }
 
-function generateBulkReminders() {
-    const pending = allMembers.filter(function (m) {
+function buildReminderOpening(summary, nextReminderNumber) {
+    if (summary.promised && summary.nextDate && startOfDay(summary.nextDate) <= startOfDay(new Date())) {
+        return 'You had kindly shared that payment would be made by ' + utils.formatDate(summary.nextDate) + '. This is a follow-up reminder regarding the pending monthly fund.';
+    }
+    if (nextReminderNumber <= 1) {
+        return 'This is a gentle reminder regarding your monthly fund.';
+    }
+    if (nextReminderNumber === 2) {
+        return 'This is a follow-up reminder regarding your pending monthly fund. Kindly clear it at your earliest convenience.';
+    }
+    return 'This is another follow-up regarding your pending monthly fund. If there is any issue or delay, kindly reply with the reason so we can update our record.';
+}
+
+function getPendingMembers() {
+    return allMembers.filter(function (m) {
         return m['Payment Status'] === 'Pending' || m['Payment Status'] === 'Partially Paid';
     });
+}
+
+function getDueReminderMembers() {
+    return getPendingMembers().filter(function (m) {
+        const summary = getFollowUpSummary(m);
+        return summary.reminderCount === 0 || summary.nextDue;
+    });
+}
+
+function generateBulkReminders() {
+    renderReminderModal(getPendingMembers(), 'Pending Reminders');
+}
+
+function generateDueReminders() {
+    renderReminderModal(getDueReminderMembers(), 'Due Reminders');
+}
+
+function renderReminderModal(pending, title) {
+    currentReminderMembers = pending;
     const list = document.getElementById('reminders-list');
+    document.querySelector('#reminders-modal .modal-title').textContent = title;
     list.innerHTML = '';
     if (pending.length === 0) {
-        list.innerHTML = '<div class="p-md text-center text-muted">Everyone is fully paid!</div>';
+        list.innerHTML = '<div class="p-md text-center text-muted">No reminders are due right now.</div>';
     } else {
         pending.forEach(function (m) {
+            const summary = getFollowUpSummary(m);
             const msg = generateReminderText(m);
             const item = document.createElement('div');
             item.className = 'p-md border-bottom';
             item.innerHTML = '<div class="flex justify-between align-center mb-sm">' +
-                '<h4 class="font-bold">' + (m['Name'] || '') + '</h4>' +
+                '<div><h4 class="font-bold">' + (m['Name'] || '') + '</h4><div class="text-sm text-muted">' + summary.reminderCount + ' reminders sent' + (summary.nextDate ? ' | Next: ' + utils.formatDate(summary.nextDate) : '') + '</div></div>' +
                 '<div class="flex gap-sm">' +
                 '<button class="btn btn-sm btn-outline copy-btn">Copy</button>' +
                 '<button class="btn btn-sm btn-primary whatsapp-btn">WhatsApp</button>' +
@@ -615,7 +658,6 @@ function generateBulkReminders() {
                     await recordFollowUp(m, {
                         'Event Type': 'Reminder Sent',
                         'Reply Status': 'No Reply',
-                        'Next Reminder Date': defaultNextReminderDate(),
                         'Notes': 'WhatsApp reminder opened from bulk reminders'
                     });
                     window.open(utils.generateWhatsAppLink(m['Phone Number'], msg), '_blank');
@@ -634,9 +676,7 @@ function generateBulkReminders() {
 }
 
 function copyAllReminders() {
-    const pending = allMembers.filter(function (m) {
-        return m['Payment Status'] === 'Pending' || m['Payment Status'] === 'Partially Paid';
-    });
+    const pending = currentReminderMembers.length ? currentReminderMembers : getPendingMembers();
     let allText = '';
     pending.forEach(function (m) {
         allText += '--- TO: ' + (m['Name'] || '') + ' (' + (m['Phone Number'] || '') + ') ---\n';
@@ -651,4 +691,36 @@ function copyAllReminders() {
         btn.textContent = 'Copied All!';
         setTimeout(function () { btn.textContent = 'Copy All Text'; }, 2000);
     });
+}
+
+async function openAllReminderQueue() {
+    const members = currentReminderMembers.length ? currentReminderMembers : getDueReminderMembers();
+    const btn = document.getElementById('btn-open-all-reminders');
+    if (!members.length) {
+        utils.showToast('No reminders to open');
+        return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Opening...';
+    var opened = 0;
+    try {
+        for (const m of members) {
+            const msg = generateReminderText(m);
+            await recordFollowUp(m, {
+                'Event Type': 'Reminder Sent',
+                'Reply Status': 'No Reply',
+                'Notes': 'WhatsApp queue opened'
+            }, true);
+            const win = window.open(utils.generateWhatsAppLink(m['Phone Number'], msg), '_blank');
+            if (win) opened++;
+        }
+        utils.showToast(opened + ' WhatsApp reminder tabs opened');
+        await loadMembers();
+        document.getElementById('reminders-modal').classList.remove('active');
+    } catch (error) {
+        utils.showToast(error.message || 'Could not open all reminders', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Open WhatsApp Queue';
+    }
 }
