@@ -4,8 +4,8 @@
         <div class="card mb-md"><div class="skeleton skeleton-card" style="height:50px;"></div></div>
         <div class="card p-0">
             <div class="table-responsive">
-                <table class="table"><thead><tr><th>Name</th><th>Phone</th><th>Category</th><th>Fund</th><th>Prev</th><th>Due</th><th>Paid</th><th>Remain</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody><tr><td colspan="10"><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div></td></tr></tbody>
+                <table class="table"><thead><tr><th>Name</th><th>Phone</th><th>Category</th><th>Fund</th><th>Prev</th><th>Due</th><th>Paid</th><th>Remain</th><th>Status</th><th>Follow-up</th><th>Actions</th></tr></thead>
+                    <tbody><tr><td colspan="11"><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div><div class="skeleton skeleton-table-row"></div></td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -21,6 +21,13 @@
                     <option value="Pending">Pending</option>
                     <option value="Partially Paid">Partially Paid</option>
                     <option value="Paid">Paid</option>
+                </select>
+                <select id="followup-filter" class="form-control" style="max-width: 180px;">
+                    <option value="all">All Follow-ups</option>
+                    <option value="due">Reminder Due</option>
+                    <option value="awaiting">Awaiting Reply</option>
+                    <option value="promised">Promised</option>
+                    <option value="reason">Has Reason</option>
                 </select>
             </div>
             <div class="flex gap-sm">
@@ -42,6 +49,7 @@
                         <th data-sort="Amount Paid" class="sortable">Paid <span class="sort-arrow"></span></th>
                         <th data-sort="Remaining Balance" class="sortable">Remaining <span class="sort-arrow"></span></th>
                         <th data-sort="Payment Status" class="sortable">Status <span class="sort-arrow"></span></th>
+                        <th>Follow-up</th>
                         <th>Actions</th>
                     </tr></thead>
                     <tbody><!-- Injected by JS --></tbody>
@@ -85,6 +93,31 @@
         </form>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="document.getElementById('payment-modal').classList.remove('active')">Cancel</button><button class="btn btn-success" id="btn-save-payment" type="submit" form="payment-form" style="background-color: var(--success); color: white; border:none;">Confirm Payment</button></div>
+</div></div>
+
+<div id="followup-modal" class="modal-overlay"><div class="modal">
+    <div class="modal-header"><h3 class="modal-title">Log Follow-up - <span id="f-member-name"></span></h3><button class="modal-close" onclick="document.getElementById('followup-modal').classList.remove('active')">&times;</button></div>
+    <div class="modal-body">
+        <form id="followup-form"><input type="hidden" id="f-member-id">
+            <div class="grid grid-cols-2">
+                <div class="form-group">
+                    <label>Reply Status</label>
+                    <select id="f-reply-status" class="form-control" required>
+                        <option value="No Reply">No Reply</option>
+                        <option value="Replied">Replied</option>
+                        <option value="Promised">Promised</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Refused">Refused</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Next Reminder Date</label><input type="date" id="f-next-date" class="form-control"></div>
+            </div>
+            <div class="form-group"><label>Reason / Reply</label><textarea id="f-reason" class="form-control" rows="3" placeholder="Example: will pay after salary, no reply, disputed balance..."></textarea></div>
+            <div class="form-group"><label>Notes</label><input type="text" id="f-notes" class="form-control" placeholder="Optional internal note"></div>
+        </form>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="document.getElementById('followup-modal').classList.remove('active')">Cancel</button><button class="btn btn-primary" id="btn-save-followup" type="submit" form="followup-form">Save Follow-up</button></div>
 </div></div>
 
 <div id="reminders-modal" class="modal-overlay"><div class="modal" style="max-width: 600px;">

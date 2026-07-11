@@ -57,6 +57,15 @@ function handleRequest(e, method) {
       case 'getMemberHistory':
         result = getMemberHistory(params.name, params.phone);
         break;
+      case 'getFollowUps':
+        result = getFollowUps(params.month);
+        break;
+      case 'getMemberFollowUps':
+        result = getMemberFollowUps(params.month, params.name, params.phone);
+        break;
+      case 'addFollowUp':
+        result = addFollowUp(params.data);
+        break;
       case 'saveSettings':
         result = saveSettings(params.data);
         break;
@@ -187,7 +196,7 @@ function getSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheets()
     .map(sheet => sheet.getName())
-    .filter(name => name !== 'Settings' && name !== 'Expenses' && !isReportSheetName(name));
+    .filter(name => name !== 'Settings' && name !== 'Expenses' && name !== FOLLOWUP_SHEET_NAME && !isReportSheetName(name));
 }
 
 function getHeaders(sheet) {
@@ -385,6 +394,137 @@ function deleteExpense(rowId) {
 }
 
 // ----------------------------------------------------------------------------
+// Follow-up / Reminder History
+// ----------------------------------------------------------------------------
+
+const FOLLOWUP_SHEET_NAME = 'FollowUps';
+const FOLLOWUP_HEADERS = ['Month', 'Member Name', 'Phone Number', 'Member Category', 'Event Type', 'Reminder Number', 'Event Date', 'Reply Status', 'Reason / Reply', 'Next Reminder Date', 'Created By', 'Notes'];
+
+function getOrCreateFollowUpsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(FOLLOWUP_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(FOLLOWUP_SHEET_NAME);
+    sheet.appendRow(FOLLOWUP_HEADERS);
+  } else {
+    const lastCol = sheet.getLastColumn();
+    const headers = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+    if (!headers.length || headers[0] !== FOLLOWUP_HEADERS[0]) {
+      sheet.clear();
+      sheet.appendRow(FOLLOWUP_HEADERS);
+    } else {
+      FOLLOWUP_HEADERS.forEach(header => {
+        if (headers.indexOf(header) === -1) {
+          sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+        }
+      });
+    }
+  }
+
+  const headerRange = sheet.getRange(1, 1, 1, FOLLOWUP_HEADERS.length);
+  headerRange.setFontWeight('bold')
+    .setFontColor('#FFFFFF')
+    .setBackground('#1D4ED8')
+    .setHorizontalAlignment('center');
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, sheet.getMaxRows(), FOLLOWUP_HEADERS.length).setFontFamily('Arial').setFontSize(10);
+  const widths = {
+    'Month': 110,
+    'Member Name': 170,
+    'Phone Number': 135,
+    'Member Category': 180,
+    'Event Type': 130,
+    'Reminder Number': 110,
+    'Event Date': 150,
+    'Reply Status': 130,
+    'Reason / Reply': 260,
+    'Next Reminder Date': 150,
+    'Created By': 130,
+    'Notes': 220
+  };
+  FOLLOWUP_HEADERS.forEach((header, i) => sheet.setColumnWidth(i + 1, widths[header] || 120));
+
+  const eventIdx = FOLLOWUP_HEADERS.indexOf('Event Type');
+  const replyIdx = FOLLOWUP_HEADERS.indexOf('Reply Status');
+  if (sheet.getMaxRows() > 1) {
+    sheet.getRange(2, eventIdx + 1, sheet.getMaxRows() - 1, 1).setDataValidation(
+      SpreadsheetApp.newDataValidation()
+        .requireValueInList(['Reminder Sent', 'Reply Received', 'Payment Recorded', 'Call Made', 'Note'], true)
+        .setAllowInvalid(false)
+        .build()
+    );
+    sheet.getRange(2, replyIdx + 1, sheet.getMaxRows() - 1, 1).setDataValidation(
+      SpreadsheetApp.newDataValidation()
+        .requireValueInList(['No Reply', 'Replied', 'Promised', 'Paid', 'Refused', 'Other'], true)
+        .setAllowInvalid(true)
+        .build()
+    );
+  }
+
+  return sheet;
+}
+
+function getFollowUps(month) {
+  const sheet = getOrCreateFollowUpsSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const data = sheet.getRange(2, 1, lastRow - 1, FOLLOWUP_HEADERS.length).getValues();
+  return data
+    .map((row, index) => rowToFollowUp(row, index + 2))
+    .filter(item => !month || String(item['Month']).trim() === String(month).trim());
+}
+
+function getMemberFollowUps(month, name, phone) {
+  const targetName = String(name || '').trim().toLowerCase();
+  const targetPhone = normalizePhone(phone);
+  return getFollowUps(month).filter(item => {
+    const samePhone = targetPhone && normalizePhone(item['Phone Number']) === targetPhone;
+    const sameName = targetName && String(item['Member Name'] || '').trim().toLowerCase() === targetName;
+    return samePhone || sameName;
+  });
+}
+
+function addFollowUp(data) {
+  if (!data) throw new Error('Follow-up data is required');
+  if (!data['Month']) throw new Error('Month is required');
+  if (!data['Member Name']) throw new Error('Member Name is required');
+
+  const sheet = getOrCreateFollowUpsSheet();
+  const eventType = data['Event Type'] || 'Note';
+  const rowData = {};
+  FOLLOWUP_HEADERS.forEach(header => rowData[header] = data[header] !== undefined ? data[header] : '');
+  rowData['Event Type'] = eventType;
+  rowData['Event Date'] = rowData['Event Date'] || new Date();
+  rowData['Reply Status'] = rowData['Reply Status'] || (eventType === 'Reminder Sent' ? 'No Reply' : '');
+
+  if (eventType === 'Reminder Sent' && !rowData['Reminder Number']) {
+    rowData['Reminder Number'] = getNextReminderNumber(rowData['Month'], rowData['Phone Number'], rowData['Member Name']);
+  }
+
+  const values = FOLLOWUP_HEADERS.map(header => rowData[header]);
+  sheet.appendRow(values);
+  const rowId = sheet.getLastRow();
+  return rowToFollowUp(sheet.getRange(rowId, 1, 1, FOLLOWUP_HEADERS.length).getValues()[0], rowId);
+}
+
+function getNextReminderNumber(month, phone, name) {
+  const existing = getMemberFollowUps(month, name, phone);
+  const count = existing.filter(item => item['Event Type'] === 'Reminder Sent').length;
+  return count + 1;
+}
+
+function rowToFollowUp(row, rowId) {
+  const obj = { _rowId: rowId };
+  FOLLOWUP_HEADERS.forEach((header, i) => obj[header] = row[i]);
+  return obj;
+}
+
+function normalizePhone(phone) {
+  return String(phone || '').replace(/\D/g, '');
+}
+
+// ----------------------------------------------------------------------------
 // Share-ready Excel Report Sheets
 // ----------------------------------------------------------------------------
 
@@ -437,7 +577,7 @@ function createMonthSheet(newSheetName, carryBalances) {
 
 function getLatestDataSheetBefore(ss, newSheetName) {
   const dataSheets = ss.getSheets()
-    .filter(sheet => sheet.getName() !== 'Settings' && sheet.getName() !== 'Expenses' && !isReportSheetName(sheet.getName()) && sheet.getName() !== newSheetName);
+    .filter(sheet => sheet.getName() !== 'Settings' && sheet.getName() !== 'Expenses' && sheet.getName() !== FOLLOWUP_SHEET_NAME && !isReportSheetName(sheet.getName()) && sheet.getName() !== newSheetName);
   if (!dataSheets.length) return null;
   return dataSheets[dataSheets.length - 1];
 }
@@ -712,7 +852,7 @@ function setMergedValue(sheet, row, col, numRows, numCols, value, bg, fg, align,
 function getMemberHistory(name, phone) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets()
-    .filter(s => s.getName() !== 'Settings' && s.getName() !== 'Expenses' && !isReportSheetName(s.getName()));
+    .filter(s => s.getName() !== 'Settings' && s.getName() !== 'Expenses' && s.getName() !== FOLLOWUP_SHEET_NAME && !isReportSheetName(s.getName()));
 
   const allRecords = [];
   const searchName = String(name || '').trim().toLowerCase();

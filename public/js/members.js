@@ -3,6 +3,7 @@ import { utils } from './utils.js';
 
 let appInstance = null;
 let allMembers = [];
+let allFollowUps = [];
 let appSettings = {};
 
 function renderIcons() {
@@ -37,9 +38,15 @@ export async function init(app) {
 async function loadMembers() {
     if (!appInstance.state.currentMonth) return;
     try {
-        const res = await api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth));
-        if (res.success) {
-            allMembers = res.data;
+        const [membersRes, followUpsRes] = await Promise.all([
+            api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth)),
+            api.get('/api/followups?month=' + encodeURIComponent(appInstance.state.currentMonth)).catch(function () {
+                return { success: false, data: [] };
+            })
+        ]);
+        if (membersRes.success) {
+            allMembers = membersRes.data || [];
+            allFollowUps = followUpsRes && followUpsRes.success ? followUpsRes.data || [] : [];
             document.getElementById('members-skeleton').style.display = 'none';
             document.getElementById('members-content').style.display = 'block';
             renderTable();
@@ -56,17 +63,20 @@ function renderTable() {
     tbody.innerHTML = '';
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
     const statusFilter = document.getElementById('status-filter').value;
+    const followupFilter = document.getElementById('followup-filter').value;
 
     let filtered = allMembers.filter(function (m) {
+        const followSummary = getFollowUpSummary(m);
         const matchesSearch = (m['Name'] || '').toLowerCase().includes(searchTerm) ||
             (m['Phone Number'] || '').includes(searchTerm) ||
-            (m['Member Category'] || '').toLowerCase().includes(searchTerm);
+            (m['Member Category'] || '').toLowerCase().includes(searchTerm) ||
+            (followSummary.reason || '').toLowerCase().includes(searchTerm);
         const matchesStatus = statusFilter === 'all' || m['Payment Status'] === statusFilter;
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchesStatus && matchesFollowUpFilter(followSummary, followupFilter);
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted p-md">No members found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted p-md">No members found.</td></tr>';
         return;
     }
 
@@ -87,6 +97,7 @@ function renderTable() {
 
     filtered.forEach(function (m) {
         const tr = document.createElement('tr');
+        const followSummary = getFollowUpSummary(m);
         let statusBadge = '<span class="badge badge-default">' + (m['Payment Status'] || '') + '</span>';
         if (m['Payment Status'] === 'Paid') statusBadge = '<span class="badge badge-success">Paid</span>';
         if (m['Payment Status'] === 'Partially Paid') statusBadge = '<span class="badge badge-warning">Partially Paid</span>';
@@ -97,6 +108,7 @@ function renderTable() {
             actionsHtml = '<div class="flex gap-sm">' +
                 '<button class="btn-icon" title="Mark Payment" onclick="window.membersJS.openPaymentModal(' + m._rowId + ')"><i data-lucide="dollar-sign"></i></button>' +
                 '<button class="btn-icon" title="Send WhatsApp" onclick="window.membersJS.sendWhatsApp(' + m._rowId + ')"><i data-lucide="message-circle"></i></button>' +
+                '<button class="btn-icon" title="Log Reply" onclick="window.membersJS.openFollowUpModal(' + m._rowId + ')"><i data-lucide="message-square-plus"></i></button>' +
                 '<button class="btn-icon" title="Edit" onclick="window.membersJS.openEditModal(' + m._rowId + ')"><i data-lucide="pencil"></i></button>' +
                 '<button class="btn-icon text-danger" title="Delete" onclick="window.membersJS.deleteMember(' + m._rowId + ')"><i data-lucide="trash-2"></i></button>' +
                 '</div>';
@@ -115,15 +127,106 @@ function renderTable() {
             '<td data-label="Paid" class="text-success">' + utils.formatCurrency(m['Amount Paid']) + '</td>' +
             '<td data-label="Remaining" class="text-danger">' + utils.formatCurrency(m['Remaining Balance']) + '</td>' +
             '<td data-label="Status">' + statusBadge + '</td>' +
+            '<td data-label="Follow-up">' + renderFollowUpCell(followSummary) + '</td>' +
             '<td data-label="Actions">' + actionsHtml + '</td>';
         tbody.appendChild(tr);
     });
     renderIcons();
 }
 
+function normalizePhone(phone) {
+    return String(phone || '').replace(/\D/g, '');
+}
+
+function memberFollowUps(member) {
+    const phone = normalizePhone(member['Phone Number']);
+    const name = String(member['Name'] || '').trim().toLowerCase();
+    return allFollowUps.filter(function (item) {
+        const samePhone = phone && normalizePhone(item['Phone Number']) === phone;
+        const sameName = name && String(item['Member Name'] || '').trim().toLowerCase() === name;
+        return samePhone || sameName;
+    }).sort(function (a, b) {
+        return new Date(a['Event Date'] || 0) - new Date(b['Event Date'] || 0);
+    });
+}
+
+function getFollowUpSummary(member) {
+    const items = memberFollowUps(member);
+    const reminders = items.filter(function (item) { return item['Event Type'] === 'Reminder Sent'; });
+    const responseLogs = items.filter(function (item) { return item['Event Type'] === 'Reply Received'; });
+    const replies = responseLogs.filter(function (item) { return item['Reply Status'] !== 'No Reply'; });
+    const latestReminder = reminders[reminders.length - 1] || null;
+    const latestReply = replies[replies.length - 1] || null;
+    const latestResponseLog = responseLogs[responseLogs.length - 1] || null;
+    const latestItem = items[items.length - 1] || null;
+    const nextDate = latestItem ? latestItem['Next Reminder Date'] : '';
+    const paymentStatus = member['Payment Status'] || 'Pending';
+    const paid = paymentStatus === 'Paid' || (Number(member['Remaining Balance']) || 0) <= 0;
+    const nextDue = !paid && nextDate && startOfDay(nextDate) <= startOfDay(new Date());
+    const awaitingReply = !paid && !!latestReminder && (!latestReply || new Date(latestReply['Event Date'] || 0) < new Date(latestReminder['Event Date'] || 0));
+    return {
+        items: items,
+        reminderCount: reminders.length,
+        lastReminderDate: latestReminder ? latestReminder['Event Date'] : '',
+        latestReplyStatus: latestResponseLog ? latestResponseLog['Reply Status'] : (latestReminder ? 'No Reply' : ''),
+        reason: latestResponseLog ? latestResponseLog['Reason / Reply'] : '',
+        nextDate: nextDate,
+        paid: paid,
+        nextDue: nextDue,
+        awaitingReply: awaitingReply,
+        hasReason: !!(latestResponseLog && latestResponseLog['Reason / Reply']),
+        promised: latestReply && latestReply['Reply Status'] === 'Promised'
+    };
+}
+
+function startOfDay(value) {
+    const d = value instanceof Date ? new Date(value) : new Date(value);
+    if (isNaN(d.getTime())) return new Date(8640000000000000);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function matchesFollowUpFilter(summary, filter) {
+    if (filter === 'all') return true;
+    if (filter === 'due') return summary.nextDue || (!summary.paid && summary.reminderCount === 0);
+    if (filter === 'awaiting') return summary.awaitingReply;
+    if (filter === 'promised') return !!summary.promised;
+    if (filter === 'reason') return summary.hasReason;
+    return true;
+}
+
+function renderFollowUpCell(summary) {
+    if (summary.paid) {
+        return '<div class="followup-cell"><span class="badge badge-success">Paid</span><small>No reminder needed</small></div>';
+    }
+    if (summary.reminderCount === 0) {
+        return '<div class="followup-cell"><span class="badge badge-warning">Not reminded</span><small>Ready to contact</small></div>';
+    }
+
+    var badge = '<span class="badge badge-default">' + summary.reminderCount + ' reminder' + (summary.reminderCount === 1 ? '' : 's') + '</span>';
+    if (summary.nextDue) badge = '<span class="badge badge-danger">Reminder due</span>';
+    if (summary.promised) badge = '<span class="badge badge-warning">Promised</span>';
+
+    var details = 'Last: ' + utils.formatDate(summary.lastReminderDate);
+    if (summary.latestReplyStatus) details += ' | ' + summary.latestReplyStatus;
+    if (summary.nextDate) details += ' | Next: ' + utils.formatDate(summary.nextDate);
+    if (summary.reason) details += '<br><span class="followup-reason">' + escapeHtml(summary.reason) + '</span>';
+    return '<div class="followup-cell">' + badge + '<small>' + details + '</small></div>';
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function setupEventListeners() {
     document.getElementById('search-input').addEventListener('input', renderTable);
     document.getElementById('status-filter').addEventListener('change', renderTable);
+    document.getElementById('followup-filter').addEventListener('change', renderTable);
 
     document.querySelectorAll('#members-table thead th.sortable').forEach(function (th) {
         th.addEventListener('click', function () {
@@ -203,6 +306,19 @@ function setupEventListeners() {
         btn.textContent = 'Saving...';
         try {
             await api.post('/api/payments/' + pid, pdata);
+            const paidMember = allMembers.find(function (x) { return String(x._rowId) === String(pid); });
+            if (paidMember) {
+                try {
+                    await recordFollowUp(paidMember, {
+                        'Event Type': 'Payment Recorded',
+                        'Reply Status': 'Paid',
+                        'Reason / Reply': 'Payment received: ' + utils.formatCurrency(pdata.amountPaid),
+                        'Notes': pdata.remarks || ''
+                    }, true);
+                } catch (followError) {
+                    console.warn('Payment saved, but follow-up history was not recorded', followError);
+                }
+            }
             utils.showToast('Payment saved');
             document.getElementById('payment-modal').classList.remove('active');
             await loadMembers();
@@ -216,6 +332,32 @@ function setupEventListeners() {
 
     document.getElementById('btn-bulk-reminders').addEventListener('click', generateBulkReminders);
     document.getElementById('btn-copy-all-reminders').addEventListener('click', copyAllReminders);
+    document.getElementById('followup-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const id = document.getElementById('f-member-id').value;
+        const member = allMembers.find(function (x) { return String(x._rowId) === String(id); });
+        if (!member) return;
+        const btn = document.getElementById('btn-save-followup');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        try {
+            await recordFollowUp(member, {
+                'Event Type': 'Reply Received',
+                'Reply Status': document.getElementById('f-reply-status').value,
+                'Reason / Reply': document.getElementById('f-reason').value,
+                'Next Reminder Date': document.getElementById('f-next-date').value,
+                'Notes': document.getElementById('f-notes').value
+            });
+            utils.showToast('Follow-up saved');
+            document.getElementById('followup-modal').classList.remove('active');
+            await loadMembers();
+        } catch (error) {
+            utils.showToast(error.message || 'Failed to save follow-up', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save Follow-up';
+        }
+    });
 }
 
 window.membersJS = {
@@ -260,11 +402,36 @@ window.membersJS = {
         document.getElementById('payment-modal').classList.add('active');
     },
 
-    sendWhatsApp: function (id) {
+    openFollowUpModal: function (id) {
+        const m = allMembers.find(function (x) { return x._rowId === id; });
+        if (!m) return;
+        const summary = getFollowUpSummary(m);
+        document.getElementById('f-member-id').value = m._rowId;
+        document.getElementById('f-member-name').textContent = m['Name'] || '';
+        document.getElementById('f-reply-status').value = summary.awaitingReply ? 'No Reply' : (summary.latestReplyStatus || 'Replied');
+        document.getElementById('f-reason').value = summary.reason || '';
+        document.getElementById('f-next-date').value = summary.nextDate ? dateInputValue(summary.nextDate) : '';
+        document.getElementById('f-notes').value = '';
+        document.getElementById('followup-modal').classList.add('active');
+    },
+
+    sendWhatsApp: async function (id) {
         const m = allMembers.find(function (x) { return x._rowId === id; });
         if (!m) return;
         const msg = generateReminderText(m);
         const link = utils.generateWhatsAppLink(m['Phone Number'], msg);
+        try {
+            await recordFollowUp(m, {
+                'Event Type': 'Reminder Sent',
+                'Reply Status': 'No Reply',
+                'Reason / Reply': '',
+                'Next Reminder Date': defaultNextReminderDate(),
+                'Notes': 'WhatsApp reminder opened from members table'
+            });
+            await loadMembers();
+        } catch (error) {
+            utils.showToast('WhatsApp opened, but reminder history was not saved', 'warning');
+        }
         window.open(link, '_blank');
     },
 
@@ -311,6 +478,7 @@ window.membersJS = {
                     html += '</tbody></table></div>';
                     html += '<div class="p-md text-right font-bold">Total Paid All Months: ' + utils.formatCurrency(totalPaid) + '</div>';
                 }
+                html += renderMemberFollowUpHistory(m);
                 showHistoryModal(m['Name'], html);
             }
         } catch (error) {
@@ -320,6 +488,39 @@ window.membersJS = {
         }
     }
 };
+
+async function recordFollowUp(member, extraData, silent) {
+    const data = {
+        'Month': appInstance.state.currentMonth,
+        'Member Name': member['Name'] || '',
+        'Phone Number': member['Phone Number'] || '',
+        'Member Category': member['Member Category'] || 'Fellow Member (FM)',
+        'Event Date': new Date().toISOString(),
+        'Created By': appSettings['SECRETARY_NAME'] || 'Admin',
+        ...extraData
+    };
+    const res = await api.post('/api/followups', { data: data });
+    if (res.success && res.data) {
+        allFollowUps.push(res.data);
+        if (!silent && data['Event Type'] === 'Reminder Sent') {
+            utils.showToast('Reminder #' + res.data['Reminder Number'] + ' recorded');
+        }
+    }
+    return res;
+}
+
+function defaultNextReminderDate() {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().split('T')[0];
+}
+
+function dateInputValue(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return String(value).slice(0, 10);
+    return d.toISOString().split('T')[0];
+}
 
 function showHistoryModal(name, html) {
     var existing = document.getElementById('history-modal-overlay');
@@ -337,6 +538,31 @@ function showHistoryModal(name, html) {
     document.getElementById('history-modal-body').innerHTML = html;
     document.getElementById('history-modal-title').textContent = 'History - ' + name;
     document.getElementById('history-modal-overlay').classList.add('active');
+}
+
+function renderMemberFollowUpHistory(member) {
+    const items = memberFollowUps(member).slice().sort(function (a, b) {
+        return new Date(b['Event Date'] || 0) - new Date(a['Event Date'] || 0);
+    });
+    let html = '<div class="history-section"><div class="history-section-header"><h4>Reminder & Reply History</h4><span>' + items.length + ' records</span></div>';
+    if (!items.length) {
+        return html + '<div class="text-center text-muted p-md">No reminder or reply history yet.</div></div>';
+    }
+    html += '<div class="table-responsive"><table class="table mobile-card-table"><thead><tr>' +
+        '<th>Date</th><th>Event</th><th>Reminder #</th><th>Reply</th><th>Reason</th><th>Next Reminder</th><th>By</th></tr></thead><tbody>';
+    items.forEach(function (item) {
+        html += '<tr>' +
+            '<td data-label="Date">' + utils.formatDate(item['Event Date']) + '</td>' +
+            '<td data-label="Event">' + escapeHtml(item['Event Type']) + '</td>' +
+            '<td data-label="Reminder #">' + (item['Reminder Number'] || '-') + '</td>' +
+            '<td data-label="Reply">' + escapeHtml(item['Reply Status'] || '-') + '</td>' +
+            '<td data-label="Reason">' + escapeHtml(item['Reason / Reply'] || item['Notes'] || '-') + '</td>' +
+            '<td data-label="Next Reminder">' + utils.formatDate(item['Next Reminder Date']) + '</td>' +
+            '<td data-label="By">' + escapeHtml(item['Created By'] || '-') + '</td>' +
+            '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+    return html;
 }
 
 function generateReminderText(m) {
@@ -376,11 +602,30 @@ function generateBulkReminders() {
                 '<h4 class="font-bold">' + (m['Name'] || '') + '</h4>' +
                 '<div class="flex gap-sm">' +
                 '<button class="btn btn-sm btn-outline copy-btn">Copy</button>' +
-                '<a href="' + utils.generateWhatsAppLink(m['Phone Number'], msg) + '" target="_blank" class="btn btn-sm btn-primary">WhatsApp</a>' +
+                '<button class="btn btn-sm btn-primary whatsapp-btn">WhatsApp</button>' +
                 '</div></div>' +
                 '<pre class="text-sm bg-gray p-sm" style="white-space: pre-wrap; font-family: inherit; border-radius: 4px;">' + msg + '</pre>';
             item.querySelector('.copy-btn').addEventListener('click', function () {
                 window.membersJS.copyText(this, msg);
+            });
+            item.querySelector('.whatsapp-btn').addEventListener('click', async function () {
+                this.disabled = true;
+                this.textContent = 'Opening...';
+                try {
+                    await recordFollowUp(m, {
+                        'Event Type': 'Reminder Sent',
+                        'Reply Status': 'No Reply',
+                        'Next Reminder Date': defaultNextReminderDate(),
+                        'Notes': 'WhatsApp reminder opened from bulk reminders'
+                    });
+                    window.open(utils.generateWhatsAppLink(m['Phone Number'], msg), '_blank');
+                    this.textContent = 'Recorded';
+                    renderTable();
+                } catch (error) {
+                    this.disabled = false;
+                    this.textContent = 'WhatsApp';
+                    utils.showToast('Could not record reminder', 'error');
+                }
             });
             list.appendChild(item);
         });

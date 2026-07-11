@@ -6,6 +6,7 @@ let chartInstances = {};
 let currentDashboardSummary = null;
 let currentDashboardMembers = [];
 let currentDashboardExpenses = [];
+let currentDashboardFollowUps = [];
 
 export async function init(app) {
     appInstance = app;
@@ -41,14 +42,18 @@ async function loadDashboardData() {
 
     try {
         const prevMonth = getPreviousMonth();
-        const [membersRes, expensesRes] = await Promise.all([
+        const [membersRes, expensesRes, followUpsRes] = await Promise.all([
             api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth)),
-            api.get('/api/expenses?month=' + encodeURIComponent(appInstance.state.currentMonth))
+            api.get('/api/expenses?month=' + encodeURIComponent(appInstance.state.currentMonth)),
+            api.get('/api/followups?month=' + encodeURIComponent(appInstance.state.currentMonth)).catch(function () {
+                return { success: false, data: [] };
+            })
         ]);
 
         if (membersRes.success) {
             const members = membersRes.data || [];
             const expenses = (expensesRes.success ? expensesRes.data : []) || [];
+            const followUps = (followUpsRes.success ? followUpsRes.data : []) || [];
             let previousSummary = null;
             if (prevMonth) {
                 try {
@@ -63,9 +68,11 @@ async function loadDashboardData() {
             }
             currentDashboardMembers = members;
             currentDashboardExpenses = expenses;
+            currentDashboardFollowUps = followUps;
             showDashboardContent();
             updateStats(members, expenses, previousSummary);
             updateTopPendingMembers(members);
+            updateFollowUpTracker(members, followUps);
             updateActivityLog(members, expenses);
             updateRecentPayments(members);
             updateRecentExpenses(expenses);
@@ -277,6 +284,100 @@ function updateTopPendingMembers(members) {
             '<b class="text-danger">' + utils.formatCurrency(m['Remaining Balance']) + '</b>' +
             '</div>';
     }).join('');
+}
+
+function updateFollowUpTracker(members, followUps) {
+    const remindedEl = document.getElementById('dash-followup-reminded');
+    const awaitingEl = document.getElementById('dash-followup-awaiting');
+    const dueEl = document.getElementById('dash-followup-due');
+    const list = document.getElementById('dashboard-followup-list');
+    if (!list) return;
+
+    const summaries = members
+        .filter(function(m) { return m['Payment Status'] !== 'Paid' && (Number(m['Remaining Balance']) || 0) > 0; })
+        .map(function(member) { return buildMemberFollowUpSummary(member, followUps); });
+
+    const reminded = summaries.filter(function(item) { return item.reminderCount > 0; }).length;
+    const awaiting = summaries.filter(function(item) { return item.awaitingReply; }).length;
+    const due = summaries.filter(function(item) { return item.nextDue || item.reminderCount === 0; }).length;
+
+    remindedEl.textContent = reminded;
+    awaitingEl.textContent = awaiting;
+    dueEl.textContent = due;
+
+    const priority = summaries.sort(function(a, b) {
+        if ((a.nextDue || a.reminderCount === 0) !== (b.nextDue || b.reminderCount === 0)) return (b.nextDue || b.reminderCount === 0) - (a.nextDue || a.reminderCount === 0);
+        if (a.awaitingReply !== b.awaitingReply) return b.awaitingReply - a.awaitingReply;
+        return (Number(b.member['Remaining Balance']) || 0) - (Number(a.member['Remaining Balance']) || 0);
+    }).slice(0, 5);
+
+    if (!priority.length) {
+        list.innerHTML = '<div class="empty-list">No unpaid follow-ups pending.</div>';
+        return;
+    }
+
+    list.innerHTML = priority.map(function(item) {
+        var status = item.reminderCount === 0 ? 'Not reminded yet' : item.reminderCount + ' reminders';
+        if (item.awaitingReply) status += ' | awaiting reply';
+        if (item.latestReplyStatus) status += ' | ' + item.latestReplyStatus;
+        var meta = status;
+        if (item.reason) meta += '<br>' + escapeHtml(item.reason);
+        if (item.nextDate) meta += '<br>Next: ' + utils.formatDate(item.nextDate);
+        return '<div class="dashboard-list-item">' +
+            '<div><strong>' + escapeHtml(item.member['Name'] || 'Member') + '</strong><span>' + meta + '</span></div>' +
+            '<b class="text-danger">' + utils.formatCurrency(item.member['Remaining Balance']) + '</b>' +
+            '</div>';
+    }).join('');
+}
+
+function buildMemberFollowUpSummary(member, followUps) {
+    const phone = normalizePhone(member['Phone Number']);
+    const name = String(member['Name'] || '').trim().toLowerCase();
+    const items = followUps.filter(function(item) {
+        const samePhone = phone && normalizePhone(item['Phone Number']) === phone;
+        const sameName = name && String(item['Member Name'] || '').trim().toLowerCase() === name;
+        return samePhone || sameName;
+    }).sort(function(a, b) {
+        return new Date(a['Event Date'] || 0) - new Date(b['Event Date'] || 0);
+    });
+    const reminders = items.filter(function(item) { return item['Event Type'] === 'Reminder Sent'; });
+    const responseLogs = items.filter(function(item) { return item['Event Type'] === 'Reply Received'; });
+    const replies = responseLogs.filter(function(item) { return item['Reply Status'] !== 'No Reply'; });
+    const latestReminder = reminders[reminders.length - 1] || null;
+    const latestReply = replies[replies.length - 1] || null;
+    const latestResponseLog = responseLogs[responseLogs.length - 1] || null;
+    const latestItem = items[items.length - 1] || null;
+    const nextDate = latestItem ? latestItem['Next Reminder Date'] : '';
+    const awaitingReply = !!latestReminder && (!latestReply || new Date(latestReply['Event Date'] || 0) < new Date(latestReminder['Event Date'] || 0));
+    return {
+        member: member,
+        reminderCount: reminders.length,
+        awaitingReply: awaitingReply,
+        latestReplyStatus: latestResponseLog ? latestResponseLog['Reply Status'] : '',
+        reason: latestResponseLog ? latestResponseLog['Reason / Reply'] : '',
+        nextDate: nextDate,
+        nextDue: nextDate && startOfDay(nextDate) <= startOfDay(new Date())
+    };
+}
+
+function normalizePhone(phone) {
+    return String(phone || '').replace(/\D/g, '');
+}
+
+function startOfDay(value) {
+    const d = value instanceof Date ? new Date(value) : new Date(value);
+    if (isNaN(d.getTime())) return new Date(8640000000000000);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 function updateActivityLog(members, expenses) {

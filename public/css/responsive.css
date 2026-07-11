@@ -136,6 +136,14 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .dashboard-action-grid > .card,
+    .followup-dashboard-card,
+    .dashboard-list-card,
+    .dashboard-health-card,
+    .dashboard-share-card {
+        grid-column: auto;
+    }
+
     .finance-detail-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -189,6 +197,10 @@
     .dashboard-header-metrics,
     .status-breakdown,
     .dashboard-action-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .followup-metrics {
         grid-template-columns: 1fr;
     }
 
@@ -298,6 +310,17 @@
         text-align: left;
         text-transform: uppercase;
         letter-spacing: 0.04em;
+    }
+
+    .mobile-card-table .followup-cell {
+        align-items: flex-end;
+        min-width: 0;
+        text-align: right;
+    }
+
+    .mobile-card-table td[data-label="Actions"] > div {
+        flex-wrap: wrap;
+        justify-content: flex-end;
     }
 
     .modal {

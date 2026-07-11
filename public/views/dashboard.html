@@ -143,6 +143,22 @@
     </div>
 
     <div class="dashboard-action-grid mb-md">
+        <div class="card dashboard-list-card followup-dashboard-card">
+            <div class="dashboard-card-header">
+                <div>
+                    <h3>Follow-up Tracker</h3>
+                    <p>Reminder frequency, pending replies, and reasons.</p>
+                </div>
+                <button class="btn-text" onclick="app.navigate('members')">Manage</button>
+            </div>
+            <div class="followup-metrics">
+                <div><span>Reminded</span><strong id="dash-followup-reminded">0</strong></div>
+                <div><span>Awaiting Reply</span><strong id="dash-followup-awaiting">0</strong></div>
+                <div><span>Due Today</span><strong id="dash-followup-due">0</strong></div>
+            </div>
+            <div class="dashboard-list" id="dashboard-followup-list"></div>
+        </div>
+
         <div class="card dashboard-health-card">
             <div class="dashboard-card-header">
                 <div>

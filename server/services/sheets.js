@@ -53,6 +53,12 @@ const sheetsService = {
 
   getMemberHistory: (name, phone) => gasRequest('getMemberHistory', { name, phone }),
 
+  getFollowUps: (month) => gasRequest('getFollowUps', { month }),
+
+  getMemberFollowUps: (month, name, phone) => gasRequest('getMemberFollowUps', { month, name, phone }),
+
+  addFollowUp: (data) => gasRequest('addFollowUp', { data }),
+
   getSettings: () => gasRequest('getSettings'),
 
   saveSettings: (data) => gasRequest('saveSettings', { data })
