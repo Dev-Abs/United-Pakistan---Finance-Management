@@ -47,20 +47,31 @@ export const utils = {
         // No-op: skeletons replace the full-screen loader
     },
     
-    generateWhatsAppLink(phone, message) {
-        const text = encodeURIComponent(message || '');
-        if (!phone) return `https://wa.me/?text=${text}`;
-        // Clean phone number (remove non-digits)
+    normalizeWhatsAppPhone(phone) {
+        if (!phone) return '';
         let cleaned = phone.toString().replace(/\D/g, '');
         if (cleaned.startsWith('0092')) {
             cleaned = cleaned.substring(2);
         }
-        // Default to Pakistan code if starts with 0
         if (cleaned.startsWith('0')) {
             cleaned = '92' + cleaned.substring(1);
         } else if (cleaned.length === 10 && cleaned.startsWith('3')) {
             cleaned = '92' + cleaned;
         }
+        return cleaned;
+    },
+
+    generateWhatsAppLink(phone, message) {
+        const text = encodeURIComponent(message || '');
+        const cleaned = this.normalizeWhatsAppPhone(phone);
+        if (!cleaned) return `https://wa.me/?text=${text}`;
         return `https://wa.me/${cleaned}?text=${text}`;
+    },
+
+    generateWhatsAppAppLink(phone, message) {
+        const text = encodeURIComponent(message || '');
+        const cleaned = this.normalizeWhatsAppPhone(phone);
+        if (!cleaned) return `whatsapp://send?text=${text}`;
+        return `whatsapp://send?phone=${cleaned}&text=${text}`;
     }
 };

@@ -441,7 +441,7 @@ window.membersJS = {
             return;
         }
         const msg = generateReminderText(m);
-        const opened = openWhatsAppLink(m['Phone Number'], msg);
+        const opened = openWhatsAppLink(m['Phone Number'], msg, false, true);
         try {
             await recordFollowUp(m, {
                 'Event Type': 'Reminder Sent',
@@ -693,7 +693,7 @@ function renderReminderSection(list, title, members) {
             item.querySelector('.whatsapp-btn').addEventListener('click', async function () {
                 this.disabled = true;
                 this.textContent = 'Opening...';
-                const opened = openWhatsAppLink(m['Phone Number'], msg);
+                const opened = openWhatsAppLink(m['Phone Number'], msg, false, true);
                 try {
                     await recordFollowUp(m, {
                         'Event Type': 'Reminder Sent',
@@ -756,7 +756,7 @@ async function openReminderQueueByStatus(status) {
         const msg = generateReminderText(m);
         return {
             member: m,
-            opened: openWhatsAppLink(m['Phone Number'], msg, true)
+            opened: openWhatsAppLink(m['Phone Number'], msg, true, false)
         };
     });
     var opened = openedQueue.filter(function (item) { return item.opened; }).length;
@@ -779,9 +779,25 @@ async function openReminderQueueByStatus(status) {
     }
 }
 
-function openWhatsAppLink(phone, message, skipCopyOnBlock) {
-    const link = utils.generateWhatsAppLink(phone, message);
-    const win = window.open(link, '_blank');
+function openWhatsAppLink(phone, message, skipCopyOnBlock, preferNativeApp) {
+    const appLink = utils.generateWhatsAppAppLink(phone, message);
+    const webLink = utils.generateWhatsAppLink(phone, message);
+
+    if (preferNativeApp && utils.normalizeWhatsAppPhone(phone)) {
+        let appOpened = false;
+        const markOpened = function () { if (document.hidden) appOpened = true; };
+        document.addEventListener('visibilitychange', markOpened, { once: true });
+        window.location.href = appLink;
+        setTimeout(function () {
+            document.removeEventListener('visibilitychange', markOpened);
+            if (!appOpened) {
+                window.location.href = webLink;
+            }
+        }, 900);
+        return true;
+    }
+
+    const win = window.open(webLink, '_blank');
     if (win) {
         try { win.opener = null; } catch (e) {}
         return true;
