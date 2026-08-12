@@ -7,7 +7,7 @@ router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
-    const { month } = req.query;
+    const month = String(req.query.month || '').trim();
     if (!month) {
       return res.status(400).json({ success: false, error: 'Month parameter is required' });
     }
@@ -20,7 +20,8 @@ router.get('/', async (req, res) => {
 
 router.get('/member', async (req, res) => {
   try {
-    const { month, name, phone } = req.query;
+    const month = String(req.query.month || '').trim();
+    const { name, phone } = req.query;
     if (!month || (!name && !phone)) {
       return res.status(400).json({ success: false, error: 'Month and member identifier are required' });
     }

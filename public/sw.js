@@ -1,4 +1,4 @@
-const CACHE_NAME = 'up-finance-v4-whatsapp-native';
+const CACHE_NAME = 'up-finance-v5-month-resolution';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/css/components.css',

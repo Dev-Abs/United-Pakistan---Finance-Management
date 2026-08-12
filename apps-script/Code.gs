@@ -199,6 +199,29 @@ function getSheets() {
     .filter(name => name !== 'Settings' && name !== 'Expenses' && name !== FOLLOWUP_SHEET_NAME && !isReportSheetName(name));
 }
 
+// Normalizes a month label for comparison so that stray whitespace or casing
+// drift can never silently break the exact string matching used everywhere.
+function normalizeMonthKey(month) {
+  return String(month == null ? '' : month).replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function monthMatches(a, b) {
+  return normalizeMonthKey(a) === normalizeMonthKey(b);
+}
+
+// Maps an arbitrary client-supplied month label onto the real month sheet tab
+// name. Throws when no such month exists, so records can never be silently
+// filed under a month that has no sheet.
+function resolveMonthName(month) {
+  const key = normalizeMonthKey(month);
+  if (!key) throw new Error('Month is required');
+  const match = getSheets().filter(name => normalizeMonthKey(name) === key)[0];
+  if (!match) {
+    throw new Error('No sheet exists for month: ' + month + '. Create the month first.');
+  }
+  return match;
+}
+
 function getHeaders(sheet) {
   const lastCol = sheet.getLastColumn();
   if (lastCol === 0) {
@@ -349,8 +372,8 @@ function getExpenses(month) {
   const data = sheet.getRange(2, 1, lastRow - 1, EXPENSE_HEADERS.length).getValues();
   // Track actual sheet row number (data index + 2)
   const allData = data.map((row, i) => ({ row, actualRow: i + 2 }));
-  const filtered = month
-    ? allData.filter(({ row }) => String(row[0]).trim() === month)
+  const filtered = normalizeMonthKey(month)
+    ? allData.filter(({ row }) => monthMatches(row[0], month))
     : allData;
 
   return filtered.map(({ row, actualRow }) => {
@@ -364,6 +387,9 @@ function getExpenses(month) {
 
 function addExpense(data) {
   const sheet = getOrCreateExpensesSheet();
+  // Snap the Month onto a real month sheet name (throws if it doesn't exist),
+  // so an expense can never be filed under a mistyped or stale month.
+  data['Month'] = resolveMonthName(data['Month']);
   const rowData = EXPENSE_HEADERS.map(header => data[header] !== undefined ? data[header] : '');
   sheet.appendRow(rowData);
   if (data['Month']) refreshMonthlyReportSheets(data['Month']);
@@ -375,6 +401,9 @@ function updateExpense(rowId, data) {
   const range = sheet.getRange(rowId, 1, 1, EXPENSE_HEADERS.length);
   const currentRowData = range.getValues()[0];
   const oldMonth = currentRowData[0];
+  if (data['Month'] !== undefined) {
+    data['Month'] = resolveMonthName(data['Month']);
+  }
   const newRowData = EXPENSE_HEADERS.map((header, index) => {
     return data[header] !== undefined ? data[header] : currentRowData[index];
   });
@@ -472,7 +501,7 @@ function getFollowUps(month) {
   const data = sheet.getRange(2, 1, lastRow - 1, FOLLOWUP_HEADERS.length).getValues();
   return data
     .map((row, index) => rowToFollowUp(row, index + 2))
-    .filter(item => !month || String(item['Month']).trim() === String(month).trim());
+    .filter(item => !normalizeMonthKey(month) || monthMatches(item['Month'], month));
 }
 
 function getMemberFollowUps(month, name, phone) {
@@ -494,6 +523,9 @@ function addFollowUp(data) {
   const eventType = data['Event Type'] || 'Note';
   const rowData = {};
   FOLLOWUP_HEADERS.forEach(header => rowData[header] = data[header] !== undefined ? data[header] : '');
+  // Snap onto the real month sheet name so reminders are always counted under
+  // the month the dashboard is querying.
+  rowData['Month'] = resolveMonthName(rowData['Month']);
   rowData['Event Type'] = eventType;
   rowData['Event Date'] = rowData['Event Date'] || new Date();
   rowData['Reply Status'] = rowData['Reply Status'] || (eventType === 'Reminder Sent' ? 'No Reply' : '');
@@ -540,8 +572,12 @@ function isReportSheetName(name) {
 
 function createMonthSheet(newSheetName, carryBalances) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  newSheetName = String(newSheetName == null ? '' : newSheetName).replace(/\s+/g, ' ').trim();
   if (!newSheetName) throw new Error('Month name is required');
-  if (ss.getSheetByName(newSheetName)) throw new Error('Sheet already exists: ' + newSheetName);
+  // Case-insensitive duplicate check — two tabs differing only by case would
+  // split one month's data across both.
+  const existing = ss.getSheets().filter(s => normalizeMonthKey(s.getName()) === normalizeMonthKey(newSheetName))[0];
+  if (existing) throw new Error('Sheet already exists: ' + existing.getName());
 
   const sheet = ss.insertSheet(newSheetName);
   const headers = getHeaders(sheet);

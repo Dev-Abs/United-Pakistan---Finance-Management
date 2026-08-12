@@ -43,10 +43,16 @@ async function loadMembers() {
     try {
         const [membersRes, followUpsRes] = await Promise.all([
             api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth)),
-            api.get('/api/followups?month=' + encodeURIComponent(appInstance.state.currentMonth)).catch(function () {
-                return { success: false, data: [] };
+            api.get('/api/followups?month=' + encodeURIComponent(appInstance.state.currentMonth)).catch(function (err) {
+                // Surface the failure — silently returning [] renders every
+                // member's reminder count as zero with no visible error.
+                console.error('Failed to load follow-ups', err);
+                return { success: false, data: [], error: err && err.message };
             })
         ]);
+        if (followUpsRes && !followUpsRes.success) {
+            utils.showToast('Could not load reminder history: ' + (followUpsRes.error || 'unknown error'), 'error');
+        }
         if (membersRes.success) {
             allMembers = membersRes.data || [];
             allFollowUps = followUpsRes && followUpsRes.success ? followUpsRes.data || [] : [];

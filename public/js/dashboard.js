@@ -22,6 +22,8 @@ export async function init(app) {
 
     if (app.state.currentMonth) {
         await loadDashboardData();
+    } else {
+        utils.showToast('No month sheet found. Create a month to get started.', 'warning');
     }
 
     window.addEventListener('monthChanged', loadDashboardData);
@@ -45,10 +47,17 @@ async function loadDashboardData() {
         const [membersRes, expensesRes, followUpsRes] = await Promise.all([
             api.get('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth)),
             api.get('/api/expenses?month=' + encodeURIComponent(appInstance.state.currentMonth)),
-            api.get('/api/followups?month=' + encodeURIComponent(appInstance.state.currentMonth)).catch(function () {
-                return { success: false, data: [] };
+            api.get('/api/followups?month=' + encodeURIComponent(appInstance.state.currentMonth)).catch(function (err) {
+                // Don't fail the whole dashboard, but never hide the failure —
+                // a swallowed error here silently renders reminder counts as 0.
+                console.error('Failed to load follow-ups', err);
+                return { success: false, data: [], error: err && err.message };
             })
         ]);
+
+        if (!followUpsRes.success) {
+            utils.showToast('Could not load reminder history: ' + (followUpsRes.error || 'unknown error'), 'error');
+        }
 
         if (membersRes.success) {
             const members = membersRes.data || [];
@@ -291,7 +300,7 @@ function updateFollowUpTracker(members, followUps) {
     const awaitingEl = document.getElementById('dash-followup-awaiting');
     const dueEl = document.getElementById('dash-followup-due');
     const list = document.getElementById('dashboard-followup-list');
-    if (!list) return;
+    if (!list || !remindedEl || !awaitingEl || !dueEl) return;
 
     const summaries = members
         .filter(function(m) { return m['Payment Status'] !== 'Paid' && (Number(m['Remaining Balance']) || 0) > 0; })
@@ -625,9 +634,16 @@ function setupEventListeners() {
 
     document.getElementById('btn-dash-new-month')?.addEventListener('click', function() {
         document.getElementById('new-month-modal').classList.add('active');
-        var date = new Date();
-        date.setMonth(date.getMonth() + 1);
-        document.getElementById('new-month-name').value = date.toLocaleString('default', { month: 'long' }) + ' ' + date.getFullYear();
+        // Default to the current calendar month when its sheet is still missing,
+        // otherwise to the next month.
+        var suggested = appInstance.currentCalendarMonth();
+        if (appInstance.hasMonth(suggested)) {
+            var date = new Date();
+            date.setDate(1);
+            date.setMonth(date.getMonth() + 1);
+            suggested = date.toLocaleString('en-US', { month: 'long' }) + ' ' + date.getFullYear();
+        }
+        document.getElementById('new-month-name').value = suggested;
     });
 
     document.getElementById('btn-dashboard-whatsapp-report')?.addEventListener('click', async function() {
@@ -647,7 +663,11 @@ function setupEventListeners() {
 
     document.getElementById('new-month-form')?.addEventListener('submit', async function(e) {
         e.preventDefault();
-        var monthName = document.getElementById('new-month-name').value;
+        var monthName = String(document.getElementById('new-month-name').value || '').replace(/\s+/g, ' ').trim();
+        if (!monthName) {
+            utils.showToast('Month name is required', 'error');
+            return;
+        }
         var carryBalances = document.getElementById('carry-balances').checked;
         var btn = document.getElementById('btn-confirm-new-month');
         btn.disabled = true;
@@ -658,6 +678,14 @@ function setupEventListeners() {
                 utils.showToast('New month created successfully');
                 document.getElementById('new-month-modal').classList.remove('active');
                 await appInstance.loadMonths();
+                // Switch to the month that was just created and refresh the views.
+                if (appInstance.hasMonth(monthName)) {
+                    appInstance.state.currentMonth = monthName;
+                    var monthSelect = document.getElementById('current-month-select');
+                    if (monthSelect) monthSelect.value = monthName;
+                    appInstance.updateStaleMonthNotice();
+                    window.dispatchEvent(new CustomEvent('monthChanged', { detail: monthName }));
+                }
             }
         } catch (error) {
             utils.showToast(error.message || 'Failed to create month', 'error');

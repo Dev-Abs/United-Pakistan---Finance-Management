@@ -7,7 +7,7 @@ router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
-    const { month } = req.query;
+    const month = String(req.query.month || '').trim();
     const data = await sheetsService.getExpenses(month || null);
     res.json({ success: true, data });
   } catch (error) {

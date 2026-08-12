@@ -1,6 +1,9 @@
 import { api } from './api.js';
 import { utils } from './utils.js';
 
+// Bump this whenever any view script changes so clients don't serve stale JS.
+const ASSET_VERSION = '20260812-month-resolution';
+
 class App {
     constructor() {
         this.currentView = '';
@@ -10,11 +13,11 @@ class App {
             userRole: null
         };
         this.routes = {
-            'dashboard': { url: '/', title: 'Dashboard', script: '/js/dashboard.js?v=20260711-whatsapp-native' },
-            'members': { url: '/members', title: 'Members', script: '/js/members.js?v=20260711-whatsapp-native' },
-            'expenses': { url: '/expenses', title: 'Expenses', script: '/js/expenses.js?v=20260711-whatsapp-native' },
-            'reports': { url: '/reports', title: 'Reports', script: '/js/reports.js?v=20260711-whatsapp-native' },
-            'settings': { url: '/settings', title: 'Settings', script: '/js/settings.js?v=20260711-whatsapp-native' }
+            'dashboard': { url: '/', title: 'Dashboard', script: `/js/dashboard.js?v=${ASSET_VERSION}` },
+            'members': { url: '/members', title: 'Members', script: `/js/members.js?v=${ASSET_VERSION}` },
+            'expenses': { url: '/expenses', title: 'Expenses', script: `/js/expenses.js?v=${ASSET_VERSION}` },
+            'reports': { url: '/reports', title: 'Reports', script: `/js/reports.js?v=${ASSET_VERSION}` },
+            'settings': { url: '/settings', title: 'Settings', script: `/js/settings.js?v=${ASSET_VERSION}` }
         };
     }
 
@@ -121,17 +124,73 @@ class App {
 
         // Month selector change
         document.getElementById('current-month-select')?.addEventListener('change', (e) => {
-            this.state.currentMonth = e.target.value;
+            this.state.currentMonth = String(e.target.value || '').trim();
+            this.updateStaleMonthNotice();
             // Dispatch custom event to notify current view to reload data
             window.dispatchEvent(new CustomEvent('monthChanged', { detail: this.state.currentMonth }));
         });
+    }
+
+    // Canonical month label for a date, e.g. "August 2026".
+    // Must match the naming convention used for month sheet tabs.
+    static monthLabel(date) {
+        const d = date || new Date();
+        return d.toLocaleString('en-US', { month: 'long' }) + ' ' + d.getFullYear();
+    }
+
+    currentCalendarMonth() {
+        return App.monthLabel();
+    }
+
+    hasMonth(name) {
+        const target = String(name || '').trim().toLowerCase();
+        return this.state.months.some(m => String(m).trim().toLowerCase() === target);
+    }
+
+    // Resolve the month tab that matches today's calendar month, ignoring
+    // whitespace/case drift in the sheet tab names. Falls back to the last
+    // tab so the app still works before the new month sheet is created.
+    resolveCurrentMonth() {
+        const target = App.monthLabel().trim().toLowerCase();
+        const match = this.state.months.find(m => String(m).trim().toLowerCase() === target);
+        if (match) return match;
+        return this.state.months[this.state.months.length - 1];
+    }
+
+    // True when the selected month is not the actual calendar month — the app
+    // is reading/writing into a stale month tab.
+    isViewingStaleMonth() {
+        if (!this.state.currentMonth) return false;
+        return this.state.currentMonth.trim().toLowerCase() !== App.monthLabel().trim().toLowerCase();
+    }
+
+    updateStaleMonthNotice() {
+        const notice = document.getElementById('stale-month-notice');
+        if (!notice) return;
+        const expected = App.monthLabel();
+        const hasExpected = this.hasMonth(expected);
+        if (this.isViewingStaleMonth()) {
+            notice.textContent = hasExpected
+                ? `Viewing ${this.state.currentMonth} — the current month is ${expected}.`
+                : `No sheet exists for ${expected} yet. Entries will be saved under ${this.state.currentMonth}. Create the new month first.`;
+            notice.style.display = 'block';
+        } else {
+            notice.style.display = 'none';
+        }
     }
 
     async loadMonths() {
         try {
             const res = await api.get('/api/months');
             if (res.success && res.data) {
-                this.state.months = res.data;
+                // Trim tab names so stray whitespace can never break the exact
+                // string matching used to filter expenses/follow-ups by month.
+                this.state.months = res.data.map(m => String(m).trim()).filter(Boolean);
+
+                if (this.state.months.length > 0) {
+                    this.state.currentMonth = this.resolveCurrentMonth();
+                }
+
                 const select = document.getElementById('current-month-select');
                 if (select) {
                     select.innerHTML = '';
@@ -141,14 +200,14 @@ class App {
                         option.textContent = month;
                         select.appendChild(option);
                     });
-                    if (this.state.months.length > 0) {
-                        this.state.currentMonth = this.state.months[this.state.months.length - 1];
-                        select.value = this.state.currentMonth;
-                    }
+                    if (this.state.currentMonth) select.value = this.state.currentMonth;
                 }
+
+                this.updateStaleMonthNotice();
             }
         } catch (error) {
             console.error('Failed to load months', error);
+            utils.showToast('Could not load months. Data may be incomplete.', 'error');
         }
     }
 
