@@ -61,6 +61,8 @@ const sheetsService = {
 
   getDiagnostics: (month) => gasRequest('diagnostics', { month }),
 
+  repairMonthColumns: () => gasRequest('repairMonthColumns'),
+
   getSettings: () => gasRequest('getSettings'),
 
   saveSettings: (data) => gasRequest('saveSettings', { data })

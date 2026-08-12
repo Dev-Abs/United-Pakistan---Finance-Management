@@ -4,7 +4,7 @@ const SECRET = 'unitedpakistan2026'; // Match APPS_SCRIPT_SECRET in .env
 // Web App deployment is actually serving this version of the code, since
 // editing this file in the Apps Script editor does NOT update the deployed
 // Web App until you also publish "New version" under Manage deployments.
-const CODE_VERSION = '2026-08-12-diagnostics';
+const CODE_VERSION = '2026-08-12-month-date-corruption-fix';
 
 function doPost(e) {
   return handleRequest(e, 'POST');
@@ -80,6 +80,9 @@ function handleRequest(e, method) {
         break;
       case 'diagnostics':
         result = getDiagnostics(params.month);
+        break;
+      case 'repairMonthColumns':
+        result = repairMonthColumns();
         break;
       default:
         return response({ error: 'Unknown action' }, 400);
@@ -210,7 +213,18 @@ function getSheets() {
 
 // Normalizes a month label for comparison so that stray whitespace or casing
 // drift can never silently break the exact string matching used everywhere.
+//
+// Also tolerates Date-typed values: Sheets silently auto-converts a
+// "Month Year" string like "August 2026" written into a cell with default
+// (Automatic) number formatting into an actual Date (Aug 1, 2026), so any
+// text comparison against the raw value would otherwise fail forever. This
+// reconstructs the intended "MMMM yyyy" label from the Date so already
+// affected rows still match, independent of the format-hardening on write.
 function normalizeMonthKey(month) {
+  if (month instanceof Date) {
+    const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+    month = Utilities.formatDate(month, tz, 'MMMM yyyy');
+  }
   return String(month == null ? '' : month).replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
@@ -369,8 +383,17 @@ function getOrCreateExpensesSheet() {
     sheet.setFrozenRows(1);
     const widths = { 'Month': 130, 'Date': 110, 'Category': 140, 'Description': 250, 'Amount': 100, 'Paid By': 130, 'Remarks': 160 };
     EXPENSE_HEADERS.forEach((h, i) => sheet.setColumnWidth(i + 1, widths[h] || 120));
+    // Plain-text format on Month so Sheets never auto-converts values like
+    // "August 2026" into an actual Date on write.
+    sheet.getRange(2, 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
   }
   return sheet;
+}
+
+// Writes the Month value into a specific row, forcing plain-text format so
+// Sheets can't silently reinterpret "August 2026" as a Date.
+function writeMonthCell(sheet, row, monthValue) {
+  sheet.getRange(row, 1).setNumberFormat('@').setValue(String(monthValue));
 }
 
 function getExpenses(month) {
@@ -401,8 +424,10 @@ function addExpense(data) {
   data['Month'] = resolveMonthName(data['Month']);
   const rowData = EXPENSE_HEADERS.map(header => data[header] !== undefined ? data[header] : '');
   sheet.appendRow(rowData);
+  const rowId = sheet.getLastRow();
+  writeMonthCell(sheet, rowId, data['Month']);
   if (data['Month']) refreshMonthlyReportSheets(data['Month']);
-  return { _rowId: sheet.getLastRow() };
+  return { _rowId: rowId };
 }
 
 function updateExpense(rowId, data) {
@@ -418,8 +443,9 @@ function updateExpense(rowId, data) {
   });
   range.setValues([newRowData]);
   const newMonth = newRowData[0];
+  writeMonthCell(sheet, rowId, newMonth);
   if (oldMonth) refreshMonthlyReportSheets(oldMonth);
-  if (newMonth && newMonth !== oldMonth) refreshMonthlyReportSheets(newMonth);
+  if (newMonth && !monthMatches(newMonth, oldMonth)) refreshMonthlyReportSheets(newMonth);
   return true;
 }
 
@@ -481,6 +507,10 @@ function getOrCreateFollowUpsSheet() {
     'Notes': 220
   };
   FOLLOWUP_HEADERS.forEach((header, i) => sheet.setColumnWidth(i + 1, widths[header] || 120));
+
+  // Plain-text format on Month so Sheets never auto-converts values like
+  // "August 2026" into an actual Date on write.
+  if (sheet.getMaxRows() > 1) sheet.getRange(2, 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
 
   const eventIdx = FOLLOWUP_HEADERS.indexOf('Event Type');
   const replyIdx = FOLLOWUP_HEADERS.indexOf('Reply Status');
@@ -546,6 +576,7 @@ function addFollowUp(data) {
   const values = FOLLOWUP_HEADERS.map(header => rowData[header]);
   sheet.appendRow(values);
   const rowId = sheet.getLastRow();
+  writeMonthCell(sheet, rowId, rowData['Month']);
   return rowToFollowUp(sheet.getRange(rowId, 1, 1, FOLLOWUP_HEADERS.length).getValues()[0], rowId);
 }
 
@@ -611,6 +642,50 @@ function getDiagnostics(month) {
       distinctMonthValues: distinctWithCounts(followUpRows),
       matchingRequestedMonth: month ? followUpRows.filter(m => monthMatches(m, month)).length : null
     }
+  };
+}
+
+// One-time cleanup: rewrites any Date-typed Month cells (corrupted by
+// Sheets auto-converting a "Month Year" string) back into plain text that
+// matches a real month tab, and forces the whole Month column to text
+// format so it can't happen again. Read-side matching already tolerates
+// Date-typed cells (see normalizeMonthKey), so this is cosmetic/hygiene —
+// safe to run, but not required for the app to function correctly.
+function repairMonthColumns() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const monthTabs = getSheets();
+
+  function repairSheet(sheet) {
+    if (!sheet) return { repaired: 0, unresolved: 0, totalRows: 0 };
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { repaired: 0, unresolved: 0, totalRows: 0 };
+
+    const range = sheet.getRange(2, 1, lastRow - 1, 1);
+    const values = range.getValues();
+    let repaired = 0;
+    let unresolved = 0;
+    const newValues = values.map(([v]) => {
+      if (v instanceof Date) {
+        const key = normalizeMonthKey(v); // reconstructs "MMMM yyyy" from the Date
+        const match = monthTabs.filter(name => normalizeMonthKey(name) === key)[0];
+        if (match) {
+          repaired++;
+          return [match];
+        }
+        unresolved++;
+        return [String(v)];
+      }
+      return [String(v)];
+    });
+
+    range.setNumberFormat('@');
+    range.setValues(newValues);
+    return { repaired, unresolved, totalRows: values.length };
+  }
+
+  return {
+    expenses: repairSheet(ss.getSheetByName('Expenses')),
+    followUps: repairSheet(ss.getSheetByName(FOLLOWUP_SHEET_NAME))
   };
 }
 

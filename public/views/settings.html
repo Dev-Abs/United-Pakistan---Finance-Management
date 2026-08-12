@@ -52,6 +52,10 @@
             Apps Script code is up to date, and where expense/reminder rows are actually stored. Useful when data
             "isn't showing" or lands under the wrong month.</p>
         <button type="button" id="btn-run-diagnostics" class="btn btn-secondary">Run Diagnostics</button>
+        <button type="button" id="btn-repair-months" class="btn btn-secondary">Repair Corrupted Month Values</button>
+        <p class="text-sm text-muted mt-sm">Rewrites any Month cells that Google Sheets silently turned into dates
+            (e.g. "August 2026" becoming a date) back into plain text, and locks the Month column to text format so
+            it can't happen again. Safe to run — only touches the Month column, not amounts or other data.</p>
         <pre id="diagnostics-output" class="diagnostics-output" style="display:none;"></pre>
     </div>
 </div>

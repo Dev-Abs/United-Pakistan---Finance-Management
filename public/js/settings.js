@@ -32,6 +32,27 @@ export async function init(app) {
         }
     });
 
+    document.getElementById('btn-repair-months')?.addEventListener('click', async () => {
+        if (!window.confirm('This will rewrite any corrupted Month cells (dates) back to text in the Expenses and FollowUps sheets. Continue?')) {
+            return;
+        }
+        const btn = document.getElementById('btn-repair-months');
+        const out = document.getElementById('diagnostics-output');
+        btn.disabled = true;
+        btn.textContent = 'Repairing...';
+        try {
+            const res = await api.post('/api/diagnostics/repair-month-columns', {});
+            out.textContent = JSON.stringify(res.data, null, 2);
+            out.style.display = 'block';
+            utils.showToast('Repair complete');
+        } catch (error) {
+            utils.showToast(error.message || 'Repair failed', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Repair Corrupted Month Values';
+        }
+    });
+
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         

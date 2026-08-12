@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { utils } from './utils.js';
 
 // Bump this whenever any view script changes so clients don't serve stale JS.
-const ASSET_VERSION = '20260812-diagnostics';
+const ASSET_VERSION = '20260812-month-date-fix';
 
 class App {
     constructor() {
