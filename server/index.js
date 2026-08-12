@@ -18,6 +18,7 @@ app.use('/api/followups', require('./routes/followups'));
 app.use('/api/months', require('./routes/months'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/export', require('./routes/export'));
+app.use('/api/diagnostics', require('./routes/diagnostics'));
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '../public')));

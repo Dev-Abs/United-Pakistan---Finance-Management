@@ -45,4 +45,13 @@
             </div>
         </form>
     </div>
+
+    <div class="card mt-md" id="diagnostics-card">
+        <h3 class="font-bold mb-md">Diagnostics</h3>
+        <p class="text-sm text-muted mb-md">Checks which month tab the app is reading/writing, whether the deployed
+            Apps Script code is up to date, and where expense/reminder rows are actually stored. Useful when data
+            "isn't showing" or lands under the wrong month.</p>
+        <button type="button" id="btn-run-diagnostics" class="btn btn-secondary">Run Diagnostics</button>
+        <pre id="diagnostics-output" class="diagnostics-output" style="display:none;"></pre>
+    </div>
 </div>

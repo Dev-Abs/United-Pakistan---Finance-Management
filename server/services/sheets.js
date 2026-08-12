@@ -59,6 +59,8 @@ const sheetsService = {
 
   addFollowUp: (data) => gasRequest('addFollowUp', { data }),
 
+  getDiagnostics: (month) => gasRequest('diagnostics', { month }),
+
   getSettings: () => gasRequest('getSettings'),
 
   saveSettings: (data) => gasRequest('saveSettings', { data })

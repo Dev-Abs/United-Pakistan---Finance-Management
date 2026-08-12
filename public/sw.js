@@ -1,4 +1,4 @@
-const CACHE_NAME = 'up-finance-v5-month-resolution';
+const CACHE_NAME = 'up-finance-v6-diagnostics';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/css/components.css',

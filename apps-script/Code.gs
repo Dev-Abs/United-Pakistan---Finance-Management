@@ -1,5 +1,11 @@
 const SECRET = 'unitedpakistan2026'; // Match APPS_SCRIPT_SECRET in .env
 
+// Bump whenever this file changes. Lets /api/diagnostics confirm the live
+// Web App deployment is actually serving this version of the code, since
+// editing this file in the Apps Script editor does NOT update the deployed
+// Web App until you also publish "New version" under Manage deployments.
+const CODE_VERSION = '2026-08-12-diagnostics';
+
 function doPost(e) {
   return handleRequest(e, 'POST');
 }
@@ -71,6 +77,9 @@ function handleRequest(e, method) {
         break;
       case 'refreshReportSheets':
         result = refreshMonthlyReportSheets(params.month);
+        break;
+      case 'diagnostics':
+        result = getDiagnostics(params.month);
         break;
       default:
         return response({ error: 'Unknown action' }, 400);
@@ -554,6 +563,64 @@ function rowToFollowUp(row, rowId) {
 
 function normalizePhone(phone) {
   return String(phone || '').replace(/\D/g, '');
+}
+
+// ----------------------------------------------------------------------------
+// Diagnostics — read-only introspection to debug month/tab mismatches
+// without needing direct access to the spreadsheet.
+// ----------------------------------------------------------------------------
+
+function getDiagnostics(month) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const allTabNames = ss.getSheets().map(s => s.getName());
+  const dataSheets = getSheets();
+
+  const expensesSheet = ss.getSheetByName('Expenses');
+  const expenseRows = expensesSheet && expensesSheet.getLastRow() > 1
+    ? expensesSheet.getRange(2, 1, expensesSheet.getLastRow() - 1, 1).getValues().map(r => r[0])
+    : [];
+
+  const followUpsSheet = ss.getSheetByName(FOLLOWUP_SHEET_NAME);
+  const followUpRows = followUpsSheet && followUpsSheet.getLastRow() > 1
+    ? followUpsSheet.getRange(2, 1, followUpsSheet.getLastRow() - 1, 1).getValues().map(r => r[0])
+    : [];
+
+  let resolvedMonth = null;
+  let resolveError = null;
+  try {
+    resolvedMonth = month ? resolveMonthName(month) : null;
+  } catch (e) {
+    resolveError = e.message;
+  }
+
+  return {
+    codeVersion: CODE_VERSION,
+    serverTime: new Date().toISOString(),
+    requestedMonth: month || null,
+    resolvedMonth: resolvedMonth,
+    resolveError: resolveError,
+    allSpreadsheetTabs: allTabNames,
+    monthTabsSeenByApp: dataSheets,
+    expenses: {
+      totalRows: expenseRows.length,
+      distinctMonthValues: distinctWithCounts(expenseRows),
+      matchingRequestedMonth: month ? expenseRows.filter(m => monthMatches(m, month)).length : null
+    },
+    followUps: {
+      totalRows: followUpRows.length,
+      distinctMonthValues: distinctWithCounts(followUpRows),
+      matchingRequestedMonth: month ? followUpRows.filter(m => monthMatches(m, month)).length : null
+    }
+  };
+}
+
+function distinctWithCounts(values) {
+  const counts = {};
+  values.forEach(v => {
+    const key = '[' + typeof v + '] ' + JSON.stringify(v);
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return counts;
 }
 
 // ----------------------------------------------------------------------------

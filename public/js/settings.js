@@ -9,8 +9,28 @@ export async function init(app) {
         document.querySelectorAll('#settings-form input').forEach(el => el.disabled = true);
         const btn = document.getElementById('btn-save-settings');
         if (btn) btn.style.display = 'none';
+        const diagCard = document.getElementById('diagnostics-card');
+        if (diagCard) diagCard.style.display = 'none';
         return;
     }
+
+    document.getElementById('btn-run-diagnostics')?.addEventListener('click', async () => {
+        const btn = document.getElementById('btn-run-diagnostics');
+        const out = document.getElementById('diagnostics-output');
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+        try {
+            const month = app.state.currentMonth || '';
+            const res = await api.get('/api/diagnostics?month=' + encodeURIComponent(month));
+            out.textContent = JSON.stringify(res.data, null, 2);
+            out.style.display = 'block';
+        } catch (error) {
+            utils.showToast(error.message || 'Diagnostics failed', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Run Diagnostics';
+        }
+    });
 
     document.getElementById('settings-form').addEventListener('submit', async (e) => {
         e.preventDefault();
