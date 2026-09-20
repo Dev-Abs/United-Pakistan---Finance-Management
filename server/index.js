@@ -17,11 +17,22 @@ app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/followups', require('./routes/followups'));
 app.use('/api/months', require('./routes/months'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/special-fund', require('./routes/special-fund'));
 app.use('/api/export', require('./routes/export'));
 app.use('/api/diagnostics', require('./routes/diagnostics'));
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '../public')));
+// Fingerprinted/versioned app assets can be cached; HTML stays fresh so a
+// deployment cannot strand clients on an old shell with new modules.
+app.use(express.static(path.join(__dirname, '../public'), {
+  etag: true,
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('.html') || filePath.endsWith('sw.js')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+  }
+}));
 
 // Fallback to index.html for SPA router
 app.get('*', (req, res) => {

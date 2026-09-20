@@ -4,7 +4,7 @@ const SECRET = 'unitedpakistan2026'; // Match APPS_SCRIPT_SECRET in .env
 // Web App deployment is actually serving this version of the code, since
 // editing this file in the Apps Script editor does NOT update the deployed
 // Web App until you also publish "New version" under Manage deployments.
-const CODE_VERSION = '2026-08-12-month-date-corruption-fix';
+const CODE_VERSION = '2026-09-20-special-fund';
 
 function doPost(e) {
   return handleRequest(e, 'POST');
@@ -71,6 +71,18 @@ function handleRequest(e, method) {
         break;
       case 'addFollowUp':
         result = addFollowUp(params.data);
+        break;
+      case 'getSpecialFundContributions':
+        result = getSpecialFundContributions(params.campaignId);
+        break;
+      case 'addSpecialFundContribution':
+        result = addSpecialFundContribution(params.data);
+        break;
+      case 'updateSpecialFundContribution':
+        result = updateSpecialFundContribution(params.rowId, params.data);
+        break;
+      case 'deleteSpecialFundContribution':
+        result = deleteSpecialFundContribution(params.rowId);
         break;
       case 'saveSettings':
         result = saveSettings(params.data);
@@ -208,7 +220,7 @@ function getSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   return ss.getSheets()
     .map(sheet => sheet.getName())
-    .filter(name => name !== 'Settings' && name !== 'Expenses' && name !== FOLLOWUP_SHEET_NAME && !isReportSheetName(name));
+    .filter(name => name !== 'Settings' && name !== 'Expenses' && name !== FOLLOWUP_SHEET_NAME && name !== SPECIAL_FUND_SHEET_NAME && !isReportSheetName(name));
 }
 
 // Normalizes a month label for comparison so that stray whitespace or casing
@@ -360,6 +372,88 @@ function deleteRow(sheetName, rowId) {
 
   sheet.deleteRow(rowId);
   refreshMonthlyReportSheets(sheetName);
+  return true;
+}
+
+// ----------------------------------------------------------------------------
+// Special Fund Operations — transaction ledger grouped by campaign
+// ----------------------------------------------------------------------------
+
+const SPECIAL_FUND_SHEET_NAME = 'SpecialFund';
+const SPECIAL_FUND_HEADERS = [
+  'Campaign ID', 'Member Name', 'Phone Number', 'Member Category',
+  'Minimum Amount', 'Amount Paid', 'Payment Date', 'Receipt Link',
+  'Remarks', 'Recorded At'
+];
+
+function getOrCreateSpecialFundSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SPECIAL_FUND_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SPECIAL_FUND_SHEET_NAME);
+    sheet.appendRow(SPECIAL_FUND_HEADERS);
+    const header = sheet.getRange(1, 1, 1, SPECIAL_FUND_HEADERS.length);
+    header.setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#7C3AED')
+      .setHorizontalAlignment('center').setVerticalAlignment('middle');
+    sheet.setFrozenRows(1);
+    sheet.getRange(2, 5, sheet.getMaxRows() - 1, 2).setNumberFormat('#,##0');
+    sheet.setColumnWidth(1, 190);
+    sheet.setColumnWidth(2, 170);
+    sheet.setColumnWidth(3, 130);
+    sheet.setColumnWidth(4, 180);
+    sheet.setColumnWidth(7, 110);
+    sheet.setColumnWidth(8, 170);
+    sheet.setColumnWidth(9, 220);
+  }
+  return sheet;
+}
+
+function getSpecialFundContributions(campaignId) {
+  const sheet = getOrCreateSpecialFundSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const rows = sheet.getRange(2, 1, lastRow - 1, SPECIAL_FUND_HEADERS.length).getValues();
+  const target = String(campaignId == null ? '' : campaignId).trim().toLowerCase();
+  return rows.map((row, index) => {
+    const item = { _rowId: index + 2 };
+    SPECIAL_FUND_HEADERS.forEach((header, column) => { item[header] = row[column]; });
+    return item;
+  }).filter(item => String(item['Campaign ID'] || '').trim().toLowerCase() === target);
+}
+
+function addSpecialFundContribution(data) {
+  const sheet = getOrCreateSpecialFundSheet();
+  const amount = Number(data['Amount Paid']);
+  if (!String(data['Campaign ID'] || '').trim()) throw new Error('Campaign ID is required');
+  if (!String(data['Member Name'] || '').trim()) throw new Error('Member name is required');
+  if (!isFinite(amount) || amount <= 0) throw new Error('Contribution amount must be greater than zero');
+  data['Amount Paid'] = amount;
+  data['Minimum Amount'] = Number(data['Minimum Amount']) || 0;
+  data['Recorded At'] = data['Recorded At'] || new Date();
+  sheet.appendRow(SPECIAL_FUND_HEADERS.map(header => data[header] !== undefined ? data[header] : ''));
+  return { _rowId: sheet.getLastRow() };
+}
+
+function updateSpecialFundContribution(rowId, data) {
+  const sheet = getOrCreateSpecialFundSheet();
+  rowId = Number(rowId);
+  if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) throw new Error('Contribution not found');
+  const range = sheet.getRange(rowId, 1, 1, SPECIAL_FUND_HEADERS.length);
+  const current = range.getValues()[0];
+  if (data['Amount Paid'] !== undefined) {
+    const amount = Number(data['Amount Paid']);
+    if (!isFinite(amount) || amount <= 0) throw new Error('Contribution amount must be greater than zero');
+    data['Amount Paid'] = amount;
+  }
+  range.setValues([SPECIAL_FUND_HEADERS.map((header, index) => data[header] !== undefined ? data[header] : current[index])]);
+  return true;
+}
+
+function deleteSpecialFundContribution(rowId) {
+  const sheet = getOrCreateSpecialFundSheet();
+  rowId = Number(rowId);
+  if (!rowId || rowId < 2 || rowId > sheet.getLastRow()) throw new Error('Contribution not found');
+  sheet.deleteRow(rowId);
   return true;
 }
 
@@ -755,7 +849,7 @@ function createMonthSheet(newSheetName, carryBalances) {
 
 function getLatestDataSheetBefore(ss, newSheetName) {
   const dataSheets = ss.getSheets()
-    .filter(sheet => sheet.getName() !== 'Settings' && sheet.getName() !== 'Expenses' && sheet.getName() !== FOLLOWUP_SHEET_NAME && !isReportSheetName(sheet.getName()) && sheet.getName() !== newSheetName);
+    .filter(sheet => sheet.getName() !== 'Settings' && sheet.getName() !== 'Expenses' && sheet.getName() !== FOLLOWUP_SHEET_NAME && sheet.getName() !== SPECIAL_FUND_SHEET_NAME && !isReportSheetName(sheet.getName()) && sheet.getName() !== newSheetName);
   if (!dataSheets.length) return null;
   return dataSheets[dataSheets.length - 1];
 }
@@ -1030,7 +1124,7 @@ function setMergedValue(sheet, row, col, numRows, numCols, value, bg, fg, align,
 function getMemberHistory(name, phone) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets()
-    .filter(s => s.getName() !== 'Settings' && s.getName() !== 'Expenses' && s.getName() !== FOLLOWUP_SHEET_NAME && !isReportSheetName(s.getName()));
+    .filter(s => s.getName() !== 'Settings' && s.getName() !== 'Expenses' && s.getName() !== FOLLOWUP_SHEET_NAME && s.getName() !== SPECIAL_FUND_SHEET_NAME && !isReportSheetName(s.getName()));
 
   const allRecords = [];
   const searchName = String(name || '').trim().toLowerCase();
@@ -1094,15 +1188,14 @@ function saveSettings(settingsObj) {
     sheet = ss.insertSheet('Settings');
     sheet.appendRow(['Key', 'Value']);
     sheet.getRange(1, 1, 1, 2).setFontWeight('bold');
-  } else {
-    // Clear existing settings
-    const lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      sheet.getRange(2, 1, lastRow - 1, 2).clearContent();
-    }
   }
 
-  const rows = Object.keys(settingsObj).map(key => [key, settingsObj[key]]);
+  // Merge partial updates so each settings screen can safely own its fields.
+  const merged = getSettings();
+  Object.keys(settingsObj || {}).forEach(key => { merged[key] = settingsObj[key]; });
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 2).clearContent();
+  const rows = Object.keys(merged).map(key => [key, merged[key]]);
   if (rows.length > 0) {
     sheet.getRange(2, 1, rows.length, 2).setValues(rows);
   }

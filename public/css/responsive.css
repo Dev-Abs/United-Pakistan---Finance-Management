@@ -162,6 +162,10 @@
 }
 
 @media (max-width: 768px) {
+    .route-progress {
+        left: 0;
+        top: var(--header-height);
+    }
     .sidebar {
         position: fixed;
         left: 0;
@@ -214,6 +218,11 @@
     }
 
     .finance-detail-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .special-fund-hero {
         align-items: flex-start;
         flex-direction: column;
     }
@@ -331,6 +340,8 @@
     /* Bottom nav visible on mobile */
     .bottom-nav {
         display: flex;
+        justify-content: flex-start;
+        overflow-x: auto;
     }
 }
 
@@ -399,6 +410,10 @@
         flex: 1;
         padding-left: 4px;
         padding-right: 4px;
+    }
+
+    .bottom-nav-item {
+        min-height: 48px;
     }
 
     .bottom-nav-label {

@@ -2,11 +2,13 @@ import { api } from './api.js';
 import { utils } from './utils.js';
 
 // Bump this whenever any view script changes so clients don't serve stale JS.
-const ASSET_VERSION = '20260812-month-date-fix';
+const ASSET_VERSION = '20260920-modern-ui';
 
 class App {
     constructor() {
         this.currentView = '';
+        this.viewRequest = 0;
+        this.viewCache = new Map();
         this.state = {
             currentMonth: '',
             months: [],
@@ -16,6 +18,7 @@ class App {
             'dashboard': { url: '/', title: 'Dashboard', script: `/js/dashboard.js?v=${ASSET_VERSION}` },
             'members': { url: '/members', title: 'Members', script: `/js/members.js?v=${ASSET_VERSION}` },
             'expenses': { url: '/expenses', title: 'Expenses', script: `/js/expenses.js?v=${ASSET_VERSION}` },
+            'special-fund': { url: '/special-fund', title: 'Special Fund', script: `/js/special-fund.js?v=${ASSET_VERSION}` },
             'reports': { url: '/reports', title: 'Reports', script: `/js/reports.js?v=${ASSET_VERSION}` },
             'settings': { url: '/settings', title: 'Settings', script: `/js/settings.js?v=${ASSET_VERSION}` }
         };
@@ -66,14 +69,42 @@ class App {
         // Setup event listeners
         this.setupEventListeners();
 
-        // Load initial data (months)
-        await this.loadMonths();
-
-        // Handle initial route
-        this.handleRoute();
+        // Route immediately when cached month metadata exists, while refreshing
+        // it in the background. This avoids a blank app during a slow Sheets call.
+        this.restoreMonthState();
+        const initialView = this.handleRoute();
+        await Promise.all([initialView, this.loadMonths()]);
+        if (this.currentView && this.state.currentMonth) {
+            window.dispatchEvent(new CustomEvent('monthChanged', { detail: this.state.currentMonth }));
+        }
 
         // Handle browser back/forward
         window.addEventListener('popstate', () => this.handleRoute());
+    }
+
+    restoreMonthState() {
+        try {
+            const cached = JSON.parse(localStorage.getItem('up_month_state') || '{}');
+            if (Array.isArray(cached.months)) {
+                this.state.months = cached.months.map(m => String(m).trim()).filter(Boolean);
+                this.state.currentMonth = this.resolveCurrentMonth() || String(cached.currentMonth || '');
+                this.renderMonthOptions();
+            }
+        } catch (_) {
+            localStorage.removeItem('up_month_state');
+        }
+    }
+
+    renderMonthOptions() {
+        const select = document.getElementById('current-month-select');
+        if (!select) return;
+        select.replaceChildren(...this.state.months.map(month => {
+            const option = document.createElement('option');
+            option.value = month;
+            option.textContent = month;
+            return option;
+        }));
+        if (this.state.currentMonth) select.value = this.state.currentMonth;
     }
 
     setupEventListeners() {
@@ -191,17 +222,11 @@ class App {
                     this.state.currentMonth = this.resolveCurrentMonth();
                 }
 
-                const select = document.getElementById('current-month-select');
-                if (select) {
-                    select.innerHTML = '';
-                    this.state.months.forEach(month => {
-                        const option = document.createElement('option');
-                        option.value = month;
-                        option.textContent = month;
-                        select.appendChild(option);
-                    });
-                    if (this.state.currentMonth) select.value = this.state.currentMonth;
-                }
+                this.renderMonthOptions();
+                localStorage.setItem('up_month_state', JSON.stringify({
+                    months: this.state.months,
+                    currentMonth: this.state.currentMonth
+                }));
 
                 this.updateStaleMonthNotice();
             }
@@ -230,7 +255,7 @@ class App {
             }
         }
 
-        this.loadView(matchedRoute);
+        return this.loadView(matchedRoute);
     }
 
     async loadView(routeName) {
@@ -239,7 +264,10 @@ class App {
         const route = this.routes[routeName];
         if (!route) return;
 
-        utils.showLoader();
+        const requestId = ++this.viewRequest;
+        const view = document.getElementById('main-view');
+        document.body.classList.add('is-navigating');
+        view?.setAttribute('aria-busy', 'true');
 
         try {
             // Update UI — sidebar active state
@@ -255,23 +283,30 @@ class App {
             document.getElementById('page-title').textContent = route.title;
 
             // Fetch template
-            const response = await fetch(`/views/${routeName}.html`);
-            if (!response.ok) throw new Error('View not found');
-            const html = await response.text();
+            let html = this.viewCache.get(routeName);
+            if (!html) {
+                const response = await fetch(`/views/${routeName}.html`, { signal: AbortSignal.timeout(10000) });
+                if (!response.ok) throw new Error('View not found');
+                html = await response.text();
+                this.viewCache.set(routeName, html);
+            }
+            if (requestId !== this.viewRequest) return;
 
-            document.getElementById('main-view').innerHTML = html;
+            view.innerHTML = html;
 
             // Dynamically load associated script
             if (route.script) {
                 const module = await import(route.script);
                 if (module && typeof module.init === 'function') {
-                    module.init(this);
+                    await module.init(this);
                 }
             }
 
             this.renderIcons();
 
             this.currentView = routeName;
+            view.classList.remove('view-enter');
+            requestAnimationFrame(() => view.classList.add('view-enter'));
 
             // Close mobile menu if open
             document.getElementById('sidebar')?.classList.remove('active');
@@ -279,9 +314,12 @@ class App {
         } catch (error) {
             console.error('Error loading view:', error);
             utils.showToast('Error loading page', 'error');
-            document.getElementById('main-view').innerHTML = `<div class="card"><p class="text-danger">Failed to load view.</p></div>`;
+            view.innerHTML = `<div class="card empty-state"><h2>We couldn't open this page</h2><p class="text-muted">Check your connection and try again.</p><button class="btn btn-primary" onclick="location.reload()">Try again</button></div>`;
         } finally {
-            utils.hideLoader();
+            if (requestId === this.viewRequest) {
+                document.body.classList.remove('is-navigating');
+                view?.setAttribute('aria-busy', 'false');
+            }
         }
     }
 }

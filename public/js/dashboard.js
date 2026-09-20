@@ -63,34 +63,39 @@ async function loadDashboardData() {
             const members = membersRes.data || [];
             const expenses = (expensesRes.success ? expensesRes.data : []) || [];
             const followUps = (followUpsRes.success ? followUpsRes.data : []) || [];
-            let previousSummary = null;
-            if (prevMonth) {
-                try {
-                    const [prevMembersRes, prevExpensesRes] = await Promise.all([
-                        api.get('/api/members?month=' + encodeURIComponent(prevMonth)),
-                        api.get('/api/expenses?month=' + encodeURIComponent(prevMonth))
-                    ]);
-                    previousSummary = buildSummary(prevMembersRes.success ? prevMembersRes.data || [] : [], prevExpensesRes.success ? prevExpensesRes.data || [] : []);
-                } catch (e) {
-                    previousSummary = null;
-                }
-            }
             currentDashboardMembers = members;
             currentDashboardExpenses = expenses;
             currentDashboardFollowUps = followUps;
             showDashboardContent();
-            updateStats(members, expenses, previousSummary);
+            // Paint current-month information immediately. Historical comparison
+            // is supplementary and should never hold the dashboard hostage.
+            updateStats(members, expenses, null);
             updateTopPendingMembers(members);
             updateFollowUpTracker(members, followUps);
             updateActivityLog(members, expenses);
             updateRecentPayments(members);
             updateRecentExpenses(expenses);
             renderCharts(members, expenses);
+            if (prevMonth) loadPreviousMonthComparison(prevMonth, members, expenses);
         }
     } catch (error) {
         console.error('Failed to load dashboard data', error);
         utils.showToast('Failed to load data', 'error');
         showDashboardContent();
+    }
+}
+
+async function loadPreviousMonthComparison(prevMonth, currentMembers, currentExpenses) {
+    try {
+        const [membersRes, expensesRes] = await Promise.all([
+            api.get('/api/members?month=' + encodeURIComponent(prevMonth)),
+            api.get('/api/expenses?month=' + encodeURIComponent(prevMonth))
+        ]);
+        if (appInstance.state.currentMonth === prevMonth) return;
+        const previous = buildSummary(membersRes.success ? membersRes.data || [] : [], expensesRes.success ? expensesRes.data || [] : []);
+        updateComparison(previous, buildSummary(currentMembers, currentExpenses));
+    } catch (_) {
+        // Comparison stays in its explicit "No previous month" fallback state.
     }
 }
 

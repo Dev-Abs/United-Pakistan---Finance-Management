@@ -9,12 +9,16 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="UP Finance">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/responsive.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <meta name="theme-color" content="#047857">
+    <meta name="description" content="United Pakistan finance, member and fund management.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="/css/style.css?v=20260920-modern-ui">
+    <link rel="stylesheet" href="/css/components.css?v=20260920-modern-ui">
+    <link rel="stylesheet" href="/css/responsive.css?v=20260920-modern-ui">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script type="module" src="/js/app.js" defer></script>
 </head>
 <body>
@@ -37,6 +41,9 @@
                 </a>
                 <a href="/expenses" class="nav-item" data-route="expenses">
                     <span class="icon"><i data-lucide="receipt"></i></span> Expenses
+                </a>
+                <a href="/special-fund" class="nav-item" data-route="special-fund">
+                    <span class="icon"><i data-lucide="landmark"></i></span> Special Fund
                 </a>
                 <a href="/reports" class="nav-item" data-route="reports">
                     <span class="icon"><i data-lucide="bar-chart-3"></i></span> Reports
@@ -76,8 +83,12 @@
             <div id="stale-month-notice" class="stale-month-notice" style="display:none;"></div>
 
             <!-- Dynamic Content Container -->
-            <div id="main-view" class="view-container">
-                <!-- Views get injected here -->
+            <div id="route-progress" class="route-progress" aria-hidden="true"></div>
+            <div id="main-view" class="view-container" tabindex="-1" aria-live="polite" aria-busy="true">
+                <div class="app-welcome" role="status">
+                    <div class="app-welcome-mark">UP</div>
+                    <div><strong>Preparing your workspace</strong><span>Loading the latest finance data…</span></div>
+                </div>
             </div>
         </main>
 
@@ -94,6 +105,10 @@
             <a href="/expenses" class="bottom-nav-item" data-route="expenses">
                 <span class="bottom-nav-icon"><i data-lucide="receipt"></i></span>
                 <span class="bottom-nav-label">Expenses</span>
+            </a>
+            <a href="/special-fund" class="bottom-nav-item" data-route="special-fund">
+                <span class="bottom-nav-icon"><i data-lucide="landmark"></i></span>
+                <span class="bottom-nav-label">Special Fund</span>
             </a>
             <a href="/reports" class="bottom-nav-item" data-route="reports">
                 <span class="bottom-nav-icon"><i data-lucide="bar-chart-3"></i></span>

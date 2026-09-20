@@ -3,6 +3,8 @@
 A lightweight, full-stack web application for managing the monthly finances of the United Pakistan political party. Replaces manual Excel + WhatsApp operations with a clean admin panel backed by Google Sheets via Google Apps Script.
 
 ## Features
+
+- **Special Fund campaigns** — configure category minimums and an Urdu appeal, track multiple contributions per member, and review campaign progress and its transaction ledger.
 - **Dashboard**: High-level stats, recent payments, and quick actions.
 - **Member Management**: Add, edit, delete, and search members.
 - **Payment Tracking**: Mark payments, handle partial payments, and auto-calculate remaining balances.

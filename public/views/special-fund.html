@@ -1,0 +1,117 @@
+<div class="special-fund-container">
+    <section class="special-fund-hero mb-md">
+        <div>
+            <p class="special-fund-eyebrow">Member Contribution Campaign</p>
+            <h2 id="sf-campaign-title">Special Fund</h2>
+            <p id="sf-campaign-meta">Loading campaign...</p>
+        </div>
+        <div class="flex flex-wrap gap-sm">
+            <button type="button" class="btn btn-outline" id="sf-copy-message"><i data-lucide="copy"></i> Copy Appeal</button>
+            <button type="button" class="btn btn-outline" id="sf-share-message"><i data-lucide="message-circle"></i> Share</button>
+            <button type="button" class="btn btn-primary" id="sf-configure"><i data-lucide="settings-2"></i> Configure</button>
+        </div>
+    </section>
+
+    <div class="finance-summary mb-md">
+        <div class="card stat-card stat-card-primary">
+            <span class="metric-label">Minimum Target</span>
+            <strong class="metric-value" id="sf-target">Rs. 0</strong>
+            <span class="metric-meta" id="sf-target-meta">Across current members</span>
+        </div>
+        <div class="card stat-card stat-card-success">
+            <span class="metric-label">Collected</span>
+            <strong class="metric-value text-success" id="sf-collected">Rs. 0</strong>
+            <span class="metric-meta" id="sf-contributors">0 contributors</span>
+        </div>
+        <div class="card stat-card stat-card-balance">
+            <span class="metric-label">Remaining to Minimum</span>
+            <strong class="metric-value text-danger" id="sf-remaining">Rs. 0</strong>
+            <span class="metric-meta" id="sf-progress">0% funded</span>
+        </div>
+    </div>
+
+    <div class="card mb-md flex flex-wrap justify-between align-center gap-sm">
+        <div class="flex flex-wrap gap-sm">
+            <input type="search" id="sf-search" class="form-control" placeholder="Search members..." style="max-width:250px;">
+            <select id="sf-status-filter" class="form-control" style="max-width:180px;">
+                <option value="all">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Partially Paid">Partially Paid</option>
+                <option value="Completed">Minimum Met</option>
+                <option value="Contributed">Contributed</option>
+            </select>
+        </div>
+        <button type="button" class="btn btn-primary" id="sf-add-contribution"><i data-lucide="circle-dollar-sign"></i> Record Contribution</button>
+    </div>
+
+    <div class="card p-0 mb-md">
+        <div class="special-fund-card-heading">
+            <div><h3>Member Progress</h3><p>Minimum is based on each member's category.</p></div>
+            <span class="badge badge-default" id="sf-member-count">0 members</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table mobile-card-table" id="sf-members-table">
+                <thead><tr><th>Member</th><th>Category</th><th>Minimum</th><th>Collected</th><th>Remaining</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody><tr><td colspan="7" class="text-center text-muted p-md">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card p-0">
+        <div class="special-fund-card-heading">
+            <div><h3>Contribution Ledger</h3><p>Every payment remains as a separate auditable entry.</p></div>
+            <span class="badge badge-default" id="sf-entry-count">0 entries</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table mobile-card-table" id="sf-ledger-table">
+                <thead><tr><th>Date</th><th>Member</th><th>Category</th><th>Amount</th><th>Remarks</th><th>Actions</th></tr></thead>
+                <tbody><tr><td colspan="6" class="text-center text-muted p-md">No contributions recorded yet.</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="sf-contribution-modal">
+    <div class="modal">
+        <div class="modal-header"><h3 class="modal-title" id="sf-contribution-title">Record Contribution</h3><button class="modal-close" type="button">&times;</button></div>
+        <form id="sf-contribution-form">
+            <div class="modal-body">
+                <input type="hidden" id="sf-entry-id">
+                <div class="form-group"><label>Member</label><select id="sf-member-select" class="form-control" required></select></div>
+                <div class="grid grid-cols-2">
+                    <div class="form-group"><label>Amount (Rs.)</label><input type="number" id="sf-amount" class="form-control" min="1" step="1" required></div>
+                    <div class="form-group"><label>Payment Date</label><input type="date" id="sf-payment-date" class="form-control" required></div>
+                </div>
+                <div class="form-group"><label>Receipt Link <span class="text-muted">(optional)</span></label><input type="url" id="sf-receipt" class="form-control" placeholder="https://..."></div>
+                <div class="form-group"><label>Remarks <span class="text-muted">(optional)</span></label><textarea id="sf-remarks" class="form-control" rows="3"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline sf-modal-cancel">Cancel</button><button type="submit" class="btn btn-primary" id="sf-save-contribution">Save Contribution</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-overlay" id="sf-config-modal">
+    <div class="modal special-fund-config-modal">
+        <div class="modal-header"><h3 class="modal-title">Configure Special Fund</h3><button class="modal-close" type="button">&times;</button></div>
+        <form id="sf-config-form">
+            <div class="modal-body">
+                <p class="text-sm text-muted mb-md">Use a new Campaign ID when starting a separate fund drive. Existing campaign records remain preserved.</p>
+                <div class="grid grid-cols-2">
+                    <div class="form-group"><label>Campaign ID</label><input type="text" id="sf-config-id" class="form-control" required></div>
+                    <div class="form-group"><label>Campaign Name</label><input type="text" id="sf-config-name" class="form-control" dir="auto" required></div>
+                </div>
+                <div class="grid grid-cols-2">
+                    <div class="form-group"><label>Event Timing</label><input type="text" id="sf-config-timing" class="form-control" dir="auto" required></div>
+                    <div class="form-group"><label>Event Venue</label><input type="text" id="sf-config-venue" class="form-control" dir="auto" required></div>
+                </div>
+                <div class="grid grid-cols-3">
+                    <div class="form-group"><label>Jaiza Pass Minimum</label><input type="number" id="sf-config-jp" class="form-control" min="0" required></div>
+                    <div class="form-group"><label>Study Circle Minimum</label><input type="number" id="sf-config-sc" class="form-control" min="0" required></div>
+                    <div class="form-group"><label>Fellow Minimum</label><input type="number" id="sf-config-fm" class="form-control" min="0" required></div>
+                </div>
+                <div class="form-group"><label>Urdu Appeal Template</label><textarea id="sf-config-template" class="form-control special-fund-message-editor" rows="14" dir="rtl" required></textarea><p class="text-sm text-muted mt-sm">Available placeholders: {event_timing}, {event_venue}, {jp_minimum}, {sc_minimum}, {fm_minimum}, {campaign_name}</p></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline sf-modal-cancel">Cancel</button><button type="submit" class="btn btn-primary" id="sf-save-config">Save Configuration</button></div>
+        </form>
+    </div>
+</div>

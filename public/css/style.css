@@ -1,10 +1,11 @@
 :root {
     /* Colors */
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-soft: #eff6ff;
-    --primary-ring: rgba(37, 99, 235, 0.14);
-    --bg-main: #f8fafc;
+    --primary: #047857;
+    --primary-hover: #065f46;
+    --primary-soft: #ecfdf5;
+    --primary-ring: rgba(4, 120, 87, 0.18);
+    --accent: #0891b2;
+    --bg-main: #f6f8f7;
     --bg-card: #ffffff;
     --bg-subtle: #f1f5f9;
     --text-main: #0f172a;
@@ -22,11 +23,11 @@
     /* Variables */
     --sidebar-width: 272px;
     --header-height: 72px;
-    --border-radius: 8px;
+    --border-radius: 12px;
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
     --shadow-md: 0 16px 32px -24px rgba(15, 23, 42, 0.35);
     --shadow-lg: 0 22px 45px -28px rgba(15, 23, 42, 0.45);
-    --transition: all 0.18s ease;
+    --transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 * {
@@ -35,11 +36,21 @@
     box-sizing: border-box;
 }
 
+::selection {
+    color: #052e24;
+    background: #a7f3d0;
+}
+
+:focus-visible {
+    outline: 3px solid #10b981;
+    outline-offset: 3px;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--bg-main);
     background-image:
-        radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 30%),
+        radial-gradient(circle at top left, rgba(4, 120, 87, 0.09), transparent 30%),
         linear-gradient(180deg, #ffffff 0, var(--bg-main) 260px);
     color: var(--text-main);
     line-height: 1.5;
@@ -80,7 +91,7 @@ body {
 .logo {
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, var(--primary), #0ea5e9);
+    background: linear-gradient(135deg, var(--primary), var(--accent));
     color: white;
     display: flex;
     align-items: center;
@@ -246,6 +257,86 @@ body {
     flex: 1;
     padding: 28px;
     overflow-y: auto;
+}
+
+.route-progress {
+    position: absolute;
+    z-index: 30;
+    top: var(--header-height);
+    left: var(--sidebar-width);
+    right: 0;
+    height: 3px;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: rgba(4, 120, 87, 0.1);
+    transition: opacity 120ms ease;
+}
+
+.route-progress::after {
+    content: '';
+    display: block;
+    width: 42%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, #10b981, #0891b2, transparent);
+    transform: translateX(-110%);
+}
+
+.is-navigating .route-progress { opacity: 1; }
+.is-navigating .route-progress::after { animation: route-loading 900ms ease-in-out infinite; }
+
+@keyframes route-loading { to { transform: translateX(340%); } }
+
+.view-enter { animation: view-enter 240ms cubic-bezier(.2,.8,.2,1) both; }
+
+@keyframes view-enter {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.app-welcome {
+    min-height: min(62vh, 520px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-muted);
+}
+
+.app-welcome-mark {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    color: #fff;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    box-shadow: 0 14px 32px -18px var(--primary);
+    animation: welcome-pulse 1.5s ease-in-out infinite;
+}
+
+.app-welcome strong, .app-welcome span { display: block; }
+.app-welcome strong { color: var(--text-main); font-size: 15px; }
+.app-welcome span { margin-top: 3px; }
+
+@keyframes welcome-pulse { 50% { transform: scale(.94); opacity: .8; } }
+
+.empty-state {
+    max-width: 520px;
+    margin: 10vh auto;
+    text-align: center;
+}
+
+.empty-state p { margin: 8px 0 20px; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }
 
 /* Utilities */

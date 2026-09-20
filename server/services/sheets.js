@@ -59,6 +59,14 @@ const sheetsService = {
 
   addFollowUp: (data) => gasRequest('addFollowUp', { data }),
 
+  getSpecialFundContributions: (campaignId) => gasRequest('getSpecialFundContributions', { campaignId }),
+
+  addSpecialFundContribution: (data) => gasRequest('addSpecialFundContribution', { data }),
+
+  updateSpecialFundContribution: (rowId, data) => gasRequest('updateSpecialFundContribution', { rowId, data }),
+
+  deleteSpecialFundContribution: (rowId) => gasRequest('deleteSpecialFundContribution', { rowId }),
+
   getDiagnostics: (month) => gasRequest('diagnostics', { month }),
 
   repairMonthColumns: () => gasRequest('repairMonthColumns'),
