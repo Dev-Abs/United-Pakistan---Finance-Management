@@ -9,6 +9,8 @@ let currentFollowUps = [];
 let currentSummary = null;
 
 export async function init(app) {
+    const monthContext = document.getElementById('report-month-context');
+    if (monthContext) monthContext.textContent = app.state.currentMonth || 'Selected month';
     appInstance = app;
     setupExportListeners(appInstance);
     setupWhatsAppReport();
@@ -24,6 +26,8 @@ export async function init(app) {
 
 async function loadReportData() {
     if (!appInstance.state.currentMonth) return;
+    const monthContext = document.getElementById('report-month-context');
+    if (monthContext) monthContext.textContent = appInstance.state.currentMonth;
 
     try {
         const [membersRes, expensesRes, followUpsRes] = await Promise.all([

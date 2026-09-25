@@ -14,14 +14,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="/css/style.css?v=20260925-ux-refresh">
-    <link rel="stylesheet" href="/css/components.css?v=20260925-ux-refresh">
-    <link rel="stylesheet" href="/css/responsive.css?v=20260925-ux-refresh">
+    <link rel="stylesheet" href="/css/style.css?v=20260925-enterprise">
+    <link rel="stylesheet" href="/css/components.css?v=20260925-enterprise">
+    <link rel="stylesheet" href="/css/responsive.css?v=20260925-enterprise">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script type="module" src="/js/app.js" defer></script>
 </head>
 <body>
+    <a class="skip-link" href="#main-view">Skip to main content</a>
     <div id="app" class="app-container">
         <!-- Sidebar (desktop) -->
         <aside class="sidebar" id="sidebar">
@@ -33,6 +34,7 @@
                 </div>
             </div>
             <nav class="sidebar-nav">
+                <p class="nav-section-label">Workspace</p>
                 <a href="/" class="nav-item active" data-route="dashboard">
                     <span class="icon"><i data-lucide="layout-dashboard"></i></span> Dashboard
                 </a>
@@ -45,6 +47,7 @@
                 <a href="/special-fund" class="nav-item" data-route="special-fund">
                     <span class="icon"><i data-lucide="landmark"></i></span> Special Fund
                 </a>
+                <p class="nav-section-label">Insights & system</p>
                 <a href="/reports" class="nav-item" data-route="reports">
                     <span class="icon"><i data-lucide="bar-chart-3"></i></span> Reports
                 </a>
@@ -53,8 +56,11 @@
                 </a>
             </nav>
             <div class="sidebar-footer">
-                <button id="logout-btn" class="btn-text">
-                    <span class="icon"><i data-lucide="log-out"></i></span> Logout
+                <button id="sidebar-collapse-btn" class="sidebar-utility" type="button" aria-label="Collapse sidebar" aria-pressed="false">
+                    <span class="icon"><i data-lucide="panel-left-close"></i></span><span class="utility-label">Collapse sidebar</span>
+                </button>
+                <button id="logout-btn" class="sidebar-utility danger">
+                    <span class="icon"><i data-lucide="log-out"></i></span><span class="utility-label">Log out</span>
                 </button>
             </div>
         </aside>
@@ -64,9 +70,12 @@
             <!-- Header -->
             <header class="top-header">
                 <div class="header-left">
-                    <h1 id="page-title">Dashboard</h1>
+                    <div class="page-identity"><span class="page-breadcrumb">United Pakistan</span><h1 id="page-title">Dashboard</h1></div>
                 </div>
                 <div class="header-actions">
+                    <button id="command-menu-btn" class="command-trigger" type="button" aria-haspopup="dialog" aria-controls="command-menu">
+                        <i data-lucide="search"></i><span>Search or jump to…</span><kbd>Ctrl K</kbd>
+                    </button>
                     <span class="role-badge" id="user-role-badge">Admin</span>
                     <div class="month-selector">
                         <select id="current-month-select" class="form-control">
@@ -91,6 +100,8 @@
                 </div>
             </div>
         </main>
+
+        <div id="network-status" class="network-status" role="status" aria-live="polite" hidden></div>
 
         <!-- Bottom Navigation (mobile only) -->
         <nav class="bottom-nav" id="bottom-nav">
@@ -124,6 +135,7 @@
                     <button class="modal-close" id="mobile-more-close" type="button" aria-label="Close more options"><i data-lucide="x"></i></button>
                 </div>
                 <div class="mobile-more-grid">
+                    <button class="mobile-more-action" id="mobile-command-btn" type="button"><i data-lucide="search"></i><span><strong>Search & actions</strong><small>Jump anywhere quickly</small></span></button>
                     <a href="/reports" class="mobile-more-action" data-route="reports"><i data-lucide="bar-chart-3"></i><span><strong>Reports</strong><small>Review and export results</small></span></a>
                     <a href="/settings" class="mobile-more-action" data-route="settings"><i data-lucide="settings"></i><span><strong>Settings</strong><small>Organization and diagnostics</small></span></a>
                     <button class="mobile-more-action" id="mobile-install-btn" type="button"><i data-lucide="download"></i><span><strong>Install app</strong><small>Add to your home screen</small></span></button>
@@ -131,6 +143,19 @@
                 </div>
             </section>
         </div>
+    </div>
+
+    <div class="command-overlay" id="command-menu" aria-hidden="true">
+        <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
+            <div class="command-search">
+                <i data-lucide="search"></i>
+                <label class="sr-only" for="command-input" id="command-title">Search commands and pages</label>
+                <input id="command-input" type="search" autocomplete="off" placeholder="Search pages and actions…" aria-controls="command-results">
+                <kbd>Esc</kbd>
+            </div>
+            <div class="command-results" id="command-results" role="listbox" aria-label="Available commands"></div>
+            <footer class="command-footer"><span><kbd>↑</kbd><kbd>↓</kbd> Move</span><span><kbd>Enter</kbd> Open</span></footer>
+        </section>
     </div>
 
     <!-- Toast Container -->

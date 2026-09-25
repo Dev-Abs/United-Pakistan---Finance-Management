@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { utils } from './utils.js';
 
 // Bump this whenever any view script changes so clients don't serve stale JS.
-const ASSET_VERSION = '20260925-ux-refresh';
+const ASSET_VERSION = '20260925-enterprise';
 
 class App {
     constructor() {
@@ -22,6 +22,18 @@ class App {
             'reports': { url: '/reports', title: 'Reports', script: `/js/reports.js?v=${ASSET_VERSION}` },
             'settings': { url: '/settings', title: 'Settings', script: `/js/settings.js?v=${ASSET_VERSION}` }
         };
+        this.commands = [
+            { label: 'Dashboard', hint: 'Overview and priorities', icon: 'layout-dashboard', route: 'dashboard', keywords: 'home overview' },
+            { label: 'Members', hint: 'Members, payments and follow-ups', icon: 'users', route: 'members', keywords: 'people collections dues' },
+            { label: 'Expenses', hint: 'Expense ledger', icon: 'receipt', route: 'expenses', keywords: 'cost transactions' },
+            { label: 'Special Fund', hint: 'Campaign contributions', icon: 'landmark', route: 'special-fund', keywords: 'campaign donation' },
+            { label: 'Reports', hint: 'Analysis and exports', icon: 'bar-chart-3', route: 'reports', keywords: 'pdf csv excel' },
+            { label: 'Settings', hint: 'Organization and diagnostics', icon: 'settings', route: 'settings', keywords: 'configuration' },
+            { label: 'Add member', hint: 'Create a member record', icon: 'user-plus', route: 'members', action: 'btn-add-member', admin: true, keywords: 'new person' },
+            { label: 'Record payment', hint: 'Open members and select a member', icon: 'circle-dollar-sign', route: 'members', admin: true, keywords: 'paid collection' },
+            { label: 'Add expense', hint: 'Record a new expense', icon: 'plus-circle', route: 'expenses', action: 'btn-add-expense', admin: true, keywords: 'new cost' },
+            { label: 'Record special contribution', hint: 'Add a campaign payment', icon: 'badge-dollar-sign', route: 'special-fund', action: 'sf-add-contribution', admin: true, keywords: 'donation payment' }
+        ];
     }
 
     renderIcons() {
@@ -108,6 +120,9 @@ class App {
     }
 
     setupEventListeners() {
+        this.setupCommandMenu();
+        this.setupShellPreferences();
+        this.setupNetworkStatus();
         // Sidebar navigation
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -208,6 +223,104 @@ class App {
             this.updateStaleMonthNotice();
             // Dispatch custom event to notify current view to reload data
             window.dispatchEvent(new CustomEvent('monthChanged', { detail: this.state.currentMonth }));
+        });
+    }
+
+    setupShellPreferences() {
+        const button = document.getElementById('sidebar-collapse-btn');
+        const apply = (collapsed) => {
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            button?.setAttribute('aria-pressed', String(collapsed));
+            button?.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+            const icon = button?.querySelector('svg');
+            if (icon) icon.outerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}"></i>`;
+            this.renderIcons();
+        };
+        apply(localStorage.getItem('up_sidebar_collapsed') === 'true');
+        button?.addEventListener('click', () => {
+            const collapsed = !document.body.classList.contains('sidebar-collapsed');
+            localStorage.setItem('up_sidebar_collapsed', String(collapsed));
+            apply(collapsed);
+        });
+    }
+
+    setupNetworkStatus() {
+        const status = document.getElementById('network-status');
+        const update = () => {
+            if (!status) return;
+            status.hidden = navigator.onLine;
+            status.textContent = navigator.onLine ? '' : 'You are offline. Existing data remains visible, but changes may not save.';
+        };
+        window.addEventListener('online', update);
+        window.addEventListener('offline', update);
+        update();
+    }
+
+    setupCommandMenu() {
+        const overlay = document.getElementById('command-menu');
+        const input = document.getElementById('command-input');
+        const results = document.getElementById('command-results');
+        const trigger = document.getElementById('command-menu-btn');
+        const mobileTrigger = document.getElementById('mobile-command-btn');
+        let activeIndex = 0;
+        let visible = [];
+        const close = () => {
+            overlay?.classList.remove('active');
+            overlay?.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('overlay-open');
+            trigger?.focus();
+        };
+        const run = async (command) => {
+            close();
+            if (this.currentView !== command.route) {
+                this.pendingAction = command.action || null;
+                this.navigate(command.route);
+            } else if (command.action) document.getElementById(command.action)?.click();
+        };
+        const render = () => {
+            const query = String(input?.value || '').trim().toLowerCase();
+            visible = this.commands.filter(command => !command.admin || !this.isReadOnly()).filter(command =>
+                !query || `${command.label} ${command.hint} ${command.keywords || ''}`.toLowerCase().includes(query));
+            activeIndex = Math.min(activeIndex, Math.max(visible.length - 1, 0));
+            results?.replaceChildren(...visible.map((command, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `command-item${index === activeIndex ? ' active' : ''}`;
+                button.setAttribute('role', 'option');
+                button.setAttribute('aria-selected', String(index === activeIndex));
+                button.innerHTML = `<span class="command-icon"><i data-lucide="${command.icon}"></i></span><span><strong>${command.label}</strong><small>${command.hint}</small></span><i class="command-arrow" data-lucide="arrow-right"></i>`;
+                button.addEventListener('mouseenter', () => { activeIndex = index; render(); });
+                button.addEventListener('click', () => run(command));
+                return button;
+            }));
+            if (!visible.length && results) results.innerHTML = '<div class="command-empty">No matching pages or actions</div>';
+            this.renderIcons();
+        };
+        const open = () => {
+            overlay?.classList.add('active');
+            overlay?.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('overlay-open');
+            if (input) input.value = '';
+            activeIndex = 0;
+            render();
+            requestAnimationFrame(() => input?.focus());
+        };
+        trigger?.addEventListener('click', open);
+        mobileTrigger?.addEventListener('click', () => {
+            document.getElementById('mobile-more-menu')?.classList.remove('active');
+            document.getElementById('mobile-more-menu')?.setAttribute('aria-hidden', 'true');
+            document.getElementById('mobile-more-btn')?.setAttribute('aria-expanded', 'false');
+            open();
+        });
+        overlay?.addEventListener('click', event => { if (event.target === overlay) close(); });
+        input?.addEventListener('input', () => { activeIndex = 0; render(); });
+        document.addEventListener('keydown', event => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); overlay?.classList.contains('active') ? close() : open(); return; }
+            if (!overlay?.classList.contains('active')) return;
+            if (event.key === 'Escape') { event.preventDefault(); close(); }
+            if (event.key === 'ArrowDown') { event.preventDefault(); activeIndex = (activeIndex + 1) % Math.max(visible.length, 1); render(); }
+            if (event.key === 'ArrowUp') { event.preventDefault(); activeIndex = (activeIndex - 1 + Math.max(visible.length, 1)) % Math.max(visible.length, 1); render(); }
+            if (event.key === 'Enter' && visible[activeIndex]) { event.preventDefault(); run(visible[activeIndex]); }
         });
     }
 
@@ -376,6 +489,7 @@ class App {
 
             view.innerHTML = html;
             this.prepareModals(view);
+            this.prepareViewAccessibility(view);
 
             // Dynamically load associated script
             if (route.script) {
@@ -388,6 +502,11 @@ class App {
             this.renderIcons();
 
             this.currentView = routeName;
+            if (this.pendingAction) {
+                const action = document.getElementById(this.pendingAction);
+                this.pendingAction = null;
+                action?.click();
+            }
             view.classList.remove('view-enter');
             requestAnimationFrame(() => view.classList.add('view-enter'));
 
@@ -404,6 +523,21 @@ class App {
                 view?.setAttribute('aria-busy', 'false');
             }
         }
+    }
+
+    prepareViewAccessibility(view) {
+        view.querySelectorAll('label').forEach(label => {
+            if (label.htmlFor) return;
+            const control = label.querySelector('input, select, textarea') || label.parentElement?.querySelector('input, select, textarea');
+            if (control?.id) label.htmlFor = control.id;
+        });
+        view.querySelectorAll('button').forEach(button => {
+            if (button.type || button.closest('form') === null) return;
+            button.type = 'button';
+        });
+        view.querySelectorAll('.modal-close').forEach(button => {
+            if (/^×$/.test(button.textContent.trim())) button.innerHTML = '<i data-lucide="x"></i>';
+        });
     }
 }
 

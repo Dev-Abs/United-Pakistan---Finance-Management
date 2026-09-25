@@ -1,4 +1,7 @@
 <div class="settings-container max-w-3xl">
+    <div class="page-intro">
+        <div><p class="section-eyebrow">Workspace configuration</p><h2>Settings and data health</h2><p>Manage organization defaults and troubleshoot the Google Sheets connection.</p></div>
+    </div>
     <div class="card">
         <h3 class="font-bold mb-md">Application Settings</h3>
         <p class="text-sm text-muted mb-md">These settings are used to automatically generate WhatsApp reminder messages
@@ -51,8 +54,8 @@
         <p class="text-sm text-muted mb-md">Checks which month tab the app is reading/writing, whether the deployed
             Apps Script code is up to date, and where expense/reminder rows are actually stored. Useful when data
             "isn't showing" or lands under the wrong month.</p>
-        <button type="button" id="btn-run-diagnostics" class="btn btn-secondary">Run Diagnostics</button>
-        <button type="button" id="btn-repair-months" class="btn btn-secondary">Repair Corrupted Month Values</button>
+        <button type="button" id="btn-run-diagnostics" class="btn btn-outline"><i data-lucide="stethoscope"></i> Run Diagnostics</button>
+        <button type="button" id="btn-repair-months" class="btn btn-outline"><i data-lucide="wrench"></i> Repair Month Values</button>
         <p class="text-sm text-muted mt-sm">Rewrites any Month cells that Google Sheets silently turned into dates
             (e.g. "August 2026" becoming a date) back into plain text, and locks the Month column to text format so
             it can't happen again. Safe to run — only touches the Month column, not amounts or other data.</p>

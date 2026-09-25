@@ -8,6 +8,8 @@
     transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
+.card:hover { border-color: #d7dee8; }
+
 /* Skip layout/paint work for dashboard sections below the viewport. */
 .dashboard-container > .card,
 .dashboard-container > .grid,
@@ -895,6 +897,10 @@ label {
     transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
+.form-control:hover:not(:focus):not(:disabled) { border-color: #cbd5e1; }
+.form-control:disabled { background: var(--bg-subtle); color: var(--text-muted); cursor: not-allowed; }
+.form-control::placeholder { color: #94a3b8; }
+
 .form-control:focus {
     outline: none;
     border-color: var(--primary);
@@ -942,6 +948,8 @@ label {
     opacity: 0.7;
     cursor: not-allowed;
 }
+
+.btn:focus-visible, .btn-icon:focus-visible, .nav-item:focus-visible { outline-offset: 2px; }
 
 .btn-primary {
     background: linear-gradient(180deg, #059669, var(--primary));
@@ -1067,6 +1075,8 @@ label {
 .table tbody tr:hover {
     background-color: #f8fafc;
 }
+.table td { font-variant-numeric: tabular-nums; }
+.table tbody tr { transition: background-color 120ms ease; }
 
 .table tbody tr:last-child td {
     border-bottom: 0;
@@ -1117,6 +1127,8 @@ label {
     transform: scale(0.95);
     transition: transform 0.2s;
 }
+.modal form:has(.modal-footer) { display: contents; }
+.modal input:invalid:not(:placeholder-shown), .modal textarea:invalid:not(:placeholder-shown) { border-color: var(--danger); }
 
 .modal-overlay.active .modal {
     transform: scale(1);

@@ -17,10 +17,14 @@ A responsive Express/vanilla-JavaScript finance management PWA backed by Google 
 - The September UX refresh simplifies mobile navigation to five destinations with a bottom-sheet More menu, adds clearer page context and management toolbars to Members and Expenses, exposes live result counts and filter reset actions, keeps data-table headers visible on desktop, and improves empty states.
 - Dialogs now gain accessible roles/labels, Escape and backdrop dismissal, focus placement, scroll locking, and focus restoration. Toasts use safe text nodes and live-region semantics. Login now supports password visibility and browser autofill metadata.
 - Dashboard, Members, Expenses, and Reports replace stale month-change handlers when reinitialized, preventing duplicate requests after repeated navigation.
+- The enterprise shell adds a searchable Ctrl/Cmd+K command center for pages and frequent admin actions, a persistent collapsible desktop sidebar, clearer page context, mobile search/actions access, and explicit offline status.
+- Shared design tokens now cover spacing and radius scales; navigation, inputs, cards, tables, dialog controls, focus states, and responsive command UI use one restrained enterprise visual language.
+- Dynamically loaded views receive automatic label/control association and normalized dialog close controls. Reports and Settings now have consistent task-oriented page introductions and reporting-period context.
 
 ## Important files changed
 
 - Performance/UI: `public/index.html`, `public/login.html`, `public/views/members.html`, `public/views/expenses.html`, `public/js/app.js`, `public/js/api.js`, `public/js/dashboard.js`, `public/js/members.js`, `public/js/expenses.js`, `public/js/reports.js`, `public/js/utils.js`, `public/css/style.css`, `public/css/components.css`, `public/css/responsive.css`, `public/sw.js`, `server/index.js`.
+- Enterprise experience pass: `public/index.html`, `public/js/app.js`, `public/js/reports.js`, `public/views/reports.html`, `public/views/settings.html`, `public/css/style.css`, `public/css/components.css`, `public/css/responsive.css`, `public/sw.js`.
 - Export/dependencies: `public/js/export.js`, `package.json`, `package-lock.json`.
 - Special Fund: `public/views/special-fund.html`, `public/js/special-fund.js`, `server/routes/special-fund.js`, `server/routes/settings.js`, `server/services/sheets.js`, `apps-script/Code.gs`, plus navigation/docs.
 
@@ -32,12 +36,14 @@ A responsive Express/vanilla-JavaScript finance management PWA backed by Google 
 - `git diff --check` passed (line-ending notices only).
 - The local Express app returned HTTP 200 for the login shell. Browser UI automation failed to initialize its runtime assets in this environment, so screenshot-based visual regression remains unavailable.
 - After the UX refresh, all browser/server JavaScript files passed `node --check`; CSS brace counts and edited view tag counts are balanced; `git diff --check` passed.
+- After the enterprise shell pass, all browser/server JavaScript files again passed `node --check`; all three CSS files have balanced braces; `git diff --check` passed; Express served the app shell and versioned CSS with HTTP 200 and the new command UI was present in both responses.
+- Chrome was unavailable to the UI automation runtime and the in-app browser timed out loading localhost, so screenshot-based desktop/mobile QA remains outstanding.
 
 ## Deployment and next actions
 
 1. Publish `apps-script/Code.gs` as a new Google Apps Script Web App version; first use creates the `SpecialFund` sheet.
 2. The September UX refresh is committed locally; push it to `origin/main`, confirm the Vercel deployment, then smoke-test login, the mobile More menu, member/payment and expense dialogs, month switching after repeated navigation, Special Fund writes, and PDF/Excel export against production configuration.
 3. Watch API duration after deployment. The UI no longer hangs indefinitely, but Google Apps Script/Sheets latency remains an upstream constraint.
-4. Run a screenshot-based desktop/mobile visual pass when browser automation is available; the current environment could serve the app but could not initialize the browser runtime.
+4. Run a screenshot-based desktop/mobile visual pass when browser automation can reach localhost; verify command-palette keyboard navigation, collapsed-sidebar tooltips/legibility, mobile More → Search, and modal focus on real data.
 
 Never store secrets, tokens, passwords, or personal financial records in this file.
