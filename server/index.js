@@ -9,6 +9,24 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Public, non-sensitive deployment probe. This confirms the Express function is
+// running and reports only whether required integrations were configured.
+app.get('/api/health', (req, res) => {
+  const configured = Boolean(
+    process.env.ADMIN_USERNAME &&
+    process.env.ADMIN_PASSWORD &&
+    process.env.SESSION_SECRET &&
+    process.env.APPS_SCRIPT_URL &&
+    process.env.APPS_SCRIPT_SECRET
+  );
+
+  res.status(configured ? 200 : 503).json({
+    success: configured,
+    service: 'united-pakistan-finance',
+    configured,
+  });
+});
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/members', require('./routes/members'));

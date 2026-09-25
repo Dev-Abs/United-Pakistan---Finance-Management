@@ -33,7 +33,7 @@ Google Sheets (one tab per month, acts as database)
 5. Select **Web app**.
 6. Set **Execute as**: `Me` and **Who has access**: `Anyone`.
 7. Click Deploy, authorize the app, and copy the **Web app URL**.
-8. In the Apps Script code, note the `SECRET` variable (`unitedpakistan2026` by default). You can change this, but make sure it matches the `.env` file later.
+8. In the Apps Script code, replace the `SECRET` value with a new random value. Use the same value for `APPS_SCRIPT_SECRET` in Vercel. Do not commit it.
 
 ### 2. GitHub Setup
 1. Initialize a git repository in this project folder:
@@ -46,15 +46,35 @@ Google Sheets (one tab per month, acts as database)
 
 ### 3. Vercel Deployment
 1. Go to [Vercel](https://vercel.com/) and import your new GitHub repository.
-2. Add the following Environment Variables in the Vercel dashboard:
-   - `ADMIN_USERNAME`: admin
-   - `ADMIN_PASSWORD`: (choose a secure password)
-   - `SESSION_SECRET`: (any random long string)
-   - `APPS_SCRIPT_URL`: (the URL you copied in step 1.7)
-   - `APPS_SCRIPT_SECRET`: unitedpakistan2026 (or whatever you set in Code.gs)
-3. Click **Deploy**. Vercel will automatically detect `vercel.json` and host your Express API as serverless functions and your frontend as static files.
+2. Add the following Environment Variables for **Production, Preview, and Development** in the Vercel dashboard:
+   - `ADMIN_USERNAME`: for example, `secretary`
+   - `ADMIN_PASSWORD`: choose a strong, unique password
+   - `SESSION_SECRET`: a long random value used as the admin bearer token
+   - `READER_USERNAME`: optional read-only account name
+   - `READER_PASSWORD`: optional read-only account password
+   - `READER_SECRET`: a second long random value, different from `SESSION_SECRET`
+   - `APPS_SCRIPT_URL`: the deployed Google Apps Script Web App URL from step 1.7
+   - `APPS_SCRIPT_SECRET`: the random value configured in `Code.gs`
+   - Optional organization fields from `.env.example`
+3. Click **Deploy**. Vercel will use `vercel.json` to host the Express API and static web app.
+4. Open `https://YOUR-PROJECT.vercel.app/api/health`. Continue only when it returns `configured: true`.
+5. Test the web login at `https://YOUR-PROJECT.vercel.app/login.html` before building the mobile app.
 
-### 4. Running Locally
+Never paste deployment secrets into source files, commit them, or share them in screenshots. Values previously committed as examples should be treated as exposed and rotated before production use.
+
+### 4. Build the Android app against Vercel
+
+From the `mobile` directory, run:
+
+```bash
+flutter clean
+flutter pub get
+flutter build apk --release --dart-define=API_BASE_URL=https://YOUR-PROJECT.vercel.app
+```
+
+Do not add `/api` to `API_BASE_URL`; the app adds routes such as `/api/auth/login` itself. The generated APK is `mobile/build/app/outputs/flutter-apk/app-release.apk`. Install that APK on the phone, uninstalling the earlier emulator-configured build first if Android keeps the old app data.
+
+### 5. Running Locally
 If you want to run the project on your own machine:
 1. Ensure Node.js (v18+) is installed.
 2. Run `npm install` in the project root.
