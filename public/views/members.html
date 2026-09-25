@@ -13,9 +13,13 @@
 
     <!-- Content (hidden initially) -->
     <div id="members-content" style="display:none;">
-        <div class="card mb-md flex flex-wrap justify-between align-center gap-sm">
-            <div class="flex gap-sm">
-                <input type="text" id="search-input" class="form-control" placeholder="Search members..." style="max-width: 250px;">
+        <div class="page-intro">
+            <div><p class="section-eyebrow">Member ledger</p><h2>Manage members and collections</h2><p>Find dues, record payments, and keep follow-ups moving.</p></div>
+            <div class="page-intro-summary"><strong id="members-total-count">0</strong><span>members this month</span></div>
+        </div>
+        <div class="card mb-md management-toolbar">
+            <div class="filter-group">
+                <label class="search-field" for="search-input"><i data-lucide="search"></i><span class="sr-only">Search members</span><input type="search" id="search-input" class="form-control" placeholder="Search name, phone, category or reply"></label>
                 <select id="status-filter" class="form-control" style="max-width: 150px;">
                     <option value="all">All Status</option>
                     <option value="Pending">Pending</option>
@@ -29,16 +33,18 @@
                     <option value="promised">Promised</option>
                     <option value="reason">Has Reason</option>
                 </select>
+                <button class="btn btn-quiet" id="btn-clear-member-filters" type="button"><i data-lucide="x"></i> Clear</button>
             </div>
-            <div class="flex gap-sm">
+            <div class="toolbar-actions">
                 <button class="btn btn-outline" id="btn-due-reminders"><i data-lucide="bell-ring"></i> Due Reminders</button>
                 <button class="btn btn-outline" id="btn-bulk-reminders"><i data-lucide="message-square-text"></i> All Pending</button>
                 <button class="btn btn-primary" id="btn-add-member"><i data-lucide="user-plus"></i> Add Member</button>
             </div>
+            <div class="toolbar-meta" id="members-result-count" aria-live="polite">Showing all members</div>
         </div>
 
         <div class="card p-0">
-            <div class="table-responsive">
+            <div class="table-responsive data-table-wrap">
                 <table class="table mobile-card-table" id="members-table">
                     <thead><tr>
                         <th data-sort="Name" class="sortable">Name <span class="sort-arrow"></span></th>

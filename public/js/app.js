@@ -2,7 +2,7 @@ import { api } from './api.js';
 import { utils } from './utils.js';
 
 // Bump this whenever any view script changes so clients don't serve stale JS.
-const ASSET_VERSION = '20260920-modern-ui';
+const ASSET_VERSION = '20260925-ux-refresh';
 
 class App {
     constructor() {
@@ -122,9 +122,17 @@ class App {
         // Bottom navigation
         document.querySelectorAll('.bottom-nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
+                if (!e.currentTarget.hasAttribute('data-route')) return;
                 e.preventDefault();
                 const route = e.currentTarget.getAttribute('data-route');
                 this.navigate(route);
+            });
+        });
+
+        document.querySelectorAll('.mobile-more-action[data-route]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.navigate(e.currentTarget.getAttribute('data-route'));
             });
         });
 
@@ -139,6 +147,47 @@ class App {
         };
         document.getElementById('logout-btn')?.addEventListener('click', logoutHandler);
         document.getElementById('bottom-logout-btn')?.addEventListener('click', logoutHandler);
+
+        const moreMenu = document.getElementById('mobile-more-menu');
+        const moreButton = document.getElementById('mobile-more-btn');
+        const closeMore = () => {
+            moreMenu?.classList.remove('active');
+            moreMenu?.setAttribute('aria-hidden', 'true');
+            moreButton?.setAttribute('aria-expanded', 'false');
+            document.body.classList.remove('overlay-open');
+        };
+        const openMore = () => {
+            moreMenu?.classList.add('active');
+            moreMenu?.setAttribute('aria-hidden', 'false');
+            moreButton?.setAttribute('aria-expanded', 'true');
+            document.body.classList.add('overlay-open');
+            document.getElementById('mobile-more-close')?.focus();
+        };
+        moreButton?.addEventListener('click', openMore);
+        document.getElementById('mobile-more-close')?.addEventListener('click', closeMore);
+        moreMenu?.addEventListener('click', (event) => {
+            if (event.target === moreMenu || event.target.closest('[data-route]')) closeMore();
+        });
+        document.getElementById('mobile-install-btn')?.addEventListener('click', () => {
+            closeMore();
+            document.getElementById('install-app-btn')?.click();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            if (moreMenu?.classList.contains('active')) {
+                closeMore();
+                moreButton?.focus();
+                return;
+            }
+            const modal = document.querySelector('.modal-overlay.active');
+            if (modal) this.closeModal(modal);
+        });
+
+        document.addEventListener('click', (event) => {
+            const overlay = event.target.closest('.modal-overlay');
+            if (overlay && event.target === overlay && overlay.classList.contains('active')) this.closeModal(overlay);
+        });
 
         // Mobile menu toggle
         document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
@@ -159,6 +208,38 @@ class App {
             this.updateStaleMonthNotice();
             // Dispatch custom event to notify current view to reload data
             window.dispatchEvent(new CustomEvent('monthChanged', { detail: this.state.currentMonth }));
+        });
+    }
+
+    closeModal(modal) {
+        modal.classList.remove('active');
+        document.body.classList.remove('overlay-open');
+        const triggerId = modal.dataset.triggerId;
+        if (triggerId) document.getElementById(triggerId)?.focus();
+    }
+
+    prepareModals(view) {
+        view.querySelectorAll('.modal-overlay').forEach((overlay, index) => {
+            const modal = overlay.querySelector('.modal');
+            const title = overlay.querySelector('.modal-title');
+            if (!modal) return;
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-modal', 'true');
+            if (title) {
+                if (!title.id) title.id = `modal-title-${this.currentView || 'view'}-${index}`;
+                modal.setAttribute('aria-labelledby', title.id);
+            }
+            overlay.querySelector('.modal-close')?.setAttribute('aria-label', 'Close dialog');
+            new MutationObserver(() => {
+                if (overlay.classList.contains('active')) {
+                    document.body.classList.add('overlay-open');
+                    const active = document.activeElement;
+                    if (active?.id) overlay.dataset.triggerId = active.id;
+                    requestAnimationFrame(() => overlay.querySelector('input:not([type="hidden"]), select, textarea, button')?.focus());
+                } else if (!document.querySelector('.modal-overlay.active, .mobile-more-overlay.active')) {
+                    document.body.classList.remove('overlay-open');
+                }
+            }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
         });
     }
 
@@ -279,6 +360,7 @@ class App {
             document.querySelectorAll('.bottom-nav-item').forEach(item => item.classList.remove('active'));
             const activeBottom = document.querySelector(`.bottom-nav-item[data-route="${routeName}"]`);
             if (activeBottom) activeBottom.classList.add('active');
+            else if (routeName === 'reports' || routeName === 'settings') document.getElementById('mobile-more-btn')?.classList.add('active');
 
             document.getElementById('page-title').textContent = route.title;
 
@@ -293,6 +375,7 @@ class App {
             if (requestId !== this.viewRequest) return;
 
             view.innerHTML = html;
+            this.prepareModals(view);
 
             // Dynamically load associated script
             if (route.script) {

@@ -19,10 +19,12 @@ export async function init(app) {
     if (app.state.currentMonth) {
         await loadExpenses();
     }
-    window.addEventListener('monthChanged', async (e) => {
+    if (window.__expensesMonthHandler) window.removeEventListener('monthChanged', window.__expensesMonthHandler);
+    window.__expensesMonthHandler = async (e) => {
         document.getElementById('expense-month-label').textContent = e.detail || '-';
         await loadExpenses();
-    });
+    };
+    window.addEventListener('monthChanged', window.__expensesMonthHandler);
     setupEventListeners();
     setupSortableAndExport();
 }
@@ -137,8 +139,13 @@ function renderTable() {
         return category.indexOf(st) >= 0 || desc.indexOf(st) >= 0 || paid.indexOf(st) >= 0 || remarks.indexOf(st) >= 0;
     });
     filtered = sortExpenses(filtered);
+    var resultCount = document.getElementById('expense-result-count');
+    if (resultCount) resultCount.textContent = filtered.length === allExpenses.length
+        ? 'Showing all ' + allExpenses.length + ' expenses'
+        : 'Showing ' + filtered.length + ' of ' + allExpenses.length + ' expenses';
     if (!filtered.length) {
-        tbody.innerHTML = '<tr><td colspan=7 class="text-center text-muted p-md">No expenses found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7"><div class="table-empty"><i data-lucide="search-x"></i><strong>No matching expenses</strong><span>Try another term or clear the search.</span><button class="btn btn-sm btn-outline" type="button" onclick="document.getElementById(\'btn-clear-expense-search\').click()">Clear search</button></div></td></tr>';
+        renderIcons();
         return;
     }
     var ro = appInstance.isReadOnly();
@@ -160,6 +167,11 @@ function renderTable() {
 
 function setupEventListeners() {
     document.getElementById('exp-search').addEventListener('input', renderTable);
+    document.getElementById('btn-clear-expense-search').addEventListener('click', function() {
+        document.getElementById('exp-search').value = '';
+        renderTable();
+        document.getElementById('exp-search').focus();
+    });
     document.getElementById('btn-add-expense').addEventListener('click', function() {
         document.getElementById('expense-form').reset();
         document.getElementById('e-id').value = '';

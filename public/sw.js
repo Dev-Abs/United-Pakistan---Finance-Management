@@ -1,4 +1,4 @@
-const CACHE_NAME = 'up-finance-v9-modern-ui';
+const CACHE_NAME = 'up-finance-v10-ux-refresh';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/css/components.css',

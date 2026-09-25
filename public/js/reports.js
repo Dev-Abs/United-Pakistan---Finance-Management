@@ -17,7 +17,9 @@ export async function init(app) {
         await loadReportData();
     }
 
-    window.addEventListener('monthChanged', loadReportData);
+    if (window.__reportsMonthHandler) window.removeEventListener('monthChanged', window.__reportsMonthHandler);
+    window.__reportsMonthHandler = loadReportData;
+    window.addEventListener('monthChanged', window.__reportsMonthHandler);
 }
 
 async function loadReportData() {

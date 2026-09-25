@@ -26,7 +26,14 @@ export const utils = {
         if (type === 'error') icon = '❌';
         if (type === 'warning') icon = '⚠️';
         
-        toast.innerHTML = `<span class="icon">${icon}</span> <span>${message}</span>`;
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        const iconEl = document.createElement('span');
+        iconEl.className = 'icon';
+        iconEl.setAttribute('aria-hidden', 'true');
+        iconEl.textContent = icon;
+        const messageEl = document.createElement('span');
+        messageEl.textContent = message;
+        toast.append(iconEl, messageEl);
         container.appendChild(toast);
 
         // Animate in

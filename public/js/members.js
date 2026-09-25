@@ -34,7 +34,9 @@ export async function init(app) {
         await loadMembers();
     }
 
-    window.addEventListener('monthChanged', loadMembers);
+    if (window.__membersMonthHandler) window.removeEventListener('monthChanged', window.__membersMonthHandler);
+    window.__membersMonthHandler = loadMembers;
+    window.addEventListener('monthChanged', window.__membersMonthHandler);
     setupEventListeners();
 }
 
@@ -84,8 +86,16 @@ function renderTable() {
         return matchesSearch && matchesStatus && matchesFollowUpFilter(followSummary, followupFilter);
     });
 
+    const resultCount = document.getElementById('members-result-count');
+    const totalCount = document.getElementById('members-total-count');
+    if (totalCount) totalCount.textContent = allMembers.length;
+    if (resultCount) resultCount.textContent = filtered.length === allMembers.length
+        ? 'Showing all ' + allMembers.length + ' members'
+        : 'Showing ' + filtered.length + ' of ' + allMembers.length + ' members';
+
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted p-md">No members found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11"><div class="table-empty"><i data-lucide="search-x"></i><strong>No matching members</strong><span>Try a different search or clear the filters.</span><button class="btn btn-sm btn-outline" type="button" onclick="document.getElementById(\'btn-clear-member-filters\').click()">Clear filters</button></div></td></tr>';
+        renderIcons();
         return;
     }
 
@@ -239,6 +249,13 @@ function setupEventListeners() {
     document.getElementById('search-input').addEventListener('input', renderTable);
     document.getElementById('status-filter').addEventListener('change', renderTable);
     document.getElementById('followup-filter').addEventListener('change', renderTable);
+    document.getElementById('btn-clear-member-filters').addEventListener('click', function () {
+        document.getElementById('search-input').value = '';
+        document.getElementById('status-filter').value = 'all';
+        document.getElementById('followup-filter').value = 'all';
+        renderTable();
+        document.getElementById('search-input').focus();
+    });
 
     document.querySelectorAll('#members-table thead th.sortable').forEach(function (th) {
         th.addEventListener('click', function () {

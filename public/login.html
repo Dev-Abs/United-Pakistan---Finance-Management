@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - United Pakistan Finance Management</title>
+    <meta name="theme-color" content="#047857">
+    <meta name="description" content="Sign in to United Pakistan Finance Management.">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -14,19 +17,19 @@
             <div class="text-center mb-md">
                 <div class="logo-large">UP</div>
                 <h2 class="mt-sm">Welcome Back</h2>
-                <p class="text-muted">Finance Management Portal</p>
+                <p class="text-muted">Manage funds, members, expenses, and follow-ups.</p>
             </div>
             <form id="login-form">
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" id="username" name="username" class="form-control" required autofocus>
+                    <input type="text" id="username" name="username" class="form-control" autocomplete="username" required autofocus>
                 </div>
                 <div class="form-group mt-sm">
                     <label for="password">Password</label>
-                    <input type="password" id="password" name="password" class="form-control" required>
+                    <div class="password-field"><input type="password" id="password" name="password" class="form-control" autocomplete="current-password" required><button type="button" id="toggle-password" aria-label="Show password">Show</button></div>
                 </div>
                 <div id="login-error" class="text-danger mt-sm hidden text-sm"></div>
-                <button type="submit" class="btn btn-primary w-full mt-md">Login</button>
+                <button type="submit" class="btn btn-primary w-full mt-md">Sign in</button>
             </form>
         </div>
     </div>
@@ -34,6 +37,16 @@
     <script type="module">
         import { api } from '/js/api.js';
         
+        const passwordInput = document.getElementById('password');
+        const togglePassword = document.getElementById('toggle-password');
+        togglePassword.addEventListener('click', () => {
+            const visible = passwordInput.type === 'text';
+            passwordInput.type = visible ? 'password' : 'text';
+            togglePassword.textContent = visible ? 'Show' : 'Hide';
+            togglePassword.setAttribute('aria-label', visible ? 'Show password' : 'Hide password');
+            passwordInput.focus();
+        });
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = e.target.username.value;
@@ -43,7 +56,7 @@
             
             errorDiv.classList.add('hidden');
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Logging in...';
+            submitBtn.textContent = 'Signing in…';
             
             try {
                 const res = await api.post('/api/auth/login', { username, password });
@@ -57,7 +70,7 @@
                 errorDiv.classList.remove('hidden');
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Login';
+                submitBtn.textContent = 'Sign in';
             }
         });
     </script>

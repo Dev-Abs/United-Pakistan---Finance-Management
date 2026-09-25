@@ -26,7 +26,9 @@ export async function init(app) {
         utils.showToast('No month sheet found. Create a month to get started.', 'warning');
     }
 
-    window.addEventListener('monthChanged', loadDashboardData);
+    if (window.__dashboardMonthHandler) window.removeEventListener('monthChanged', window.__dashboardMonthHandler);
+    window.__dashboardMonthHandler = loadDashboardData;
+    window.addEventListener('monthChanged', window.__dashboardMonthHandler);
     setupEventListeners();
 }
 

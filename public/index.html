@@ -14,9 +14,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="/css/style.css?v=20260920-modern-ui">
-    <link rel="stylesheet" href="/css/components.css?v=20260920-modern-ui">
-    <link rel="stylesheet" href="/css/responsive.css?v=20260920-modern-ui">
+    <link rel="stylesheet" href="/css/style.css?v=20260925-ux-refresh">
+    <link rel="stylesheet" href="/css/components.css?v=20260925-ux-refresh">
+    <link rel="stylesheet" href="/css/responsive.css?v=20260925-ux-refresh">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script type="module" src="/js/app.js" defer></script>
@@ -108,25 +108,33 @@
             </a>
             <a href="/special-fund" class="bottom-nav-item" data-route="special-fund">
                 <span class="bottom-nav-icon"><i data-lucide="landmark"></i></span>
-                <span class="bottom-nav-label">Special Fund</span>
+                <span class="bottom-nav-label">Special</span>
             </a>
-            <a href="/reports" class="bottom-nav-item" data-route="reports">
-                <span class="bottom-nav-icon"><i data-lucide="bar-chart-3"></i></span>
-                <span class="bottom-nav-label">Reports</span>
-            </a>
-            <a href="/settings" class="bottom-nav-item" data-route="settings">
-                <span class="bottom-nav-icon"><i data-lucide="settings"></i></span>
-                <span class="bottom-nav-label">Settings</span>
-            </a>
-            <button class="bottom-nav-item" id="bottom-logout-btn" style="border:none;background:none;cursor:pointer;font-family:inherit;">
-                <span class="bottom-nav-icon"><i data-lucide="log-out"></i></span>
-                <span class="bottom-nav-label">Logout</span>
+            <button class="bottom-nav-item" id="mobile-more-btn" type="button" aria-haspopup="dialog" aria-controls="mobile-more-menu" aria-expanded="false">
+                <span class="bottom-nav-icon"><i data-lucide="menu"></i></span>
+                <span class="bottom-nav-label">More</span>
             </button>
         </nav>
+
+        <div class="mobile-more-overlay" id="mobile-more-menu" aria-hidden="true">
+            <section class="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
+                <div class="mobile-more-handle" aria-hidden="true"></div>
+                <div class="mobile-more-header">
+                    <div><p class="section-eyebrow">Workspace</p><h2 id="mobile-more-title">More options</h2></div>
+                    <button class="modal-close" id="mobile-more-close" type="button" aria-label="Close more options"><i data-lucide="x"></i></button>
+                </div>
+                <div class="mobile-more-grid">
+                    <a href="/reports" class="mobile-more-action" data-route="reports"><i data-lucide="bar-chart-3"></i><span><strong>Reports</strong><small>Review and export results</small></span></a>
+                    <a href="/settings" class="mobile-more-action" data-route="settings"><i data-lucide="settings"></i><span><strong>Settings</strong><small>Organization and diagnostics</small></span></a>
+                    <button class="mobile-more-action" id="mobile-install-btn" type="button"><i data-lucide="download"></i><span><strong>Install app</strong><small>Add to your home screen</small></span></button>
+                    <button class="mobile-more-action danger" id="bottom-logout-btn" type="button"><i data-lucide="log-out"></i><span><strong>Log out</strong><small>End this session</small></span></button>
+                </div>
+            </section>
+        </div>
     </div>
 
     <!-- Toast Container -->
-    <div id="toast-container" class="toast-container"></div>
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
     <script>
         if ('serviceWorker' in navigator) {
