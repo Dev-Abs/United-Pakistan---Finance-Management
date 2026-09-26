@@ -1,1446 +1,648 @@
-import 'dart:async';
-
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
-import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:toastification/toastification.dart';
-
 import 'api_client.dart';
+import 'ai_assistant.dart';
+import 'finance_store.dart';
+import 'parity_screens.dart';
 import 'theme.dart';
 
-typedef SignedIn = void Function(String role);
+typedef SignedIn = Future<void> Function(String role);
 
 class AppLaunchScreen extends StatelessWidget {
   const AppLaunchScreen({super.key});
-
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Icon(
-                  Iconsax.wallet_3,
-                  size: 34,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 24),
-              const SizedBox(
-                width: 120,
-                child: LinearProgressIndicator(
-                    borderRadius: BorderRadius.all(Radius.circular(8))),
-              ),
-            ],
-          ).animate().fadeIn(duration: 350.ms).scaleXY(begin: .96),
-        ),
-      );
+  Widget build(BuildContext c) => Scaffold(
+          body: Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+                color: Theme.of(c).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(24)),
+            child: Icon(Iconsax.wallet_3,
+                size: 34, color: Theme.of(c).colorScheme.primary)),
+        const SizedBox(height: 20),
+        Text('United Pakistan', style: Theme.of(c).textTheme.titleLarge),
+        const SizedBox(height: 18),
+        const SizedBox.square(
+            dimension: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
+      ]).animate().fadeIn(duration: 300.ms)));
 }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({
-    super.key,
-    required this.client,
-    required this.onSignedIn,
-  });
+  const LoginScreen(
+      {super.key, required this.client, required this.onSignedIn});
   final ApiClient client;
   final SignedIn onSignedIn;
-
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final user = TextEditingController();
-  final password = TextEditingController();
-  bool obscure = true;
-  bool busy = false;
+class _LoginState extends State<LoginScreen> {
+  final key = GlobalKey<FormState>(),
+      user = TextEditingController(),
+      pass = TextEditingController();
+  bool busy = false, hide = true;
   String? error;
+  @override
+  void dispose() {
+    user.dispose();
+    pass.dispose();
+    super.dispose();
+  }
 
   Future<void> submit() async {
-    if (user.text.trim().isEmpty || password.text.isEmpty) {
-      setState(() => error = 'Enter your username and password.');
-      return;
-    }
+    if (!(key.currentState?.validate() ?? false)) return;
     setState(() {
       busy = true;
       error = null;
     });
     try {
-      final result = await widget.client.request(
-        '/api/auth/login',
-        method: 'POST',
-        body: {'username': user.text.trim(), 'password': password.text},
-      );
-      widget.client.token = result['token']?.toString();
-      widget.onSignedIn(result['role']?.toString() ?? 'admin');
+      final r = await widget.client.request('/api/auth/login',
+          method: 'POST',
+          body: {'username': user.text.trim(), 'password': pass.text});
+      widget.client.token = r['token']?.toString();
+      await widget.onSignedIn(r['role']?.toString() ?? 'admin');
     } catch (e) {
-      setState(() => error = e.toString());
-      if (mounted) {
-        toastification.show(
-          context: context,
-          type: ToastificationType.error,
-          style: ToastificationStyle.flatColored,
-          title: const Text('Couldn’t sign in'),
-          description: Text(e.toString()),
-          autoCloseDuration: const Duration(seconds: 4),
-        );
-      }
+      if (mounted) setState(() => error = e.toString());
     } finally {
       if (mounted) setState(() => busy = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext c) => Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpace.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(
-                    Iconsax.wallet_3,
-                    size: 56,
-                    color: AppColors.emerald,
-                  ).animate().fadeIn(duration: 350.ms).scaleXY(begin: .9),
-                  const SizedBox(height: 16),
-                  Text(
-                    'United Pakistan',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const Text(
-                    'Finance management, wherever you are.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.slate),
-                  ),
-                  const SizedBox(height: 36),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: AutofillGroup(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Sign in',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Use your organization credentials.',
-                              style: TextStyle(color: AppColors.slate),
-                            ),
-                            const SizedBox(height: 20),
-                            TextField(
-                              controller: user,
-                              autofillHints: const [AutofillHints.username],
-                              textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
-                                labelText: 'Username',
-                                prefixIcon: Icon(Icons.person_outline),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: password,
-                              obscureText: obscure,
-                              autofillHints: const [AutofillHints.password],
-                              onSubmitted: (_) => submit(),
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                suffixIcon: IconButton(
-                                  tooltip: obscure
-                                      ? 'Show password'
-                                      : 'Hide password',
-                                  onPressed: () =>
-                                      setState(() => obscure = !obscure),
-                                  icon: Icon(
-                                    obscure
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (error != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: Text(
-                                  error!,
-                                  style: const TextStyle(
-                                    color: AppColors.error,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 18),
-                            ElevatedButton(
-                              onPressed: busy ? null : submit,
-                              child: busy
-                                  ? const SizedBox.square(
-                                      dimension: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text('Sign in'),
-                            ),
-                            TextButton(
-                              onPressed: () => showDialog<void>(
-                                context: context,
-                                builder: (_) => const AlertDialog(
-                                  title: Text('Forgot password?'),
-                                  content: Text(
-                                    'Password recovery is managed by your organization administrator. Contact them to restore access.',
-                                  ),
-                                ),
-                              ),
-                              child: const Text('Forgot password?'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                      .animate()
-                      .fadeIn(delay: 100.ms, duration: 350.ms)
-                      .slideY(begin: .04),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+          child: Center(
+              child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Form(
+                          key: key,
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Container(
+                                        width: 72,
+                                        height: 72,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                            color: Theme.of(c)
+                                                .colorScheme
+                                                .primaryContainer,
+                                            borderRadius:
+                                                BorderRadius.circular(24)),
+                                        child: const Icon(Iconsax.wallet_3,
+                                            size: 34, color: AppColors.emerald))
+                                    .animate()
+                                    .fadeIn()
+                                    .scale(),
+                                const SizedBox(height: 20),
+                                Text('United Pakistan',
+                                    textAlign: TextAlign.center,
+                                    style:
+                                        Theme.of(c).textTheme.headlineMedium),
+                                const Text('Finance, clear and accountable.',
+                                    textAlign: TextAlign.center),
+                                const SizedBox(height: 32),
+                                Card(
+                                        child: Padding(
+                                            padding: const EdgeInsets.all(24),
+                                            child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  Text('Welcome back',
+                                                      style: Theme.of(c)
+                                                          .textTheme
+                                                          .titleLarge),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                      'Sign in to securely manage your organization’s finances.',
+                                                      style: Theme.of(c)
+                                                          .textTheme
+                                                          .bodyMedium
+                                                          ?.copyWith(
+                                                              color: Theme.of(c)
+                                                                  .colorScheme
+                                                                  .onSurfaceVariant)),
+                                                  const SizedBox(height: 18),
+                                                  TextFormField(
+                                                      controller: user,
+                                                      autofillHints: const [
+                                                        AutofillHints.username
+                                                      ],
+                                                      textInputAction:
+                                                          TextInputAction.next,
+                                                      decoration: const InputDecoration(
+                                                          labelText: 'Username',
+                                                          prefixIcon: Icon(Icons
+                                                              .person_outline)),
+                                                      validator: (v) => v ==
+                                                                  null ||
+                                                              v.trim().isEmpty
+                                                          ? 'Username is required'
+                                                          : null),
+                                                  const SizedBox(height: 12),
+                                                  TextFormField(
+                                                      controller: pass,
+                                                      obscureText: hide,
+                                                      autofillHints: const [
+                                                        AutofillHints.password
+                                                      ],
+                                                      onFieldSubmitted: (_) =>
+                                                          submit(),
+                                                      decoration: InputDecoration(
+                                                          labelText: 'Password',
+                                                          prefixIcon:
+                                                              const Icon(Icons
+                                                                  .lock_outline),
+                                                          suffixIcon: IconButton(
+                                                              onPressed: () =>
+                                                                  setState(() =>
+                                                                      hide =
+                                                                          !hide),
+                                                              icon: Icon(hide
+                                                                  ? Icons
+                                                                      .visibility_outlined
+                                                                  : Icons
+                                                                      .visibility_off_outlined))),
+                                                      validator: (v) => v ==
+                                                                  null ||
+                                                              v.isEmpty
+                                                          ? 'Password is required'
+                                                          : null),
+                                                  if (error != null)
+                                                    Semantics(
+                                                        liveRegion: true,
+                                                        child: Container(
+                                                            margin:
+                                                                const EdgeInsets
+                                                                    .only(
+                                                                    top: 12),
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(12),
+                                                            decoration: BoxDecoration(
+                                                                color: Theme.of(
+                                                                        c)
+                                                                    .colorScheme
+                                                                    .errorContainer,
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            12)),
+                                                            child:
+                                                                Row(children: [
+                                                              Icon(
+                                                                  Icons
+                                                                      .error_outline,
+                                                                  color: Theme
+                                                                          .of(c)
+                                                                      .colorScheme
+                                                                      .onErrorContainer),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Expanded(
+                                                                  child: Text(
+                                                                      error!))
+                                                            ]))),
+                                                  const SizedBox(height: 18),
+                                                  FilledButton(
+                                                      onPressed:
+                                                          busy ? null : submit,
+                                                      child: busy
+                                                          ? const SizedBox
+                                                              .square(
+                                                              dimension: 22,
+                                                              child: CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  color: Colors
+                                                                      .white))
+                                                          : const Text(
+                                                              'Sign in'))
+                                                ])))
+                                    .animate()
+                                    .fadeIn(delay: 100.ms)
+                                    .slideY(begin: .04)
+                              ])))))));
 }
 
 class AppShell extends StatefulWidget {
-  const AppShell({
-    super.key,
-    required this.client,
-    required this.readOnly,
-    required this.onSignOut,
-  });
+  const AppShell(
+      {super.key,
+      required this.client,
+      required this.readOnly,
+      required this.onSignOut,
+      required this.themeMode,
+      required this.onThemeModeChanged});
   final ApiClient client;
   final bool readOnly;
   final VoidCallback onSignOut;
-
+  final String themeMode;
+  final ValueChanged<String> onThemeModeChanged;
   @override
-  State<AppShell> createState() => _AppShellState();
+  State<AppShell> createState() => _ShellState();
 }
 
-class _AppShellState extends State<AppShell> {
-  int index = 0;
-  String month = 'September 2026';
-  late final pages = [
-    HomeScreen(onRecordPayment: showPayment),
-    MembersScreen(readOnly: widget.readOnly, onRecordPayment: showPayment),
-    ActivityScreen(readOnly: widget.readOnly, onAddExpense: showExpense),
-    MoreScreen(readOnly: widget.readOnly, onSignOut: widget.onSignOut),
-  ];
-
-  void showPayment() {
-    if (widget.readOnly) return showReadOnly();
-    showCupertinoModalBottomSheet<void>(
-      context: context,
-      builder: (_) => const PaymentSheet(),
-    );
+class _ShellState extends State<AppShell> {
+  late final FinanceStore store;
+  int tab = 0;
+  @override
+  void initState() {
+    super.initState();
+    store = FinanceStore(widget.client)..addListener(changed);
+    store.initialize();
   }
 
-  void showExpense() {
-    if (widget.readOnly) return showReadOnly();
-    showCupertinoModalBottomSheet<void>(
-      context: context,
-      builder: (_) => const ExpenseSheet(),
-    );
+  void changed() {
+    if (mounted) setState(() {});
   }
 
-  void showReadOnly() => showDialog<void>(
+  @override
+  void dispose() {
+    store.removeListener(changed);
+    store.dispose();
+    super.dispose();
+  }
+
+  void toast(String m, {bool bad = false}) => toastification.show(
+      context: context,
+      type: bad ? ToastificationType.error : ToastificationType.success,
+      title: Text(m),
+      autoCloseDuration: const Duration(seconds: 3));
+  Future<void> chooseMonth() async {
+    final v = await showModalBottomSheet<String>(
         context: context,
-        builder: (_) => const AlertDialog(
-          icon: Icon(Icons.lock_outline, color: AppColors.emerald),
-          title: Text('Read only'),
-          content: Text(
-            'You can view financial records, but your account cannot make changes.',
-          ),
-        ),
-      );
+        showDragHandle: true,
+        builder: (c) => SafeArea(
+                child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.only(bottom: 12),
+                    children: [
+                  ListTile(
+                      title: Text('Reporting month',
+                          style: Theme.of(c).textTheme.titleLarge),
+                      subtitle: const Text(
+                          'All figures update to the selected period.')),
+                  RadioGroup<String>(
+                      groupValue: store.month,
+                      onChanged: (value) => Navigator.pop(c, value),
+                      child: Column(
+                          children: store.months
+                              .map((m) => RadioListTile<String>(
+                                  value: m, title: Text(m)))
+                              .toList()))
+                ])));
+    if (v != null) await store.selectMonth(v);
+  }
+
+  Future<void> payment([Map<String, dynamic>? m]) async {
+    if (widget.readOnly) return toast('Your account is read only', bad: true);
+    if (store.members.isEmpty) {
+      return toast('No members in this month', bad: true);
+    }
+    final ok = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => PaymentSheet(store: store, initial: m));
+    if (ok == true) toast('Payment saved');
+  }
+
+  Future<void> expense() async {
+    if (widget.readOnly) return toast('Your account is read only', bad: true);
+    final ok = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => ExpenseSheet(store: store));
+    if (ok == true) toast('Expense saved');
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext c) {
+    final pages = [
+      Dashboard(store: store, readOnly: widget.readOnly, pay: payment),
+      Members(store: store, readOnly: widget.readOnly, pay: payment),
+      Activity(store: store, readOnly: widget.readOnly, add: expense),
+      More(
+          store: store,
+          readOnly: widget.readOnly,
+          signOut: widget.onSignOut,
+          themeMode: widget.themeMode,
+          onThemeModeChanged: widget.onThemeModeChanged)
+    ];
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        title: const Text(
-          'United Pakistan',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          if (widget.readOnly)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Badge(
-                backgroundColor:
-                    Theme.of(context).colorScheme.secondaryContainer,
-                label: const Text('READ ONLY'),
-              ),
-            ),
-          IconButton(
-            tooltip: 'Search',
-            onPressed: () =>
-                showSearch(context: context, delegate: MemberSearch()),
-            icon: const Icon(Icons.search),
-          ),
-          IconButton(
-            tooltip: 'Notifications',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => const NotificationsScreen(),
-              ),
-            ),
-            icon: const Icon(Icons.notifications_none),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
+        appBar: AppBar(
+            title: Row(children: [
+              Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                      color: Theme.of(c).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(11)),
+                  child: Icon(Iconsax.wallet_3,
+                      size: 18, color: Theme.of(c).colorScheme.primary)),
+              const SizedBox(width: 10),
+              const Text('United Pakistan')
+            ]),
+            actions: [
+              if (widget.readOnly)
+                const Padding(
+                    padding: EdgeInsets.only(right: 4),
+                    child: Chip(
+                        avatar: Icon(Icons.lock_outline, size: 15),
+                        label: Text('Read only'))),
+              IconButton(
+                  tooltip: 'Search members',
+                  onPressed: () => showSearch(
+                      context: c,
+                      delegate: MemberSearch(store, widget.readOnly, payment)),
+                  icon: const Icon(Icons.search))
+            ]),
+        body: Column(children: [
           Material(
-            color: Colors.white,
-            child: InkWell(
-              onTap: () async {
-                final selected = await showCupertinoModalBottomSheet<String>(
-                  context: context,
-                  builder: (_) => const MonthSheet(),
-                );
-                if (selected != null) setState(() => month = selected);
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_month_outlined,
-                      size: 19,
-                      color: AppColors.emerald,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        month,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    const Icon(Icons.expand_more),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const OfflineBanner(),
+              color: Theme.of(c).colorScheme.surface,
+              child: InkWell(
+                  onTap: store.months.isEmpty ? null : chooseMonth,
+                  child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 11),
+                      child: Row(children: [
+                        const Icon(Icons.calendar_month_outlined,
+                            color: AppColors.emerald),
+                        const SizedBox(width: 9),
+                        Expanded(
+                            child: Text(store.month ?? 'No reporting month',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800))),
+                        if (store.refreshing)
+                          const SizedBox.square(
+                              dimension: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                        else
+                          const Icon(Icons.expand_more)
+                      ])))),
+          if (store.refreshError != null)
+            MaterialBanner(
+                content: Text('Showing saved data. ${store.refreshError}',
+                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                actions: [
+                  TextButton(
+                      onPressed: store.refresh, child: const Text('Try again'))
+                ]),
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOutCubic,
-              child: KeyedSubtree(
-                key: ValueKey(index),
-                child: pages[index],
-              ),
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (value) => setState(() => index = value),
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Iconsax.home_2_copy),
-              selectedIcon: Icon(Iconsax.home_2),
-              label: 'Home'),
-          NavigationDestination(
-              icon: Icon(Iconsax.people_copy),
-              selectedIcon: Icon(Iconsax.people),
-              label: 'Members'),
-          NavigationDestination(
-              icon: Icon(Iconsax.receipt_2_1_copy),
-              selectedIcon: Icon(Iconsax.receipt_2_1),
-              label: 'Activity'),
-          NavigationDestination(
-              icon: Icon(Iconsax.more_copy),
-              selectedIcon: Icon(Iconsax.more),
-              label: 'More'),
-        ],
-      ),
-    );
+              child: store.loading
+                  ? const LoadingState()
+                  : store.error != null
+                      ? ErrorState(
+                          message: store.error!, retry: store.initialize)
+                      : store.month == null
+                          ? const EmptyState(
+                              icon: Icons.calendar_month,
+                              title: 'No reporting months',
+                              message: 'Create a month in web admin to begin.')
+                          : AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 220),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child: KeyedSubtree(
+                                  key: ValueKey(tab), child: pages[tab])))
+        ]),
+        bottomNavigationBar: NavigationBar(
+            selectedIndex: tab,
+            onDestinationSelected: (v) {
+              HapticFeedback.selectionClick();
+              setState(() => tab = v);
+            },
+            destinations: const [
+              NavigationDestination(
+                  icon: Icon(Iconsax.home_2_copy),
+                  selectedIcon: Icon(Iconsax.home_2),
+                  label: 'Overview'),
+              NavigationDestination(
+                  icon: Icon(Iconsax.people_copy),
+                  selectedIcon: Icon(Iconsax.people),
+                  label: 'Members'),
+              NavigationDestination(
+                  icon: Icon(Iconsax.receipt_2_1_copy),
+                  selectedIcon: Icon(Iconsax.receipt_2_1),
+                  label: 'Activity'),
+              NavigationDestination(
+                  icon: Icon(Iconsax.more_copy),
+                  selectedIcon: Icon(Iconsax.more),
+                  label: 'More')
+            ]));
   }
 }
 
-class OfflineBanner extends StatelessWidget {
-  const OfflineBanner({super.key});
+class Dashboard extends StatelessWidget {
+  const Dashboard(
+      {super.key,
+      required this.store,
+      required this.readOnly,
+      required this.pay});
+  final FinanceStore store;
+  final bool readOnly;
+  final void Function([Map<String, dynamic>?]) pay;
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key, required this.onRecordPayment});
-  final VoidCallback onRecordPayment;
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext c) {
+    final due = store.members
+        .where((m) => number(m['Remaining Balance']) > 0)
+        .toList()
+      ..sort((a, b) => number(b['Remaining Balance'])
+          .compareTo(number(a['Remaining Balance'])));
     return RefreshIndicator(
-      onRefresh: () async =>
-          Future<void>.delayed(const Duration(milliseconds: 500)),
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            'Good morning',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const Text(
-            'Here’s what needs your attention today.',
-            style: TextStyle(color: AppColors.slate),
-          ),
+        onRefresh: store.refresh,
+        child: PageFrame(children: [
+          Text('Financial overview',
+              style: Theme.of(c).textTheme.headlineMedium),
+          Text('${store.members.length} members • ${store.month}',
+              style:
+                  TextStyle(color: Theme.of(c).colorScheme.onSurfaceVariant)),
           const SizedBox(height: 18),
-          const Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              Kpi(
-                label: 'Collected',
-                value: 'PKR 184,500',
-                icon: Icons.trending_up,
-                color: AppColors.success,
-              ),
-              Kpi(
-                label: 'Outstanding',
-                value: 'PKR 32,000',
-                icon: Icons.schedule,
-                color: AppColors.warning,
-              ),
-              Kpi(
-                label: 'Expenses',
-                value: 'PKR 41,750',
-                icon: Icons.trending_down,
-                color: AppColors.error,
-              ),
-              Kpi(
-                label: 'Net balance',
-                value: 'PKR 142,750',
-                icon: Icons.account_balance_wallet_outlined,
-                color: AppColors.info,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: onRecordPayment,
-            icon: const Icon(Icons.add_card),
-            label: const Text('Record payment'),
-          ),
-          const SizedBox(height: 22),
-          const SectionTitle('Cash flow', action: 'Last 6 months'),
-          const SizedBox(height: 8),
-          const CashFlowCard(),
-          const SizedBox(height: 22),
-          const SectionTitle('Needs attention', action: 'View all'),
-          const SizedBox(height: 8),
-          const Card(
-            child: Column(
-              children: [
-                ActionRow(
-                  icon: Icons.error_outline,
-                  color: AppColors.error,
-                  title: '5 overdue members',
-                  subtitle: 'PKR 21,500 outstanding',
-                ),
-                Divider(height: 1),
-                ActionRow(
-                  icon: Icons.timelapse,
-                  color: AppColors.warning,
-                  title: '3 partial payments',
-                  subtitle: 'Follow up this week',
-                ),
-                Divider(height: 1),
-                ActionRow(
-                  icon: Icons.campaign_outlined,
-                  color: AppColors.info,
-                  title: 'Special fund at 64%',
-                  subtitle: 'PKR 270,000 remaining',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-          const SectionTitle('Recent activity', action: 'See all'),
-          const SizedBox(height: 8),
-          const Card(
-            child: Column(
-              children: [
-                ActivityRow(
-                  name: 'Sana Ahmed',
-                  detail: 'Monthly payment',
-                  amount: '+ PKR 5,000',
-                  positive: true,
-                ),
-                Divider(height: 1),
-                ActivityRow(
-                  name: 'Electricity bill',
-                  detail: 'Utilities · Today',
-                  amount: '− PKR 8,200',
-                  positive: false,
-                ),
-                Divider(height: 1),
-                ActivityRow(
-                  name: 'Bilal Tanveer',
-                  detail: 'Special fund',
-                  amount: '+ PKR 10,000',
-                  positive: true,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+          Card(
+              child: ListTile(
+                  leading: Icon(Icons.auto_awesome,
+                      color: Theme.of(c).colorScheme.primary),
+                  title: const Text('AI management briefing'),
+                  subtitle: const Text(
+                      'Turn verified finance totals into priorities and insights'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                      c,
+                      MaterialPageRoute(
+                          builder: (_) => AssistantScreen(store: store))))),
+          const SizedBox(height: 12),
+          LayoutBuilder(builder: (_, x) {
+            final w = (x.maxWidth - 12) / 2;
+            return Wrap(spacing: 12, runSpacing: 12, children: [
+              Metric(
+                  w: w,
+                  label: 'Collected',
+                  value: money(store.collected),
+                  icon: Icons.south_west,
+                  color: AppColors.success),
+              Metric(
+                  w: w,
+                  label: 'Outstanding',
+                  value: money(store.outstanding),
+                  icon: Icons.schedule,
+                  color: AppColors.warning),
+              Metric(
+                  w: w,
+                  label: 'Expenses',
+                  value: money(store.spent),
+                  icon: Icons.north_east,
+                  color: AppColors.error),
+              Metric(
+                  w: w,
+                  label: 'Cash balance',
+                  value: money(store.balance),
+                  icon: Icons.account_balance_wallet_outlined,
+                  color: AppColors.emerald)
+            ]);
+          }),
+          const SizedBox(height: 18),
+          CashFlowCard(store: store),
+          if (!readOnly) ...[
+            const SizedBox(height: 14),
+            FilledButton.icon(
+                onPressed: pay,
+                icon: const Icon(Icons.add_card),
+                label: const Text('Record payment')),
+          ],
+          const SizedBox(height: 24),
+          SectionHeader(title: 'Needs attention', action: '${due.length} open'),
+          if (due.isEmpty)
+            const EmptyState(
+                icon: Icons.task_alt,
+                title: 'Everything is settled',
+                message: 'No outstanding balances.')
+          else
+            ...due.take(5).map((m) => MemberTile(
+                member: m,
+                onTap: () => showMember(c, store, m, readOnly, pay))),
+          const SizedBox(height: 24),
+          const SectionHeader(title: 'Recent activity'),
+          if (recent(store).isEmpty)
+            const EmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'No activity yet',
+                message: 'Payments and expenses will appear here.')
+          else
+            ...recent(store).take(6).map((r) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                    backgroundColor:
+                        (r.$4 < 0 ? AppColors.error : AppColors.success)
+                            .withValues(alpha: .12),
+                    child: Icon(r.$3,
+                        size: 19,
+                        color: r.$4 < 0 ? AppColors.error : AppColors.success)),
+                title: Text(r.$1),
+                subtitle: Text(r.$2),
+                trailing: Text(money(r.$4),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color:
+                            r.$4 < 0 ? AppColors.error : AppColors.success))))
+        ]));
   }
-}
-
-class Kpi extends StatelessWidget {
-  const Kpi({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-  final String label, value;
-  final IconData icon;
-  final Color color;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: MediaQuery.sizeOf(context).width >= 600
-            ? 230
-            : (MediaQuery.sizeOf(context).width - 42) / 2,
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, color: color, size: 22),
-                const SizedBox(height: 12),
-                Text(
-                  value,
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w800),
-                ),
-                Text(label, style: const TextStyle(color: AppColors.slate)),
-              ],
-            ),
-          ),
-        ),
-      );
 }
 
 class CashFlowCard extends StatelessWidget {
-  const CashFlowCard({super.key});
+  const CashFlowCard({super.key, required this.store});
+  final FinanceStore store;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final max = [store.collected, store.spent, store.outstanding]
+        .fold<double>(1, (value, item) => item > value ? item : value);
+    final colors = [AppColors.success, AppColors.error, AppColors.warning];
+    final values = [store.collected, store.spent, store.outstanding];
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: scheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                const Text('Collections', style: TextStyle(fontSize: 12)),
-                const SizedBox(width: 16),
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: AppColors.gold,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                const Text('Expenses', style: TextStyle(fontSize: 12)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 150,
-              child: Semantics(
-                label:
-                    'Collections remain above expenses across the last six months',
-                child: LineChart(
-                  LineChartData(
-                    minY: 0,
-                    maxY: 220,
-                    borderData: FlBorderData(show: false),
-                    gridData: FlGridData(
-                      drawVerticalLine: false,
-                      horizontalInterval: 55,
-                      getDrawingHorizontalLine: (_) => FlLine(
-                        color: scheme.outlineVariant.withValues(alpha: .45),
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    titlesData: const FlTitlesData(
-                      topTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      leftTitles:
-                          AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    lineBarsData: [
-                      LineChartBarData(
-                        isCurved: true,
-                        curveSmoothness: .28,
-                        barWidth: 3,
-                        color: scheme.primary,
-                        dotData: const FlDotData(show: false),
-                        belowBarData: BarAreaData(
-                          show: true,
-                          color: scheme.primary.withValues(alpha: .1),
-                        ),
-                        spots: const [
-                          FlSpot(0, 112),
-                          FlSpot(1, 136),
-                          FlSpot(2, 128),
-                          FlSpot(3, 165),
-                          FlSpot(4, 154),
-                          FlSpot(5, 184.5),
-                        ],
-                      ),
-                      LineChartBarData(
-                        isCurved: true,
-                        curveSmoothness: .28,
-                        barWidth: 2.5,
-                        color: AppColors.gold,
-                        dotData: const FlDotData(show: false),
-                        spots: const [
-                          FlSpot(0, 52),
-                          FlSpot(1, 38),
-                          FlSpot(2, 67),
-                          FlSpot(3, 44),
-                          FlSpot(4, 59),
-                          FlSpot(5, 41.75),
-                        ],
-                      ),
-                    ],
-                  ),
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOutCubic,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(delay: 120.ms).slideY(begin: .04);
-  }
-}
-
-class SectionTitle extends StatelessWidget {
-  const SectionTitle(this.title, {super.key, this.action});
-  final String title;
-  final String? action;
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-          ),
-          if (action != null)
-            Text(
-              action!,
-              style: const TextStyle(
-                color: AppColors.emerald,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-        ],
-      );
-}
-
-class ActionRow extends StatelessWidget {
-  const ActionRow({
-    super.key,
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
-  });
-  final IconData icon;
-  final Color color;
-  final String title, subtitle;
-  @override
-  Widget build(BuildContext context) => ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: .12),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-      );
-}
-
-class ActivityRow extends StatelessWidget {
-  const ActivityRow({
-    super.key,
-    required this.name,
-    required this.detail,
-    required this.amount,
-    required this.positive,
-  });
-  final String name, detail, amount;
-  final bool positive;
-  @override
-  Widget build(BuildContext context) => ListTile(
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(detail),
-        trailing: Text(
-          amount,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: positive ? AppColors.success : AppColors.error,
-          ),
-        ),
-      );
-}
-
-const members = [
-  ('Ali Hassan', '0300 1112222', 'Paid', 'PKR 5,000'),
-  ('Fatima Siddiqui', '0301 2223333', 'Partial', 'PKR 2,500'),
-  ('Muhammad Khan', '0302 3334444', 'Pending', 'PKR 0'),
-  ('Zainab Sheikh', '0303 4445555', 'Paid', 'PKR 5,000'),
-  ('Rashid Ali', '0304 5556666', 'Partial', 'PKR 3,000'),
-  ('Sadia Noor', '0305 6667777', 'Pending', 'PKR 0'),
-  ('Bilal Tanveer', '0306 7778888', 'Paid', 'PKR 5,000'),
-];
-
-class MembersScreen extends StatefulWidget {
-  const MembersScreen({
-    super.key,
-    required this.readOnly,
-    required this.onRecordPayment,
-  });
-  final bool readOnly;
-  final VoidCallback onRecordPayment;
-  @override
-  State<MembersScreen> createState() => _MembersScreenState();
-}
-
-class _MembersScreenState extends State<MembersScreen> {
-  String query = '';
-  String filter = 'All';
-  bool loading = true;
-  Timer? _loadingTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadingTimer = Timer(const Duration(milliseconds: 450), () {
-      if (mounted) setState(() => loading = false);
-    });
-  }
-
-  @override
-  void dispose() {
-    _loadingTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final visible = members
-        .where(
-          (m) =>
-              (filter == 'All' || m.$3 == filter) &&
-              m.$1.toLowerCase().contains(query.toLowerCase()),
-        )
-        .toList();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: TextField(
-            onChanged: (v) => setState(() => query = v),
-            decoration: const InputDecoration(
-              hintText: 'Search members by name',
-              prefixIcon: Icon(Icons.search),
-              suffixIcon: Icon(Icons.tune),
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 42,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: ['All', 'Paid', 'Partial', 'Pending']
-                .map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(item),
-                      selected: filter == item,
-                      onSelected: (_) => setState(() => filter = item),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-        ),
-        Expanded(
-          child: Skeletonizer(
-            enabled: loading,
-            child: visible.isEmpty
-                ? const EmptyState(
-                    icon: Icons.person_search,
-                    title: 'No members found',
-                    body: 'Try another name or clear your filters.',
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: visible.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) {
-                      final m = visible[i];
-                      return Card(
-                        child: ListTile(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (_) => MemberDetail(
-                                member: m,
-                                readOnly: widget.readOnly,
-                                onRecordPayment: widget.onRecordPayment,
-                              ),
-                            ),
-                          ),
-                          leading: CircleAvatar(
-                            backgroundColor: const Color(0xFFDDF3EC),
-                            child: Text(
-                              m.$1.split(' ').map((x) => x[0]).take(2).join(),
-                              style: const TextStyle(
-                                color: AppColors.emerald,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          title: Text(
-                            m.$1,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Text(m.$2),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              StatusBadge(m.$3),
-                              const SizedBox(height: 3),
-                              Text(
-                                m.$4,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class StatusBadge extends StatelessWidget {
-  const StatusBadge(this.status, {super.key});
-  final String status;
-  @override
-  Widget build(BuildContext context) {
-    final color = status == 'Paid'
-        ? AppColors.success
-        : status == 'Partial'
-            ? AppColors.warning
-            : AppColors.error;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class MemberDetail extends StatelessWidget {
-  const MemberDetail({
-    super.key,
-    required this.member,
-    required this.readOnly,
-    required this.onRecordPayment,
-  });
-  final (String, String, String, String) member;
-  final bool readOnly;
-  final VoidCallback onRecordPayment;
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Member details')),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: const Color(0xFFDDF3EC),
-                  child: Text(
-                    member.$1[0],
-                    style:
-                        const TextStyle(fontSize: 22, color: AppColors.emerald),
-                  ),
-                ),
-                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        member.$1,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      Text(
-                        member.$2,
-                        style: const TextStyle(color: AppColors.slate),
-                      ),
+                      Text('Cash flow',
+                          style: Theme.of(context).textTheme.titleMedium),
+                      Text('Collected, spent and still due',
+                          style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
                 ),
-                StatusBadge(member.$3),
+                Icon(Iconsax.chart_2,
+                    color: Theme.of(context).colorScheme.primary),
               ],
             ),
             const SizedBox(height: 20),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Outstanding balance',
-                      style: TextStyle(color: AppColors.slate),
+            SizedBox(
+              height: 132,
+              child: BarChart(
+                BarChartData(
+                  maxY: max * 1.18,
+                  alignment: BarChartAlignment.spaceAround,
+                  borderData: FlBorderData(show: false),
+                  gridData: const FlGridData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) => Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            const ['In', 'Out', 'Due'][value.toInt()],
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ),
+                      ),
                     ),
-                    Text(
-                      member.$3 == 'Paid'
-                          ? 'PKR 0'
-                          : member.$3 == 'Partial'
-                              ? 'PKR 2,000'
-                              : 'PKR 5,000',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const Divider(height: 28),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Monthly due'),
-                        Text(
-                          'PKR 5,000',
-                          style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  barGroups: List.generate(
+                    3,
+                    (index) => BarChartGroupData(
+                      x: index,
+                      barRods: [
+                        BarChartRodData(
+                          toY: values[index],
+                          width: 26,
+                          color: colors[index],
+                          borderRadius: BorderRadius.circular(7),
+                          backDrawRodData: BackgroundBarChartRodData(
+                            show: true,
+                            toY: max * 1.18,
+                            color: colors[index].withValues(alpha: .08),
+                          ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: readOnly ? null : onRecordPayment,
-                    icon: const Icon(Icons.add_card),
-                    label: const Text('Record payment'),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  tooltip: 'Send reminder',
-                  onPressed: () {},
-                  icon: const Icon(Icons.notifications_active_outlined),
-                ),
-                IconButton.filledTonal(
-                  tooltip: 'Edit member',
-                  onPressed: readOnly ? null : () {},
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const SectionTitle('Payment history', action: 'View all'),
-            const SizedBox(height: 8),
-            const Card(
-              child: Column(
-                children: [
-                  ActivityRow(
-                    name: '1 Sep 2026',
-                    detail: 'Monthly payment',
-                    amount: 'PKR 5,000',
-                    positive: true,
-                  ),
-                  Divider(height: 1),
-                  ActivityRow(
-                    name: '1 Aug 2026',
-                    detail: 'Monthly payment',
-                    amount: 'PKR 5,000',
-                    positive: true,
-                  ),
-                  Divider(height: 1),
-                  ActivityRow(
-                    name: '2 Jul 2026',
-                    detail: 'Partial payment',
-                    amount: 'PKR 3,000',
-                    positive: true,
-                  ),
-                ],
               ),
-            ),
-            const SizedBox(height: 24),
-            const SectionTitle('Follow-ups'),
-            const SizedBox(height: 8),
-            const Card(
-              child: ActionRow(
-                icon: Icons.chat_outlined,
-                color: AppColors.info,
-                title: 'Reminder sent',
-                subtitle: '28 Aug · Awaiting reply',
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
-class ActivityScreen extends StatefulWidget {
-  const ActivityScreen({
-    super.key,
-    required this.readOnly,
-    required this.onAddExpense,
-  });
-  final bool readOnly;
-  final VoidCallback onAddExpense;
-  @override
-  State<ActivityScreen> createState() => _ActivityScreenState();
-}
-
-class _ActivityScreenState extends State<ActivityScreen> {
-  int tab = 0;
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('Payments')),
-                ButtonSegment(value: 1, label: Text('Expenses')),
-                ButtonSegment(value: 2, label: Text('Special fund')),
-              ],
-              selected: {tab},
-              onSelectionChanged: (v) => setState(() => tab = v.first),
-              showSelectedIcon: false,
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        ['Payments', 'Expenses', 'Special fund'][tab],
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Filter',
-                      onPressed: () => showCupertinoModalBottomSheet<void>(
-                        context: context,
-                        builder: (_) => const FilterSheet(),
-                      ),
-                      icon: const Icon(Icons.tune),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                if (tab == 2) ...[
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Central Convention Fund',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          SizedBox(height: 12),
-                          LinearProgressIndicator(
-                            value: .64,
-                            minHeight: 8,
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
-                          ),
-                          SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [Text('PKR 480,000 raised'), Text('64%')],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                Card(
-                  child: Column(
-                    children: tab == 1
-                        ? const [
-                            ActivityRow(
-                              name: 'Electricity bill',
-                              detail: 'Utilities · Today',
-                              amount: '− PKR 8,200',
-                              positive: false,
-                            ),
-                            Divider(height: 1),
-                            ActivityRow(
-                              name: 'Office stationery',
-                              detail: 'Supplies · Yesterday',
-                              amount: '− PKR 2,450',
-                              positive: false,
-                            ),
-                            Divider(height: 1),
-                            ActivityRow(
-                              name: 'Venue deposit',
-                              detail: 'Events · 29 Aug',
-                              amount: '− PKR 15,000',
-                              positive: false,
-                            ),
-                          ]
-                        : const [
-                            ActivityRow(
-                              name: 'Sana Ahmed',
-                              detail: 'Today, 10:24 AM',
-                              amount: '+ PKR 5,000',
-                              positive: true,
-                            ),
-                            Divider(height: 1),
-                            ActivityRow(
-                              name: 'Rashid Ali',
-                              detail: 'Today, 9:18 AM',
-                              amount: '+ PKR 3,000',
-                              positive: true,
-                            ),
-                            Divider(height: 1),
-                            ActivityRow(
-                              name: 'Bilal Tanveer',
-                              detail: 'Yesterday',
-                              amount: '+ PKR 10,000',
-                              positive: true,
-                            ),
-                          ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (tab == 1 && !widget.readOnly)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: widget.onAddExpense,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add expense'),
-                ),
-              ),
-            ),
-        ],
-      );
-}
-
-class MoreScreen extends StatelessWidget {
-  const MoreScreen({
-    super.key,
-    required this.readOnly,
-    required this.onSignOut,
-  });
-  final bool readOnly;
-  final VoidCallback onSignOut;
-  @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Card(
-            child: ListTile(
-              leading: const CircleAvatar(child: Text('AA')),
-              title: const Text(
-                'Ahmed Ali',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text(readOnly ? 'Read-only account' : 'Administrator'),
-              trailing: StatusBadge(readOnly ? 'Read only' : 'Admin'),
-            ),
-          ),
-          const SizedBox(height: 20),
-          const SectionTitle('Finance'),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                MoreRow(
-                  Icons.bar_chart_outlined,
-                  'Reports & exports',
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                        builder: (_) => const ReportsScreen()),
-                  ),
-                ),
-                const Divider(height: 1),
-                MoreRow(
-                    Icons.campaign_outlined, 'Special fund campaign', () {}),
-                const Divider(height: 1),
-                MoreRow(
-                  Icons.calendar_month_outlined,
-                  'Create new month',
-                  readOnly ? null : () {},
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          const SectionTitle('Organization'),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                MoreRow(
-                  Icons.settings_outlined,
-                  'Settings',
-                  readOnly ? null : () {},
-                ),
-                const Divider(height: 1),
-                MoreRow(
-                  Icons.monitor_heart_outlined,
-                  'Diagnostics',
-                  readOnly ? null : () {},
-                ),
-                const Divider(height: 1),
-                MoreRow(Icons.help_outline, 'Help & support', () {}),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: onSignOut,
-            icon: const Icon(Icons.logout, color: AppColors.error),
-            label: const Text('Sign out',
-                style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      );
-}
-
-class MoreRow extends StatelessWidget {
-  const MoreRow(this.icon, this.label, this.onTap, {super.key});
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  @override
-  Widget build(BuildContext context) => ListTile(
-        enabled: onTap != null,
-        onTap: onTap,
-        leading: Icon(icon),
-        title: Text(label),
-        trailing: const Icon(Icons.chevron_right),
-      );
-}
-
-class PaymentSheet extends StatefulWidget {
-  const PaymentSheet({super.key});
-  @override
-  State<PaymentSheet> createState() => _PaymentSheetState();
-}
-
-class _PaymentSheetState extends State<PaymentSheet> {
-  final amount = TextEditingController(text: '5000');
-  final remarks = TextEditingController();
-  @override
-  Widget build(BuildContext context) {
-    final value = double.tryParse(amount.text) ?? 0;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 12,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Record payment',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const Text(
-              'Ali Hassan · Outstanding PKR 7,500',
-              style: TextStyle(color: AppColors.slate),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 8,
-              children: [1000, 2500, 5000]
-                  .map(
-                    (v) => ActionChip(
-                      label: Text('PKR $v'),
-                      onPressed: () => setState(() => amount.text = '$v'),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amount,
-              keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Amount (PKR)',
-                prefixText: 'PKR  ',
-              ),
-            ),
-            const SizedBox(height: 12),
-            const TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Payment date',
-                prefixIcon: Icon(Icons.calendar_today_outlined),
-                hintText: '25 Sep 2026',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: remarks,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Remarks (optional)',
-              ),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5F0),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Remaining balance'),
-                  Text(
-                    'PKR ${(7500 - value).clamp(0, 7500).toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.emerald,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: value <= 0
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      showDialog<void>(
-                        context: context,
-                        builder: (_) => const SuccessDialog(
-                          title: 'Payment recorded',
-                          body:
-                              'PKR 5,000 has been added to Ali Hassan’s account.',
-                        ),
-                      );
-                    },
-              child: const Text('Confirm payment'),
             ),
           ],
         ),
@@ -1449,353 +651,847 @@ class _PaymentSheetState extends State<PaymentSheet> {
   }
 }
 
-class ExpenseSheet extends StatelessWidget {
-  const ExpenseSheet({super.key});
+class Members extends StatefulWidget {
+  const Members(
+      {super.key,
+      required this.store,
+      required this.readOnly,
+      required this.pay});
+  final FinanceStore store;
+  final bool readOnly;
+  final void Function([Map<String, dynamic>?]) pay;
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 12,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(width: 42, height: 4, color: AppColors.border),
-              ),
-              const SizedBox(height: 16),
-              Text('Add expense',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 18),
-              const DropdownMenu<String>(
-                expandedInsets: EdgeInsets.zero,
-                label: Text('Category'),
-                initialSelection: 'Utilities',
-                dropdownMenuEntries: [
-                  DropdownMenuEntry(value: 'Utilities', label: 'Utilities'),
-                  DropdownMenuEntry(value: 'Supplies', label: 'Supplies'),
-                  DropdownMenuEntry(value: 'Events', label: 'Events'),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const TextField(
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Amount (PKR)',
-                  prefixText: 'PKR  ',
-                ),
-              ),
-              const SizedBox(height: 12),
-              const TextField(decoration: InputDecoration(labelText: 'Payee')),
-              const SizedBox(height: 12),
-              const DropdownMenu<String>(
-                expandedInsets: EdgeInsets.zero,
-                label: Text('Payment method'),
-                initialSelection: 'Cash',
-                dropdownMenuEntries: [
-                  DropdownMenuEntry(value: 'Cash', label: 'Cash'),
-                  DropdownMenuEntry(value: 'Bank', label: 'Bank transfer'),
-                  DropdownMenuEntry(value: 'Easypaisa', label: 'Easypaisa'),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const TextField(
-                maxLines: 2,
-                decoration: InputDecoration(labelText: 'Remarks (optional)'),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  showDialog<void>(
-                    context: context,
-                    builder: (_) => const SuccessDialog(
-                      title: 'Expense saved',
-                      body: 'The expense is now included in September totals.',
-                    ),
-                  );
-                },
-                child: const Text('Save expense'),
-              ),
-            ],
-          ),
-        ),
-      );
+  State<Members> createState() => _MembersState();
 }
 
-class FilterSheet extends StatelessWidget {
-  const FilterSheet({super.key});
+class _MembersState extends State<Members> {
+  String query = '', filter = 'All';
   @override
-  Widget build(BuildContext context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Filters',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  TextButton(onPressed: () {}, child: const Text('Clear all')),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const DropdownMenu<String>(
-                expandedInsets: EdgeInsets.zero,
-                label: Text('Date range'),
-                initialSelection: 'month',
-                dropdownMenuEntries: [
-                  DropdownMenuEntry(value: 'month', label: 'This month'),
-                  DropdownMenuEntry(value: 'week', label: 'This week'),
-                  DropdownMenuEntry(value: 'custom', label: 'Custom range'),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const DropdownMenu<String>(
-                expandedInsets: EdgeInsets.zero,
-                label: Text('Sort by'),
-                initialSelection: 'new',
-                dropdownMenuEntries: [
-                  DropdownMenuEntry(value: 'new', label: 'Newest first'),
-                  DropdownMenuEntry(value: 'high', label: 'Highest amount'),
-                ],
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Apply filters'),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class MonthSheet extends StatelessWidget {
-  const MonthSheet({super.key});
-  @override
-  Widget build(BuildContext context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(16),
-          children: [
-            Text('Reporting month',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            ...['September 2026', 'August 2026', 'July 2026'].map(
-              (m) => ListTile(
-                onTap: () => Navigator.pop(context, m),
-                title: Text(m),
-                trailing: m == 'September 2026'
-                    ? const Icon(Icons.check, color: AppColors.emerald)
-                    : null,
-              ),
-            ),
+  Widget build(BuildContext c) {
+    final list = widget.store.members.where((m) {
+      final match = '${m['Name']} ${m['Phone Number']}'
+          .toLowerCase()
+          .contains(query.toLowerCase());
+      return match && (filter == 'All' || m['Payment Status'] == filter);
+    }).toList();
+    return RefreshIndicator(
+        onRefresh: widget.store.refresh,
+        child: ListView(padding: const EdgeInsets.all(16), children: [
+          Text('Members', style: Theme.of(c).textTheme.headlineMedium),
+          if (!widget.readOnly) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+                onPressed: () => showMemberEditor(c, widget.store),
+                icon: const Icon(Icons.person_add_alt_1),
+                label: const Text('Add member')),
           ],
-        ),
-      );
+          const SizedBox(height: 12),
+          TextField(
+              onChanged: (v) => setState(() => query = v),
+              decoration: const InputDecoration(
+                  hintText: 'Search name or phone',
+                  prefixIcon: Icon(Icons.search))),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                  children: ['All', 'Paid', 'Partially Paid', 'Pending']
+                      .map((f) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                              label: Text(f),
+                              selected: filter == f,
+                              onSelected: (_) => setState(() => filter = f))))
+                      .toList())),
+          Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                  '${list.length} of ${widget.store.members.length} members')),
+          if (list.isEmpty)
+            const EmptyState(
+                icon: Icons.person_search,
+                title: 'No members found',
+                message: 'Try another search or filter.')
+          else
+            ...list.map((m) => MemberTile(
+                member: m,
+                onTap: () => showMember(
+                    c, widget.store, m, widget.readOnly, widget.pay)))
+        ]));
+  }
 }
 
-class SuccessDialog extends StatelessWidget {
-  const SuccessDialog({super.key, required this.title, required this.body});
-  final String title, body;
+class Activity extends StatefulWidget {
+  const Activity(
+      {super.key,
+      required this.store,
+      required this.readOnly,
+      required this.add});
+  final FinanceStore store;
+  final bool readOnly;
+  final VoidCallback add;
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        icon: const CircleAvatar(
-          backgroundColor: Color(0xFFDDF3EC),
-          child: Icon(Icons.check, color: AppColors.success),
-        ),
-        title: Text(title),
-        content: Text(body, textAlign: TextAlign.center),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
-          ),
-        ],
-      );
+  State<Activity> createState() => _ActivityState();
+}
+
+class _ActivityState extends State<Activity> {
+  int segment = 0;
+  @override
+  Widget build(BuildContext context) {
+    final store = widget.store;
+    final payments =
+        store.members.where((m) => number(m['Amount Paid']) > 0).toList();
+    final items = switch (segment) {
+      0 => payments,
+      1 => store.expenses,
+      _ => store.contributions,
+    };
+    return RefreshIndicator(
+        onRefresh: store.refresh,
+        child: PageFrame(children: [
+          Row(children: [
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text('Activity',
+                      style: Theme.of(context).textTheme.headlineMedium),
+                  Text(
+                      '${payments.length + store.expenses.length + store.contributions.length} ledger entries'),
+                ])),
+            FilledButton.icon(
+                onPressed: widget.readOnly ? null : widget.add,
+                icon: const Icon(Icons.add),
+                label: const Text('Expense')),
+          ]),
+          const SizedBox(height: 18),
+          SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                    value: 0,
+                    label: Text('Payments'),
+                    icon: Icon(Icons.south_west)),
+                ButtonSegment(
+                    value: 1,
+                    label: Text('Expenses'),
+                    icon: Icon(Icons.north_east)),
+                ButtonSegment(
+                    value: 2,
+                    label: Text('Fund'),
+                    icon: Icon(Icons.volunteer_activism_outlined)),
+              ],
+              selected: {
+                segment
+              },
+              showSelectedIcon: false,
+              onSelectionChanged: (v) => setState(() => segment = v.first)),
+          const SizedBox(height: 18),
+          if (items.isEmpty)
+            EmptyState(
+                icon: segment == 2
+                    ? Icons.volunteer_activism_outlined
+                    : Icons.receipt_long,
+                title: 'No ${const [
+                  'payments',
+                  'expenses',
+                  'contributions'
+                ][segment]}',
+                message: 'Entries for this reporting period appear here.')
+          else if (segment == 0)
+            ...payments.map((m) => LedgerTile(
+                icon: Icons.south_west,
+                positive: true,
+                title: m['Name']?.toString() ?? 'Member payment',
+                subtitle: m['Payment Date']?.toString() ?? 'Payment received',
+                amount: number(m['Amount Paid'])))
+          else if (segment == 1)
+            ...store.expenses.map((e) => Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    leading:
+                        const CircleAvatar(child: Icon(Icons.receipt_long)),
+                    title: Text(e['Description']?.toString().isNotEmpty == true
+                        ? e['Description'].toString()
+                        : 'Expense'),
+                    subtitle: Text(
+                        '${e['Category'] ?? 'Uncategorized'} • ${e['Date'] ?? ''}\nPaid by ${e['Paid By'] ?? '—'}'),
+                    isThreeLine: true,
+                    trailing: Text(money(-number(e['Amount'])),
+                        style: const TextStyle(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ))
+          else
+            ...store.contributions.map((e) => LedgerTile(
+                icon: Icons.volunteer_activism_outlined,
+                positive: true,
+                title: e['Name']?.toString() ??
+                    e['Member Name']?.toString() ??
+                    'Contribution',
+                subtitle: e['Date']?.toString() ?? 'Special fund',
+                amount: number(e['Amount Paid']))),
+        ]));
+  }
+}
+
+class LedgerTile extends StatelessWidget {
+  const LedgerTile(
+      {super.key,
+      required this.icon,
+      required this.positive,
+      required this.title,
+      required this.subtitle,
+      required this.amount});
+  final IconData icon;
+  final bool positive;
+  final String title, subtitle;
+  final double amount;
+  @override
+  Widget build(BuildContext context) => Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+          leading: CircleAvatar(
+              backgroundColor: (positive ? AppColors.success : AppColors.error)
+                  .withValues(alpha: .12),
+              child: Icon(icon,
+                  size: 19,
+                  color: positive ? AppColors.success : AppColors.error)),
+          title: Text(title),
+          subtitle: Text(subtitle),
+          trailing: Text(money(positive ? amount : -amount),
+              style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: positive ? AppColors.success : AppColors.error))));
+}
+
+class More extends StatelessWidget {
+  const More(
+      {super.key,
+      required this.store,
+      required this.readOnly,
+      required this.signOut,
+      required this.themeMode,
+      required this.onThemeModeChanged});
+  final FinanceStore store;
+  final bool readOnly;
+  final VoidCallback signOut;
+  final String themeMode;
+  final ValueChanged<String> onThemeModeChanged;
+  @override
+  Widget build(BuildContext c) {
+    final fund = store.contributions
+        .fold<double>(0, (s, e) => s + number(e['Amount Paid']));
+    return PageFrame(children: [
+      Text('More', style: Theme.of(c).textTheme.headlineMedium),
+      const SizedBox(height: 16),
+      Card(
+          child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        store.settings['ORG_NAME']?.toString() ??
+                            'United Pakistan',
+                        style: Theme.of(c).textTheme.titleLarge),
+                    Text(
+                        '${store.settings['SECTOR_NAME'] ?? ''}${readOnly ? ' • Read-only' : ' • Administrator'}')
+                  ]))),
+      const SizedBox(height: 12),
+      Card(
+          child: ListTile(
+        leading: const Icon(Icons.contrast_outlined),
+        title: const Text('Appearance'),
+        subtitle: Text(
+            '${themeMode[0].toUpperCase()}${themeMode.substring(1)} theme'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          final selected = await showModalBottomSheet<String>(
+              context: c,
+              showDragHandle: true,
+              builder: (sheet) => SafeArea(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    ListTile(
+                        title: Text('Appearance',
+                            style: Theme.of(sheet).textTheme.titleLarge)),
+                    for (final mode in const ['system', 'light', 'dark'])
+                      RadioListTile<String>(
+                          value: mode,
+                          groupValue: themeMode,
+                          title: Text(
+                              '${mode[0].toUpperCase()}${mode.substring(1)}'),
+                          onChanged: (v) => Navigator.pop(sheet, v)),
+                  ])));
+          if (selected != null) onThemeModeChanged(selected);
+        },
+      )),
+      const SizedBox(height: 12),
+      Card(
+          child: ListTile(
+              onTap: () => Navigator.push(
+                  c,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          SpecialFundScreen(store: store, readOnly: readOnly))),
+              leading: const Icon(Icons.volunteer_activism_outlined),
+              title: Text(
+                  store.settings['SPECIAL_FUND_CAMPAIGN_NAME']?.toString() ??
+                      'Special fund'),
+              subtitle: Text('${store.contributions.length} contributions'),
+              trailing: Text(money(fund),
+                  style: const TextStyle(fontWeight: FontWeight.w800)))),
+      const SizedBox(height: 12),
+      Card(
+          child: Column(children: [
+        ListTile(
+            onTap: () => Navigator.push(
+                c,
+                MaterialPageRoute(
+                    builder: (_) => AssistantScreen(store: store))),
+            leading: const Icon(Icons.auto_awesome_outlined),
+            title: const Text('Management assistant'),
+            subtitle:
+                const Text('Briefings, report narratives and smart drafts'),
+            trailing: const Icon(Icons.chevron_right)),
+        ListTile(
+            onTap: () => Navigator.push(c,
+                MaterialPageRoute(builder: (_) => ReportsScreen(store: store))),
+            leading: const Icon(Icons.bar_chart),
+            title: const Text('Report summary'),
+            subtitle: Text(
+                'Collected ${money(store.collected)} • Spent ${money(store.spent)}'),
+            trailing: const Icon(Icons.chevron_right)),
+        ListTile(
+            onTap: () => Navigator.push(
+                c,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        SettingsScreen(store: store, readOnly: readOnly))),
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Settings & templates'),
+            subtitle:
+                const Text('Organization, WhatsApp, months and diagnostics'),
+            trailing: const Icon(Icons.chevron_right)),
+        ListTile(
+            leading: const Icon(Icons.health_and_safety_outlined),
+            title: const Text('Connection'),
+            subtitle: Text(store.api.baseUrl),
+            trailing: const Icon(Icons.check_circle, color: AppColors.success)),
+        ListTile(
+            leading: const Icon(Icons.payments_outlined),
+            title: const Text('Default monthly fund'),
+            trailing:
+                Text(money(number(store.settings['DEFAULT_MONTHLY_FUND']))))
+      ])),
+      const SizedBox(height: 18),
+      OutlinedButton.icon(
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(
+                context: c,
+                builder: (context) => AlertDialog(
+                        icon: const Icon(Icons.logout),
+                        title: const Text('Sign out?'),
+                        content: const Text(
+                            'You’ll need your credentials to access finance data again.'),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel')),
+                          FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Sign out'))
+                        ]));
+            if (confirmed == true) signOut();
+          },
+          icon: const Icon(Icons.logout),
+          label: const Text('Sign out'))
+    ]);
+  }
+}
+
+class PaymentSheet extends StatefulWidget {
+  const PaymentSheet({super.key, required this.store, this.initial});
+  final FinanceStore store;
+  final Map<String, dynamic>? initial;
+  @override
+  State<PaymentSheet> createState() => _PaymentState();
+}
+
+class _PaymentState extends State<PaymentSheet> {
+  final key = GlobalKey<FormState>(),
+      amount = TextEditingController(),
+      remarks = TextEditingController();
+  Map<String, dynamic>? member;
+  bool busy = false;
+  @override
+  void initState() {
+    super.initState();
+    member = widget.initial;
+    if (member != null) {
+      amount.text = number(member!['Amount Paid']).toStringAsFixed(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    amount.dispose();
+    remarks.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    if (!(key.currentState?.validate() ?? false) || member == null) return;
+    setState(() => busy = true);
+    try {
+      await widget.store.recordPayment(member!, double.parse(amount.text),
+          iso(DateTime.now()), remarks.text.trim());
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => busy = false);
+        showError(context, e);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext c) => Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 0, 20, MediaQuery.viewInsetsOf(c).bottom + 24),
+      child: Form(
+          key: key,
+          child: SingleChildScrollView(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                Text('Record payment', style: Theme.of(c).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(
+                    'Update the member’s cumulative paid amount for ${widget.store.month}.',
+                    style: Theme.of(c).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(c).colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<Map<String, dynamic>>(
+                    initialValue: member,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Member'),
+                    items: widget.store.members
+                        .map((m) => DropdownMenuItem(
+                            value: m,
+                            child: Text(m['Name']?.toString() ?? 'Member')))
+                        .toList(),
+                    onChanged: (v) => setState(() {
+                          HapticFeedback.selectionClick();
+                          member = v;
+                          amount.text =
+                              number(v?['Amount Paid']).toStringAsFixed(0);
+                        }),
+                    validator: (v) => v == null ? 'Select a member' : null),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: amount,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Total paid to date', prefixText: 'Rs '),
+                    validator: (v) {
+                      final n = double.tryParse(v ?? '');
+                      if (n == null || n < 0) return 'Enter a valid amount';
+                      if (member != null &&
+                          n > number(member!['Total Payable'])) {
+                        return 'Cannot exceed total payable';
+                      }
+                      return null;
+                    }),
+                if (member != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                      'Payable ${money(number(member!['Total Payable']))} • Current ${money(number(member!['Amount Paid']))}',
+                      style: Theme.of(c).textTheme.bodySmall),
+                ],
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: remarks,
+                    decoration:
+                        const InputDecoration(labelText: 'Remarks (optional)')),
+                const SizedBox(height: 18),
+                FilledButton(
+                    onPressed: busy ? null : save,
+                    child: busy
+                        ? const SizedBox.square(
+                            dimension: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Confirm payment'))
+              ]))));
+}
+
+class ExpenseSheet extends StatefulWidget {
+  const ExpenseSheet({super.key, required this.store});
+  final FinanceStore store;
+  @override
+  State<ExpenseSheet> createState() => _ExpenseState();
+}
+
+class _ExpenseState extends State<ExpenseSheet> {
+  final key = GlobalKey<FormState>(),
+      desc = TextEditingController(),
+      amount = TextEditingController(),
+      payer = TextEditingController(),
+      remarks = TextEditingController();
+  String category = 'Operations';
+  bool busy = false;
+  @override
+  void dispose() {
+    desc.dispose();
+    amount.dispose();
+    payer.dispose();
+    remarks.dispose();
+    super.dispose();
+  }
+
+  Future<void> save() async {
+    if (!(key.currentState?.validate() ?? false)) return;
+    setState(() => busy = true);
+    try {
+      await widget.store.addExpense(
+          date: iso(DateTime.now()),
+          category: category,
+          description: desc.text.trim(),
+          amount: double.parse(amount.text),
+          paidBy: payer.text.trim(),
+          remarks: remarks.text.trim());
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() => busy = false);
+        showError(context, e);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext c) => Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 0, 20, MediaQuery.viewInsetsOf(c).bottom + 24),
+      child: Form(
+          key: key,
+          child: SingleChildScrollView(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                Text('Add expense', style: Theme.of(c).textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(
+                    'Record a clear, auditable expense for ${widget.store.month}.',
+                    style: Theme.of(c).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(c).colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 16),
+                DropdownButtonFormField(
+                    initialValue: category,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items: [
+                      'Operations',
+                      'Travel',
+                      'Events',
+                      'Printing',
+                      'Miscellaneous'
+                    ]
+                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                        .toList(),
+                    onChanged: (v) => setState(() => category = v!)),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: desc,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                    validator: requiredText),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: amount,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                        labelText: 'Amount', prefixText: 'Rs '),
+                    validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0
+                        ? 'Enter an amount greater than zero'
+                        : null),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: payer,
+                    decoration: const InputDecoration(labelText: 'Paid by'),
+                    validator: requiredText),
+                const SizedBox(height: 12),
+                TextFormField(
+                    controller: remarks,
+                    decoration:
+                        const InputDecoration(labelText: 'Remarks (optional)')),
+                const SizedBox(height: 18),
+                FilledButton(
+                    onPressed: busy ? null : save,
+                    child: busy
+                        ? const SizedBox.square(
+                            dimension: 22,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Save expense'))
+              ]))));
+}
+
+class MemberTile extends StatelessWidget {
+  const MemberTile({super.key, required this.member, required this.onTap});
+  final Map<String, dynamic> member;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext c) {
+    final name = member['Name']?.toString() ?? 'Member';
+    return Card(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: ListTile(
+            onTap: onTap,
+            leading: CircleAvatar(
+                child: Text(name.isEmpty ? '?' : name[0].toUpperCase())),
+            title: Text(name),
+            subtitle: Text(member['Phone Number']?.toString() ?? 'No phone'),
+            trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(money(number(member['Remaining Balance'])),
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                  StatusPill(
+                      status: member['Payment Status']?.toString() ?? 'Pending')
+                ])));
+  }
+}
+
+class Metric extends StatelessWidget {
+  const Metric(
+      {super.key,
+      required this.w,
+      required this.label,
+      required this.value,
+      required this.icon,
+      required this.color});
+  final double w;
+  final String label, value;
+  final IconData icon;
+  final Color color;
+  @override
+  Widget build(BuildContext c) => SizedBox(
+      width: w,
+      child: Card(
+          child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icon, color: color),
+                    const SizedBox(height: 14),
+                    FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(value,
+                            style: Theme.of(c).textTheme.titleLarge)),
+                    const SizedBox(height: 2),
+                    Text(label, style: Theme.of(c).textTheme.bodySmall)
+                  ]))));
+}
+
+class StatusPill extends StatelessWidget {
+  const StatusPill({super.key, required this.status});
+  final String status;
+  @override
+  Widget build(BuildContext context) {
+    final color = statusColor(status);
+    return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+            color: color.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(99)),
+        child: Text(status,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: color)));
+  }
+}
+
+class PageFrame extends StatelessWidget {
+  const PageFrame({super.key, required this.children});
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics()),
+          padding: EdgeInsets.fromLTRB(
+              MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
+              18,
+              MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
+              32),
+          children: [
+            Center(
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 880),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: children)))
+          ]);
+}
+
+class SectionHeader extends StatelessWidget {
+  const SectionHeader({super.key, required this.title, this.action});
+  final String title;
+  final String? action;
+  @override
+  Widget build(BuildContext c) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(children: [
+        Expanded(child: Text(title, style: Theme.of(c).textTheme.titleLarge)),
+        if (action != null) Text(action!)
+      ]));
+}
+
+class LoadingState extends StatelessWidget {
+  const LoadingState({super.key});
+  @override
+  Widget build(BuildContext c) => Skeletonizer(
+      enabled: true,
+      child: PageFrame(children: [
+        Text('Financial overview', style: Theme.of(c).textTheme.headlineMedium),
+        const Text('Loading current reporting period'),
+        const SizedBox(height: 18),
+        ...List.generate(
+            5,
+            (i) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Card(
+                    child: SizedBox(
+                        height: i == 0 ? 120 : 72,
+                        child: const ListTile(
+                            title: Text('Loading finance data'),
+                            subtitle: Text('Please wait a moment'))))))
+      ]));
+}
+
+class ErrorState extends StatelessWidget {
+  const ErrorState({super.key, required this.message, required this.retry});
+  final String message;
+  final VoidCallback retry;
+  @override
+  Widget build(BuildContext c) => Center(
+      child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.cloud_off,
+                size: 52, color: Theme.of(c).colorScheme.error),
+            const SizedBox(height: 16),
+            Text('Couldn’t load finance data',
+                style: Theme.of(c).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+                onPressed: retry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try again'))
+          ])));
 }
 
 class EmptyState extends StatelessWidget {
-  const EmptyState({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
+  const EmptyState(
+      {super.key,
+      required this.icon,
+      required this.title,
+      required this.message});
   final IconData icon;
-  final String title, body;
+  final String title, message;
   @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 52, color: AppColors.slate),
-              const SizedBox(height: 14),
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 6),
-              Text(
-                body,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.slate),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class ReportsScreen extends StatelessWidget {
-  const ReportsScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Reports')),
-        body: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                Kpi(
-                  label: 'Collections',
-                  value: 'PKR 184,500',
-                  icon: Icons.trending_up,
-                  color: AppColors.success,
-                ),
-                Kpi(
-                  label: 'Expenses',
-                  value: 'PKR 41,750',
-                  icon: Icons.trending_down,
-                  color: AppColors.error,
-                ),
-                Kpi(
-                  label: 'Net balance',
-                  value: 'PKR 142,750',
-                  icon: Icons.wallet_outlined,
-                  color: AppColors.info,
-                ),
-                Kpi(
-                  label: 'Members',
-                  value: '124',
-                  icon: Icons.people_outline,
-                  color: AppColors.emerald,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const SectionTitle('Monthly collection trend'),
-            const SizedBox(height: 8),
-            Card(
-              child: SizedBox(
-                height: 180,
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [65, 78, 88, 100, 82, 94]
-                        .map(
-                          (h) => Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 5),
-                              child: Container(
-                                height: h.toDouble(),
-                                decoration: const BoxDecoration(
-                                  color: AppColors.emerald,
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(5),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const SectionTitle('Export'),
-            const SizedBox(height: 8),
-            Card(
-              child: Column(
-                children: [
-                  MoreRow(Icons.picture_as_pdf_outlined, 'Export PDF', () {}),
-                  const Divider(height: 1),
-                  MoreRow(Icons.table_view_outlined, 'Export Excel', () {}),
-                  const Divider(height: 1),
-                  MoreRow(Icons.share_outlined, 'Share report', () {}),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-}
-
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Notifications')),
-        body: const EmptyState(
-          icon: Icons.notifications_none,
-          title: 'You’re all caught up',
-          body:
-              'Payment reminders and important finance updates will appear here when notification support is enabled.',
-        ),
-      );
+  Widget build(BuildContext c) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 30),
+      child: Column(children: [
+        Icon(icon, size: 44, color: Theme.of(c).colorScheme.primary),
+        const SizedBox(height: 12),
+        Text(title, style: Theme.of(c).textTheme.titleMedium),
+        const SizedBox(height: 5),
+        Text(message, textAlign: TextAlign.center)
+      ]));
 }
 
 class MemberSearch extends SearchDelegate<void> {
+  MemberSearch(this.store, this.readOnly, this.pay);
+  final FinanceStore store;
+  final bool readOnly;
+  final void Function([Map<String, dynamic>?]) pay;
   @override
-  List<Widget>? buildActions(BuildContext context) => [
-        IconButton(onPressed: () => query = '', icon: const Icon(Icons.close)),
-      ];
+  List<Widget>? buildActions(BuildContext c) =>
+      [IconButton(onPressed: () => query = '', icon: const Icon(Icons.clear))];
   @override
-  Widget? buildLeading(BuildContext context) => IconButton(
-        onPressed: () => close(context, null),
-        icon: const Icon(Icons.arrow_back),
-      );
+  Widget? buildLeading(BuildContext c) =>
+      BackButton(onPressed: () => close(c, null));
   @override
-  Widget buildResults(BuildContext context) => _results();
+  Widget buildResults(BuildContext c) => buildSuggestions(c);
   @override
-  Widget buildSuggestions(BuildContext context) => _results();
-  Widget _results() {
-    final found = members
-        .where((m) => m.$1.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-    return found.isEmpty
-        ? const EmptyState(
-            icon: Icons.search_off,
-            title: 'No members found',
-            body: 'Try a different name or phone number.',
-          )
-        : ListView(
-            children: found
-                .map(
-                  (m) => ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person_outline),
-                    ),
-                    title: Text(m.$1),
-                    subtitle: Text(m.$2),
-                    trailing: StatusBadge(m.$3),
-                  ),
-                )
-                .toList(),
-          );
+  Widget buildSuggestions(BuildContext c) {
+    final list = store.members.where((m) => '${m['Name']} ${m['Phone Number']}'
+        .toLowerCase()
+        .contains(query.toLowerCase()));
+    return ListView(
+        padding: const EdgeInsets.all(16),
+        children: list
+            .map((m) => MemberTile(
+                member: m, onTap: () => showMember(c, store, m, readOnly, pay)))
+            .toList());
   }
 }
+
+Future<void> showMember(
+    BuildContext c,
+    FinanceStore store,
+    Map<String, dynamic> m,
+    bool ro,
+    void Function([Map<String, dynamic>?]) pay) async {
+  await showMemberExperience(c, store, m, ro, onPayment: () => pay(m));
+}
+
+List<(String, String, IconData, double)> recent(FinanceStore s) {
+  final r = <(String, String, IconData, double)>[];
+  for (final m in s.members) {
+    if (number(m['Amount Paid']) > 0) {
+      r.add((
+        '${m['Name']} payment',
+        m['Payment Date']?.toString() ?? '',
+        Icons.south_west,
+        number(m['Amount Paid'])
+      ));
+    }
+  }
+  for (final e in s.expenses) {
+    r.add((
+      e['Description']?.toString() ?? 'Expense',
+      e['Date']?.toString() ?? '',
+      Icons.north_east,
+      -number(e['Amount'])
+    ));
+  }
+  return r;
+}
+
+String money(double v) {
+  final sign = v < 0 ? '-' : '';
+  final n = v.abs().round().toString(), b = StringBuffer();
+  for (var i = 0; i < n.length; i++) {
+    if (i > 0 && (n.length - i) % 3 == 0) b.write(',');
+    b.write(n[i]);
+  }
+  return sign.isEmpty ? 'Rs $b' : '- Rs $b';
+}
+
+String iso(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+String? requiredText(String? v) =>
+    v == null || v.trim().isEmpty ? 'This field is required' : null;
+Color statusColor(String? s) => s == 'Paid'
+    ? AppColors.success
+    : s == 'Partially Paid'
+        ? AppColors.warning
+        : AppColors.error;
+void showError(BuildContext c, Object e) =>
+    ScaffoldMessenger.of(c).showSnackBar(SnackBar(
+        content: Text(e.toString()), behavior: SnackBarBehavior.floating));

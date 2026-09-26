@@ -7,11 +7,18 @@ let chartInstance = null;
 let currentMembers = [];
 let currentFollowUps = [];
 let currentSummary = null;
+let reportSettings = {};
 
 export async function init(app) {
     const monthContext = document.getElementById('report-month-context');
     if (monthContext) monthContext.textContent = app.state.currentMonth || 'Selected month';
     appInstance = app;
+    try {
+        const settingsRes = await api.get('/api/settings');
+        if (settingsRes.success) reportSettings = settingsRes.data || {};
+    } catch (error) {
+        console.error('Failed to load report message settings', error);
+    }
     setupExportListeners(appInstance);
     setupWhatsAppReport();
 
@@ -282,6 +289,29 @@ function buildWhatsAppReportMessage() {
     const pendingMembers = currentMembers.filter(function(m) {
         return m['Payment Status'] !== 'Paid' && m['Payment Status'] !== 'Partially Paid';
     });
+
+    const configuredTemplate = String(reportSettings.WHATSAPP_REPORT_TEMPLATE || reportSettings.WHATSAPP_MONTHLY_REPORT_TEMPLATE || '').trim();
+    if (configuredTemplate) {
+        return configuredTemplate.replace(/\{([a-z_]+)\}/g, function(match, key) {
+            const values = {
+                organization_name: reportSettings.ORG_NAME || 'United Pakistan',
+                sector_name: reportSettings.SECTOR_NAME || '',
+                month: month,
+                report_period: month,
+                date: new Date().toLocaleDateString('en-PK'),
+                total_members: summary.totalMembers,
+                paid_count: summary.paidCount,
+                partial_count: summary.partialCount,
+                pending_count: summary.pendingCount,
+                total_due: utils.formatCurrency(summary.totalDue),
+                collected: utils.formatCurrency(summary.totalCollected),
+                outstanding: utils.formatCurrency(summary.totalOutstanding),
+                expenses: utils.formatCurrency(summary.totalExpense),
+                cash_balance: utils.formatCurrency(summary.fundAfterExpense)
+            };
+            return Object.prototype.hasOwnProperty.call(values, key) ? String(values[key]) : match;
+        });
+    }
 
     let msg = '*United Pakistan - Sector Finance Report*\n';
     msg += '*' + month + '*\n\n';

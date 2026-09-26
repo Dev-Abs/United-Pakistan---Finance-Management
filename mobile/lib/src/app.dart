@@ -1,4 +1,3 @@
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:responsive_framework/responsive_framework.dart';
@@ -24,21 +23,27 @@ class _FinanceAppState extends State<FinanceApp> {
   @override
   void initState() {
     super.initState();
+
     client = ApiClient();
     session = AppSession(client);
+    session.addListener(_sessionChanged);
+
     router = GoRouter(
       initialLocation: '/launch',
       refreshListenable: session,
       redirect: (_, state) {
         if (!session.initialized) return '/launch';
+
         if (!session.isSignedIn && state.matchedLocation != '/login') {
           return '/login';
         }
+
         if (session.isSignedIn &&
             (state.matchedLocation == '/login' ||
                 state.matchedLocation == '/launch')) {
           return '/';
         }
+
         return null;
       },
       routes: [
@@ -68,47 +73,61 @@ class _FinanceAppState extends State<FinanceApp> {
               readOnly: session.isReadOnly,
               client: client,
               onSignOut: session.signOut,
+              themeMode: session.themeMode,
+              onThemeModeChanged: session.setThemeMode,
             ),
           ),
         ),
       ],
     );
+
     session.restore();
+  }
+
+  void _sessionChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    session.removeListener(_sessionChanged);
     router.dispose();
     session.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => DynamicColorBuilder(
-        builder: (lightDynamic, darkDynamic) => ToastificationWrapper(
-          child: MaterialApp.router(
-            title: 'United Pakistan Finance',
-            debugShowCheckedModeBanner: false,
-            routerConfig: router,
-            theme: buildTheme(
-              brightness: Brightness.light,
-              dynamicScheme: lightDynamic,
-            ),
-            darkTheme: buildTheme(
-              brightness: Brightness.dark,
-              dynamicScheme: darkDynamic,
-            ),
-            themeMode: ThemeMode.system,
-            builder: (context, child) => ResponsiveBreakpoints.builder(
-              child: child!,
-              breakpoints: const [
-                Breakpoint(start: 0, end: 359, name: 'COMPACT'),
-                Breakpoint(start: 360, end: 599, name: MOBILE),
-                Breakpoint(start: 600, end: 1023, name: TABLET),
-                Breakpoint(start: 1024, end: double.infinity, name: DESKTOP),
-              ],
-            ),
-          ),
+  Widget build(BuildContext context) {
+    return ToastificationWrapper(
+      child: MaterialApp.router(
+        title: 'United Pakistan Finance',
+        debugShowCheckedModeBanner: false,
+        routerConfig: router,
+        theme: buildTheme(
+          brightness: Brightness.light,
         ),
-      );
+        darkTheme: buildTheme(
+          brightness: Brightness.dark,
+        ),
+        themeMode: switch (session.themeMode) {
+          'light' => ThemeMode.light,
+          'dark' => ThemeMode.dark,
+          _ => ThemeMode.system,
+        },
+        builder: (context, child) => ResponsiveBreakpoints.builder(
+          child: child!,
+          breakpoints: const [
+            Breakpoint(start: 0, end: 359, name: 'COMPACT'),
+            Breakpoint(start: 360, end: 599, name: MOBILE),
+            Breakpoint(start: 600, end: 1023, name: TABLET),
+            Breakpoint(
+              start: 1024,
+              end: double.infinity,
+              name: DESKTOP,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -605,6 +605,25 @@ function generateReminderText(m) {
     const amountPaid = Number(m['Amount Paid']) || 0;
     const remainingDue = Number(m['Remaining Balance']) || 0;
     const totalPayable = Number(m['Total Payable']) || 0;
+    const configuredTemplate = String(appSettings.WHATSAPP_MEMBER_TEMPLATE || '').trim();
+    if (configuredTemplate) {
+        return applyMessageTemplate(configuredTemplate, {
+            organization_name: appSettings.ORG_NAME || 'United Pakistan',
+            sector_name: appSettings.SECTOR_NAME || '',
+            secretary_name: appSettings.SECRETARY_NAME || '',
+            easypaisa_number: appSettings.EASYPAISA_NUMBER || '',
+            account_title: appSettings.ACCOUNT_TITLE || '',
+            member_name: m['Name'] || '',
+            member_category: m['Member Category'] || 'Fellow Member (FM)',
+            month: appInstance.state.currentMonth || '',
+            monthly_fund: utils.formatCurrency(m['Monthly Fund']),
+            previous_balance: utils.formatCurrency(m['Previous Balance']),
+            total_payable: utils.formatCurrency(totalPayable),
+            amount: utils.formatCurrency(amountPaid),
+            balance: utils.formatCurrency(remainingDue),
+            reminder_opening: buildReminderOpening(summary, nextReminderNumber, isPartial)
+        });
+    }
     let msg = '*United Pakistan - ' + (appSettings['SECTOR_NAME'] || '[Sector Name]') + '*\n\n';
     msg += 'Assalamu Alaikum ' + (m['Name'] || '') + ' sb!\n\n';
     msg += buildReminderOpening(summary, nextReminderNumber, isPartial);
@@ -629,6 +648,12 @@ function generateReminderText(m) {
     msg += 'Thank you.\n';
     msg += (appSettings['SECRETARY_NAME'] || '[Secretary Name]') + '\nSecretary Finance';
     return msg;
+}
+
+function applyMessageTemplate(template, values) {
+    return String(template).replace(/\{([a-z_]+)\}/g, function (match, key) {
+        return Object.prototype.hasOwnProperty.call(values, key) ? String(values[key]) : match;
+    });
 }
 
 function buildReminderOpening(summary, nextReminderNumber, isPartial) {

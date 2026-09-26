@@ -5,23 +5,36 @@ import 'api_client.dart';
 
 class AppSession extends ChangeNotifier {
   AppSession(this.client, {FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+      : _storage = storage ?? const FlutterSecureStorage() {
+    client.onUnauthorized = signOut;
+  }
 
   static const _tokenKey = 'session_token';
   static const _roleKey = 'session_role';
+  static const _themeKey = 'theme_mode';
 
   final ApiClient client;
   final FlutterSecureStorage _storage;
   bool initialized = false;
   String? role;
+  String themeMode = 'system';
 
   bool get isSignedIn => client.token != null;
   bool get isReadOnly => role == 'reader';
 
   Future<void> restore() async {
     try {
+      themeMode = await _storage.read(key: _themeKey) ?? 'system';
       client.token = await _storage.read(key: _tokenKey);
       role = await _storage.read(key: _roleKey);
+      if (client.token != null) {
+        final status = await client.request('/api/auth/status');
+        if (status['authenticated'] != true) {
+          await _clear();
+        } else {
+          role = status['role']?.toString() ?? role;
+        }
+      }
     } catch (_) {
       client.token = null;
       role = null;
@@ -29,6 +42,12 @@ class AppSession extends ChangeNotifier {
       initialized = true;
       notifyListeners();
     }
+  }
+
+  Future<void> setThemeMode(String value) async {
+    themeMode = value;
+    await _storage.write(key: _themeKey, value: value);
+    notifyListeners();
   }
 
   Future<void> persist(String newRole) async {
@@ -42,10 +61,14 @@ class AppSession extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    await _clear();
+    notifyListeners();
+  }
+
+  Future<void> _clear() async {
     client.token = null;
     role = null;
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _roleKey);
-    notifyListeners();
   }
 }

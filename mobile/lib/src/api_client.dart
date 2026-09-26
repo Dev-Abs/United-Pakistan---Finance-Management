@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
@@ -43,16 +44,19 @@ class ApiClient {
   final String baseUrl;
   late final Dio _dio;
   String? token;
+  VoidCallback? onUnauthorized;
 
   Future<Map<String, dynamic>> request(
     String path, {
     String method = 'GET',
     Map<String, dynamic>? body,
+    Map<String, dynamic>? query,
   }) async {
     try {
       final response = await _dio.request<Object?>(
         path,
         data: body,
+        queryParameters: query,
         options: Options(method: method),
       );
       final data = response.data;
@@ -62,6 +66,7 @@ class ApiClient {
       throw const ApiException('The server returned an unexpected response.');
     } on DioException catch (error) {
       final status = error.response?.statusCode;
+      if (status == 401) onUnauthorized?.call();
       final data = error.response?.data;
       final serverMessage = data is Map ? data['error']?.toString() : null;
       if (serverMessage != null && serverMessage.isNotEmpty) {

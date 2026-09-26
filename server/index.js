@@ -38,6 +38,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/special-fund', require('./routes/special-fund'));
 app.use('/api/export', require('./routes/export'));
 app.use('/api/diagnostics', require('./routes/diagnostics'));
+app.use('/api/ai', require('./routes/ai'));
 
 // Fingerprinted/versioned app assets can be cached; HTML stays fresh so a
 // deployment cannot strand clients on an old shell with new modules.
