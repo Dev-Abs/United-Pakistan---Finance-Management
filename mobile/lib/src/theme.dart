@@ -3,19 +3,47 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AppColors {
-  static const emerald = Color(0xFF08705B);
-  static const emeraldDark = Color(0xFF06483D);
-  static const mint = Color(0xFFB9F3DC);
-  static const gold = Color(0xFFE5A11A);
-  static const background = Color(0xFFF6F8F6);
+  static const emerald = Color(0xFF087F67);
+  static const emeraldDark = Color(0xFF034B46);
+  static const teal = Color(0xFF04B99B);
+  static const cyan = Color(0xFF168FC7);
+  static const indigo = Color(0xFF3146B8);
+  static const navy = Color(0xFF061C2D);
+  static const mint = Color(0xFFD9FFF2);
+  static const gold = Color(0xFFFFC857);
+  static const background = Color(0xFFF2F8F7);
   static const surface = Colors.white;
-  static const ink = Color(0xFF14201D);
-  static const slate = Color(0xFF66756F);
-  static const border = Color(0xFFDDE6E1);
+  static const ink = Color(0xFF082B32);
+  static const slate = Color(0xFF577078);
+  static const border = Color(0xFFCFE3E0);
   static const success = Color(0xFF15803D);
   static const warning = Color(0xFFE09A13);
-  static const error = Color(0xFFD64242);
+  static const error = Color(0xFFBA1A1A);
   static const info = Color(0xFF1685A8);
+
+  // Compatibility aliases retained for older widgets.
+  static const blood = emerald;
+  static const bloodDark = emeraldDark;
+  static const crimson = teal;
+  static const rose = mint;
+}
+
+abstract final class AppGradients {
+  static const brand = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.emeraldDark, AppColors.emerald, AppColors.teal],
+  );
+  static const accent = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.teal, AppColors.cyan, AppColors.indigo],
+  );
+  static const night = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [AppColors.navy, Color(0xFF063B49), AppColors.emeraldDark],
+  );
 }
 
 abstract final class AppSpace {
@@ -47,9 +75,16 @@ ThemeData buildTheme({
     secondary: AppColors.gold,
   );
   final scheme = (dynamicScheme ?? fallback).copyWith(
-    primary: isDark ? const Color(0xFF71D9BB) : AppColors.emerald,
+    primary: isDark ? const Color(0xFF5FF2CC) : AppColors.emerald,
+    onPrimary: isDark ? AppColors.navy : Colors.white,
+    primaryContainer: isDark ? const Color(0xFF07594F) : AppColors.mint,
+    onPrimaryContainer: isDark ? AppColors.mint : AppColors.emeraldDark,
     secondary: isDark ? const Color(0xFFFFCB70) : AppColors.gold,
     error: isDark ? const Color(0xFFFFB4AB) : AppColors.error,
+    surface: isDark ? const Color(0xFF092733) : Colors.white,
+    onSurface: isDark ? const Color(0xFFE9FFFA) : AppColors.ink,
+    onSurfaceVariant: isDark ? const Color(0xFFAACCC7) : AppColors.slate,
+    outlineVariant: isDark ? const Color(0xFF28505A) : AppColors.border,
   );
   final base = isDark
       ? FlexThemeData.dark(
@@ -111,8 +146,7 @@ ThemeData buildTheme({
   );
   return base.copyWith(
     textTheme: textTheme,
-    scaffoldBackgroundColor:
-        isDark ? const Color(0xFF101614) : AppColors.background,
+    scaffoldBackgroundColor: Colors.transparent,
     appBarTheme: AppBarTheme(
       centerTitle: false,
       elevation: 0,
@@ -131,6 +165,7 @@ ThemeData buildTheme({
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .7)),
       ),
     ),
+    iconTheme: IconThemeData(color: scheme.onSurfaceVariant),
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
       filled: true,
       fillColor: scheme.surfaceContainerLowest,
@@ -173,6 +208,8 @@ ThemeData buildTheme({
     navigationBarTheme: base.navigationBarTheme.copyWith(
       height: 72,
       elevation: 0,
+      backgroundColor: scheme.surface,
+      indicatorColor: scheme.primaryContainer,
       labelTextStyle: WidgetStateProperty.resolveWith((states) =>
           textTheme.labelSmall?.copyWith(
               fontWeight: states.contains(WidgetState.selected)
@@ -193,4 +230,138 @@ ThemeData buildTheme({
       },
     ),
   );
+}
+
+class BrandMark extends StatelessWidget {
+  const BrandMark({super.key, this.size = 42, this.inverse = false});
+  final double size;
+  final bool inverse;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: inverse
+                ? [Colors.white.withValues(alpha: .22), Colors.white10]
+                : [AppColors.teal, AppColors.emeraldDark],
+          ),
+          borderRadius: BorderRadius.circular(size * .31),
+          boxShadow: inverse
+              ? null
+              : [
+                  BoxShadow(
+                    color: AppColors.emerald.withValues(alpha: .22),
+                    blurRadius: 18,
+                    offset: const Offset(0, 7),
+                  )
+                ],
+        ),
+        child: Icon(Icons.front_hand_rounded,
+            color: Colors.white, size: size * .52),
+      );
+}
+
+class BrandGradient extends StatelessWidget {
+  const BrandGradient({super.key, required this.child, this.padding});
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: padding ?? const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: AppGradients.brand,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.emerald.withValues(alpha: .24),
+              blurRadius: 26,
+              offset: const Offset(0, 12),
+            )
+          ],
+        ),
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(color: Colors.white),
+          child: IconTheme.merge(
+              data: const IconThemeData(color: Colors.white), child: child),
+        ),
+      );
+}
+
+class GradientCanvas extends StatelessWidget {
+  const GradientCanvas({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: dark
+            ? AppGradients.night
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFE8FFF8),
+                  Color(0xFFF5FAFF),
+                  Color(0xFFEEF0FF)
+                ],
+              ),
+      ),
+      child: Stack(fit: StackFit.expand, children: [
+        Positioned(
+          right: -90,
+          top: -80,
+          child: IgnorePointer(
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  AppColors.teal.withValues(alpha: dark ? .22 : .18),
+                  Colors.transparent,
+                ]),
+              ),
+            ),
+          ),
+        ),
+        child,
+      ]),
+    );
+  }
+}
+
+class GradientPanel extends StatelessWidget {
+  const GradientPanel({super.key, required this.child, this.padding});
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: padding ?? const EdgeInsets.all(AppSpace.lg),
+        decoration: BoxDecoration(
+          gradient: AppGradients.accent,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.cyan.withValues(alpha: .22),
+              blurRadius: 28,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(color: Colors.white),
+          child: IconTheme.merge(
+            data: const IconThemeData(color: Colors.white),
+            child: child,
+          ),
+        ),
+      );
 }

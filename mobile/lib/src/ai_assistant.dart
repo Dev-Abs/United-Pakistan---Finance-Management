@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'finance_store.dart';
+import 'templates.dart';
 import 'theme.dart';
 
 class AiCapabilities {
@@ -27,6 +28,13 @@ class AiResult {
   final DateTime? generatedAt;
   final Map<String, dynamic> facts;
   final String requestId;
+
+  AiResult withContent(String value) => AiResult(
+        content: value,
+        generatedAt: generatedAt,
+        facts: facts,
+        requestId: requestId,
+      );
 
   factory AiResult.from(Map<String, dynamic> envelope) {
     final data =
@@ -114,6 +122,19 @@ extension AiFinanceStore on FinanceStore {
     return AiResult.from(response);
   }
 
+  Future<Map<String, dynamic>> aiCommand(String request,
+      {String language = 'bilingual',
+      List<Map<String, String>> history = const []}) async {
+    final response =
+        await api.request('/api/ai/command', method: 'POST', body: {
+      'month': month,
+      'request': request,
+      'language': language,
+      'history': history,
+    });
+    return Map<String, dynamic>.from(response['data'] as Map? ?? const {});
+  }
+
   String? get previousMonth {
     if (month == null) return null;
     final ordered = months.toList();
@@ -169,7 +190,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Management assistant')),
-        body: FutureBuilder<AiCapabilities>(
+        body: GradientCanvas(
+            child: FutureBuilder<AiCapabilities>(
           future: capabilities,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -195,13 +217,66 @@ class _AssistantScreenState extends State<AssistantScreen> {
             return ListView(
               padding: const EdgeInsets.all(AppSpace.lg),
               children: [
-                Text('Briefing workspace',
-                    style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: AppSpace.sm),
-                Text('Grounded in ${widget.store.month} finance data',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                GradientPanel(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.auto_awesome, size: 32),
+                      const SizedBox(height: AppSpace.md),
+                      Text('Your AI management copilot',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(color: Colors.white)),
+                      const SizedBox(height: AppSpace.sm),
+                      const Text(
+                          'Ask for a member message, an all-member report, a finance entry, a follow-up plan, or anything else. I’ll use your live data and ask when a detail is missing.'),
+                      const SizedBox(height: AppSpace.lg),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.emeraldDark),
+                        onPressed: () => showAiChat(context, widget.store),
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text('Ask anything'),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: AppSpace.lg),
+                Text('Start with a task',
+                    style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: AppSpace.sm),
+                Wrap(spacing: 8, runSpacing: 8, children: [
+                  ActionChip(
+                      avatar: const Icon(Icons.chat_outlined, size: 18),
+                      label: const Text('Message a member'),
+                      onPressed: () => showAiChat(context, widget.store,
+                          initialPrompt:
+                              'Prepare a WhatsApp message for a member. Ask me which member and purpose if I have not provided them.')),
+                  ActionChip(
+                      avatar: const Icon(Icons.groups_outlined, size: 18),
+                      label: const Text('Message all members'),
+                      onPressed: () => showAiChat(context, widget.store,
+                          initialPrompt:
+                              'Prepare a personalized WhatsApp message for all members. Ask me for the purpose and tone if needed.')),
+                  ActionChip(
+                      avatar: const Icon(Icons.summarize_outlined, size: 18),
+                      label: const Text('Prepare report'),
+                      onPressed: () => showAiChat(context, widget.store,
+                          initialPrompt:
+                              'Prepare a management report for the selected month using all relevant live data.')),
+                  ActionChip(
+                      avatar: const Icon(Icons.edit_note, size: 18),
+                      label: const Text('Record finance entry'),
+                      onPressed: () =>
+                          showAiEntryAssistant(context, widget.store)),
+                ]),
+                const SizedBox(height: AppSpace.lg),
+                Text('Briefing workspace',
+                    style: Theme.of(context).textTheme.titleLarge),
+                Text('Grounded in ${widget.store.month} live finance data'),
+                const SizedBox(height: AppSpace.md),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpace.lg),
@@ -306,7 +381,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       leading: const Icon(Icons.forum_outlined),
                       title: const Text('Ask about this month'),
                       subtitle: const Text(
-                          'Scoped chat uses aggregate data and cannot write or send.'),
+                          'Uses authorized member and finance data, asks clarifying questions, and proposes reviewable actions.'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => showAiChat(context, widget.store),
                     ),
@@ -317,7 +392,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
               ],
             );
           },
-        ),
+        )),
       );
 }
 
@@ -398,7 +473,14 @@ class _AiReportSheetState extends State<_AiReportSheet> {
   @override
   void initState() {
     super.initState();
-    future = widget.store.aiReport(reportType: widget.reportType);
+    future = _generate();
+  }
+
+  Future<AiResult> _generate() async {
+    final result = await widget.store.aiReport(reportType: widget.reportType);
+    final pattern = template(widget.store, 'AI_REPORT_TEMPLATE');
+    return result.withContent(applyTemplate(pattern,
+        templateValues(widget.store, null, {'ai_content': result.content})));
   }
 
   @override
@@ -422,8 +504,7 @@ class _AiReportSheetState extends State<_AiReportSheet> {
                 else if (snapshot.hasError)
                   _AiError(
                       message: snapshot.error.toString(),
-                      retry: () => setState(() => future =
-                          widget.store.aiReport(reportType: widget.reportType)))
+                      retry: () => setState(() => future = _generate()))
                 else
                   AiResultCard(result: snapshot.data!),
               ]),
@@ -479,8 +560,12 @@ class _AiMessageSheetState extends State<_AiMessageSheet> {
     try {
       final value =
           await widget.store.aiMessageDraft(widget.member, tone: tone);
-      controller.text = value.content;
-      if (mounted) setState(() => result = value);
+      final content = applyTemplate(
+          template(widget.store, 'AI_MESSAGE_TEMPLATE'),
+          templateValues(
+              widget.store, widget.member, {'ai_content': value.content}));
+      controller.text = content;
+      if (mounted) setState(() => result = value.withContent(content));
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
     } finally {
@@ -897,10 +982,36 @@ Future<void> showAiReview(BuildContext context, FinanceStore store) async {
           ));
 }
 
-Future<void> showAiChat(BuildContext context, FinanceStore store) async {
-  final question = TextEditingController();
+Future<void> showAiChat(BuildContext context, FinanceStore store,
+    {String? initialPrompt}) async {
+  final question = TextEditingController(text: initialPrompt ?? '');
   final messages = <Map<String, String>>[];
   var sending = false;
+  String renderCommand(Map<String, dynamic> command) {
+    final parts = <String>[];
+    final answer = command['answer']?.toString().trim() ?? '';
+    if (answer.isNotEmpty) parts.add(answer);
+    final questions =
+        List<dynamic>.from(command['questions'] as List? ?? const []);
+    if (questions.isNotEmpty) {
+      parts.add(
+          'I need ${questions.length == 1 ? 'one detail' : 'a few details'}:\n${questions.map((q) => '• $q').join('\n')}');
+    }
+    final plan = List<dynamic>.from(command['plan'] as List? ?? const []);
+    if (plan.isNotEmpty)
+      parts.add(
+          'Plan:\n${plan.asMap().entries.map((e) => '${e.key + 1}. ${e.value}').join('\n')}');
+    final drafts = List<dynamic>.from(command['drafts'] as List? ?? const []);
+    if (drafts.isNotEmpty) {
+      parts.add('Prepared drafts (${drafts.length}):\n${drafts.map((d) {
+        final item = Map<String, dynamic>.from(d as Map);
+        final name = item['recipientName']?.toString().trim();
+        return '${name?.isNotEmpty == true ? '$name\n' : ''}${item['content']}';
+      }).join('\n\n— — —\n\n')}');
+    }
+    return parts.join('\n\n');
+  }
+
   await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -915,13 +1026,13 @@ Future<void> showAiChat(BuildContext context, FinanceStore store) async {
                 question.clear();
               });
               try {
-                final answer = await store.aiChat(text,
+                final answer = await store.aiCommand(text,
                     history: messages.length > 1
                         ? messages.sublist(0, messages.length - 1)
                         : const []);
                 if (context.mounted)
-                  setState(() => messages
-                      .add({'role': 'assistant', 'content': answer.content}));
+                  setState(() => messages.add(
+                      {'role': 'assistant', 'content': renderCommand(answer)}));
               } catch (e) {
                 if (context.mounted)
                   setState(() => messages.add({
@@ -938,10 +1049,10 @@ Future<void> showAiChat(BuildContext context, FinanceStore store) async {
                 child: SizedBox(
                     height: MediaQuery.sizeOf(context).height * .72,
                     child: Column(children: [
-                      Text('Ask about ${store.month}',
+                      Text('AI command center',
                           style: Theme.of(context).textTheme.titleLarge),
                       const Text(
-                          'Read-only • aggregate facts • short session context'),
+                          'Live organization data • asks when details are missing • review before action'),
                       const SizedBox(height: 8),
                       Expanded(
                           child: ListView(

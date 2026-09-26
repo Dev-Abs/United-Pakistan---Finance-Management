@@ -18,14 +18,14 @@ router.use((req, res, next) => {
   next();
 });
 
-const privacyNote = 'AI receives minimized finance facts for the selected request. Phone numbers, credentials, tokens, and free-form remarks are excluded. AI-generated content may be incorrect; review it before use.';
+const privacyNote = 'AI can use the authorized organization, member, payment, expense, follow-up, campaign, and template data needed for your request. Secrets and credentials are always excluded. Nothing is written or sent without your review and confirmation.';
 
 router.get('/capabilities', (req, res) => {
   const cfg = deepseek.config();
   res.json({ success: true, data: {
     enabled: cfg.enabled,
     modelLabel: cfg.enabled ? 'DeepSeek management copilot' : 'Not configured',
-    features: ['briefing', 'message-draft', 'report-summary', 'parse-entry', 'data-review', 'chat', 'bulk-drafts'],
+    features: ['management-command', 'briefing', 'message-draft', 'report-summary', 'parse-entry', 'data-review', 'chat', 'bulk-drafts'],
     controlledActionsEnabled: String(process.env.AI_CONTROLLED_ACTIONS_ENABLED || '').toLowerCase() === 'true',
     privacyNote,
   }});
@@ -126,6 +126,37 @@ router.post('/data-review', asyncRoute(async (req, res) => {
   res.json({ success: true, data: { kind: 'data-review', content, facts: { month, findingCount: findings.length }, findings, warnings: [], suggestedActions: findings.map((f) => f.target), generatedAt: new Date().toISOString(), privacyNote }, usage });
 }));
 
+router.post('/command', asyncRoute(async (req, res) => {
+  const month = requiredText(req.body.month, 'Month');
+  const request = cleanMultiline(req.body.request, 1200);
+  if (!request) throw httpError(400, 'Tell the assistant what you want it to do.');
+  const history = Array.isArray(req.body.history) ? req.body.history.slice(-10).map((item) => ({
+    role: item?.role === 'assistant' ? 'assistant' : 'user',
+    content: cleanMultiline(item?.content, 900),
+  })) : [];
+  const context = await managementContext(month);
+  const result = await deepseek.generateJson({
+    operation: 'management-command',
+    role: req.userRole,
+    ip: req.ip,
+    language: validLanguage(req.body.language),
+    facts: { context, conversation: history, request },
+    instructions: `Act as an operational finance manager with access to the supplied authorized data.
+Understand the user's real intention, reason through the work, and return:
+{"summary":string,"answer":string,"needsClarification":boolean,"questions":[string],"plan":[string],"drafts":[{"recipientRowId":integer|null,"recipientName":string,"channel":"whatsapp"|"report"|"general","content":string}],"proposedActions":[{"type":"record-payment"|"add-expense"|"log-follow-up"|"update-template"|"open-whatsapp"|"copy-report"|"none","label":string,"requiresConfirmation":true,"payload":object}],"sources":[string]}
+If information required for a correct result is missing, ask only the smallest necessary questions and do not guess. For member-specific work, use only supplied row IDs and exact source values. Personalize each requested member draft. A request for all members means every supplied member unless the user narrows it. Never claim an action was completed. Never send a message or write finance data. Every proposed mutation must require confirmation.`,
+  });
+  const command = validateManagementCommand(result.value, context.members);
+  res.json({ success: true, data: {
+    kind: 'management-command',
+    ...command,
+    content: command.answer,
+    facts: { month, dataScope: context.dataScope, sourceCounts: context.sourceCounts },
+    generatedAt: new Date().toISOString(),
+    privacyNote,
+  }, usage: { requestId: result.requestId, model: result.model } });
+}));
+
 router.post('/chat', asyncRoute(async (req, res) => {
   const month = requiredText(req.body.month, 'Month');
   const question = requiredText(req.body.question, 'Question');
@@ -193,6 +224,77 @@ async function monthlyFacts(month) {
   };
 }
 
+async function managementContext(month) {
+  await assertReportingMonth(month);
+  const [members, expenses, followUps, settings] = await Promise.all([
+    sheets.getSheetData(month),
+    sheets.getExpenses(month),
+    sheets.getFollowUps(month),
+    sheets.getSettings(),
+  ]);
+  const campaignId = cleanText(settings.SPECIAL_FUND_CAMPAIGN_ID, 100);
+  const contributions = campaignId ? await sheets.getSpecialFundContributions(campaignId) : [];
+  const safeSettings = {};
+  [
+    'ORG_NAME', 'SECTOR_NAME', 'ACCOUNT_TITLE', 'BANK_NAME', 'ACCOUNT_NUMBER',
+    'IBAN', 'JAZZCASH_NUMBER', 'EASYPAISA_NUMBER', 'WHATSAPP_MEMBER_TEMPLATE',
+    'WHATSAPP_REPORT_TEMPLATE', 'WHATSAPP_MONTHLY_REPORT_TEMPLATE',
+    'SPECIAL_FUND_CAMPAIGN_NAME', 'SPECIAL_FUND_TARGET',
+    'SPECIAL_FUND_MESSAGE_TEMPLATE', 'SPECIAL_FUND_REPORT_TEMPLATE',
+    'AI_REPORT_TEMPLATE', 'AI_MESSAGE_TEMPLATE',
+  ].forEach((key) => { if (settings[key] != null) safeSettings[key] = cleanMultiline(settings[key], 1200); });
+  const cleanRow = (row, fields) => fields.reduce((value, field) => {
+    if (row[field] != null && row[field] !== '') value[field] = cleanMultiline(row[field], 500);
+    return value;
+  }, { rowId: Number(row._rowId) });
+  const memberFields = ['Name', 'Phone Number', 'Designation', 'Member Category', 'Monthly Fund', 'Previous Balance', 'Total Payable', 'Amount Paid', 'Remaining Balance', 'Payment Status', 'Payment Date', 'Remarks'];
+  const expenseFields = ['Date', 'Category', 'Description', 'Amount', 'Paid By', 'Remarks'];
+  const followUpFields = ['Month', 'Member Name', 'Phone Number', 'Member Category', 'Event Type', 'Reminder Number', 'Event Date', 'Reply Status', 'Reason / Reply', 'Next Reminder Date', 'Created By', 'Notes'];
+  const contributionFields = ['Campaign ID', 'Member Name', 'Phone Number', 'Member Category', 'Amount Paid', 'Payment Date', 'Payment Method', 'Reference', 'Remarks'];
+  return {
+    month,
+    organization: safeSettings,
+    members: members.map((row) => cleanRow(row, memberFields)),
+    expenses: expenses.map((row) => cleanRow(row, expenseFields)),
+    followUps: followUps.map((row) => cleanRow(row, followUpFields)),
+    specialFundContributions: contributions.map((row) => cleanRow(row, contributionFields)),
+    sourceCounts: { members: members.length, expenses: expenses.length, followUps: followUps.length, specialFundContributions: contributions.length },
+    dataScope: `${month}; ${members.length} members; ${expenses.length} expenses; ${followUps.length} follow-ups; ${contributions.length} special-fund contributions`,
+  };
+}
+
+function validateManagementCommand(value, members) {
+  const allowedRows = new Set(members.map((member) => Number(member.rowId)));
+  const list = (input, limit, max) => Array.isArray(input) ? input.slice(0, limit).map((item) => cleanMultiline(item, max)).filter(Boolean) : [];
+  const drafts = Array.isArray(value.drafts) ? value.drafts.slice(0, Math.max(50, members.length)).map((draft) => {
+    const rowId = draft?.recipientRowId == null ? null : Number(draft.recipientRowId);
+    if (rowId != null && !allowedRows.has(rowId)) throw httpError(502, 'AI returned an unknown member recipient.');
+    return {
+      recipientRowId: rowId,
+      recipientName: cleanText(draft?.recipientName, 120),
+      channel: ['whatsapp', 'report', 'general'].includes(draft?.channel) ? draft.channel : 'general',
+      content: cleanMultiline(draft?.content, 4000),
+    };
+  }).filter((draft) => draft.content) : [];
+  const actionTypes = new Set(['record-payment', 'add-expense', 'log-follow-up', 'update-template', 'open-whatsapp', 'copy-report', 'none']);
+  const proposedActions = Array.isArray(value.proposedActions) ? value.proposedActions.slice(0, 30).map((action) => ({
+    type: actionTypes.has(action?.type) ? action.type : 'none',
+    label: cleanText(action?.label, 160),
+    requiresConfirmation: true,
+    payload: action?.payload && typeof action.payload === 'object' && !Array.isArray(action.payload) ? action.payload : {},
+  })) : [];
+  return {
+    summary: cleanText(value.summary, 240),
+    answer: cleanMultiline(value.answer, 8000),
+    needsClarification: value.needsClarification === true,
+    questions: list(value.questions, 5, 300),
+    plan: list(value.plan, 10, 300),
+    drafts,
+    proposedActions,
+    sources: list(value.sources, 12, 160),
+  };
+}
+
 async function assertReportingMonth(month) {
   const months = await sheets.getSheets();
   if (!months.includes(month)) throw httpError(400, 'Select a valid reporting month.');
@@ -245,6 +347,7 @@ async function deterministicReview(month) {
 function numeric(value) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
 function money(value) { return Number(numeric(value).toFixed(2)); }
 function cleanText(value, max) { return String(value || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, max); }
+function cleanMultiline(value, max) { return String(value || '').replace(/\u0000/g, '').trim().slice(0, max); }
 function requiredText(value, label) { const text = cleanText(value, 80); if (!text) throw httpError(400, `${label} is required.`); return text; }
 function validLanguage(value) { return ['english', 'urdu', 'bilingual'].includes(value) ? value : 'bilingual'; }
 function httpError(status, message) { const error = new Error(message); error.status = status; return error; }
@@ -259,4 +362,4 @@ function asyncRoute(handler) {
 }
 
 module.exports = router;
-module.exports._test = { monthlyFacts, money, cleanText, validateEntryProposal, deterministicReview };
+module.exports._test = { monthlyFacts, managementContext, money, cleanText, validateEntryProposal, validateManagementCommand, deterministicReview };

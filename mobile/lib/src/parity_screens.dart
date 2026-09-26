@@ -4,7 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'ai_assistant.dart';
 import 'finance_store.dart';
+import 'templates.dart';
 import 'theme.dart';
+
+export 'templates.dart';
 
 String _money(Object? value) {
   final amount = number(value).round();
@@ -52,79 +55,6 @@ Future<bool> openWhatsApp(BuildContext context, String message,
   }
   return false;
 }
-
-String applyTemplate(String template, Map<String, Object?> values) =>
-    template.replaceAllMapped(RegExp(r'\{([a-z_]+)\}'),
-        (match) => values[match.group(1)]?.toString() ?? match.group(0)!);
-
-Map<String, Object?> templateValues(FinanceStore store,
-    [Map<String, dynamic>? member]) {
-  final now = DateTime.now();
-  final paidCount = store.members
-      .where((m) => m['Payment Status']?.toString() == 'Paid')
-      .length;
-  final partialCount = store.members
-      .where((m) => m['Payment Status']?.toString() == 'Partially Paid')
-      .length;
-  final pendingCount = store.members.length - paidCount - partialCount;
-  final isPartial = member?['Payment Status']?.toString() == 'Partially Paid';
-  return {
-    'member_name': member?['Name'] ?? '',
-    'date': _dateLabel(now.toIso8601String()),
-    'month': store.month ?? '',
-    'report_period': store.month ?? '',
-    'amount': _money(member?['Amount Paid']),
-    'balance': _money(member?['Remaining Balance']),
-    'total_payable': _money(member?['Total Payable']),
-    'monthly_fund': _money(member?['Monthly Fund']),
-    'previous_balance': _money(member?['Previous Balance']),
-    'member_category': member?['Member Category'] ?? 'Fellow Member (FM)',
-    'reminder_opening': isPartial
-        ? 'Thank you for the partial payment. This is a gentle reminder for the remaining balance.'
-        : 'This is a gentle reminder regarding your monthly fund.',
-    'organization_name': store.settings['ORG_NAME'] ?? 'United Pakistan',
-    'sector_name': store.settings['SECTOR_NAME'] ?? '',
-    'secretary_name': store.settings['SECRETARY_NAME'] ?? '',
-    'easypaisa_number': store.settings['EASYPAISA_NUMBER'] ?? '',
-    'account_title': store.settings['ACCOUNT_TITLE'] ?? '',
-    'fund_amount': _money(store.contributions
-        .fold<double>(0, (s, e) => s + number(e['Amount Paid']))),
-    'special_fund_name':
-        store.settings['SPECIAL_FUND_CAMPAIGN_NAME'] ?? 'Special Fund',
-    'campaign_name':
-        store.settings['SPECIAL_FUND_CAMPAIGN_NAME'] ?? 'Special Fund',
-    'event_timing': store.settings['SPECIAL_FUND_EVENT_TIMING'] ?? '',
-    'event_venue': store.settings['SPECIAL_FUND_EVENT_VENUE'] ?? '',
-    'jp_minimum': _money(store.settings['SPECIAL_FUND_JP_MINIMUM']),
-    'sc_minimum': _money(store.settings['SPECIAL_FUND_SC_MINIMUM']),
-    'fm_minimum': _money(store.settings['SPECIAL_FUND_FM_MINIMUM']),
-    'collected': _money(store.collected),
-    'outstanding': _money(store.outstanding),
-    'expenses': _money(store.spent),
-    'cash_balance': _money(store.balance),
-    'total_members': store.members.length,
-    'paid_count': paidCount,
-    'partial_count': partialCount,
-    'pending_count': pendingCount,
-    'total_due': _money(store.due),
-  };
-}
-
-const defaultTemplates = <String, String>{
-  'WHATSAPP_MEMBER_TEMPLATE':
-      '*{organization_name} - {sector_name}*\n\nAssalamu Alaikum {member_name} sb!\n\nThis is a gentle reminder regarding your monthly fund.\n\nFund Details:\n- Member Category: {member_category}\n- Monthly Fund: {monthly_fund}\n- Previous Balance: {previous_balance}\n- Total Payable: {total_payable}\n- Amount Paid: {amount}\n- Remaining Due: {balance}\n\nPayment Details:\nEasypaisa: {easypaisa_number}\nAccount Title: {account_title}\n\nKindly transfer the remaining amount and share the receipt.\n\nThank you.\n{secretary_name}\nSecretary Finance',
-  'WHATSAPP_REPORT_TEMPLATE':
-      '*{organization_name} - Sector Finance Report*\n*{report_period}*\n\n*Members Summary*\n- Total Members: {total_members}\n- Fully Paid: {paid_count}\n- Partially Paid: {partial_count}\n- Pending: {pending_count}\n\n*Collection Summary*\n- Total Due: {total_due}\n- Total Collected: {collected}\n- Total Remaining: {outstanding}\n\n*Fund & Expenses*\n- Expenses Made: {expenses}\n- Remaining After Expenses: {cash_balance}\n\nPlease clear remaining dues at the earliest.\nThank you.',
-  'WHATSAPP_MONTHLY_REPORT_TEMPLATE':
-      '*Monthly Finance Report — {month}*\nDate: {date}\n\nCollected: {collected}\nOutstanding: {outstanding}\nExpenses: {expenses}\nNet cash: {cash_balance}',
-  'SPECIAL_FUND_REPORT_TEMPLATE':
-      '*{special_fund_name} Report*\nReport period: {report_period}\nDate: {date}\n\nTotal collected: {fund_amount}',
-};
-
-String template(FinanceStore store, String key) =>
-    store.settings[key]?.toString().trim().isNotEmpty == true
-        ? store.settings[key].toString()
-        : defaultTemplates[key] ?? '';
 
 Future<void> showMemberExperience(BuildContext context, FinanceStore store,
     Map<String, dynamic> member, bool readOnly,
@@ -1156,26 +1086,102 @@ class TemplateSettings extends StatelessWidget {
         'SPECIAL_FUND_REPORT_TEMPLATE',
         'Special fund report message',
         'Campaign reporting and totals'
+      ),
+      (
+        'AI_REPORT_TEMPLATE',
+        'AI report layout',
+        'Wrap every AI narrative in your approved report pattern'
+      ),
+      (
+        'AI_MESSAGE_TEMPLATE',
+        'AI message layout',
+        'Apply your approved structure to every AI-assisted draft'
       )
     ];
     return Scaffold(
         appBar: AppBar(title: const Text('Message templates')),
-        body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: entries
-                .map((e) => _NavCard(
-                    icon: Icons.edit_note,
-                    title: e.$2,
-                    subtitle: e.$3,
-                    onTap: () => Navigator.push(
-                        c,
-                        MaterialPageRoute(
-                            builder: (_) => TemplateEditor(
-                                store: store,
-                                settingKey: e.$1,
-                                title: e.$2,
-                                readOnly: readOnly)))))
-                .toList()));
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          Card(
+              child: ListTile(
+                  leading: const Icon(Icons.data_object),
+                  title: const Text('Variable values'),
+                  subtitle: const Text(
+                      'See exactly what every placeholder resolves to'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                      c,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              TemplateVariablesScreen(store: store))))),
+          const SizedBox(height: 12),
+          ...entries.map((e) => _NavCard(
+              icon: Icons.edit_note,
+              title: e.$2,
+              subtitle: e.$3,
+              onTap: () => Navigator.push(
+                  c,
+                  MaterialPageRoute(
+                      builder: (_) => TemplateEditor(
+                          store: store,
+                          settingKey: e.$1,
+                          title: e.$2,
+                          readOnly: readOnly)))))
+        ]));
+  }
+}
+
+class TemplateVariablesScreen extends StatelessWidget {
+  const TemplateVariablesScreen({super.key, required this.store});
+  final FinanceStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final sample = store.members.firstOrNull;
+    final values = templateValues(store, sample);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Variable values')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                Icon(Icons.info_outline,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Text(
+                  sample == null
+                      ? 'Finance variables use the selected month. Member variables are blank until a member exists.'
+                      : 'Member-specific values use ${sample['Name']} as the live example.',
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer),
+                )),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...templateVariableNames.map((name) => Card(
+                child: ListTile(
+                  title: Text('{$name}',
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: SelectableText(
+                      values[name]?.toString().isNotEmpty == true
+                          ? values[name].toString()
+                          : 'Not set'),
+                  trailing: IconButton(
+                    tooltip: 'Copy variable',
+                    icon: const Icon(Icons.copy_outlined),
+                    onPressed: () =>
+                        Clipboard.setData(ClipboardData(text: '{$name}')),
+                  ),
+                ),
+              )),
+        ],
+      ),
+    );
   }
 }
 
@@ -1195,41 +1201,6 @@ class TemplateEditor extends StatefulWidget {
 
 class _TemplateEditorState extends State<TemplateEditor> {
   late final TextEditingController text;
-  final variables = const [
-    'member_name',
-    'date',
-    'month',
-    'report_period',
-    'amount',
-    'balance',
-    'total_payable',
-    'monthly_fund',
-    'previous_balance',
-    'member_category',
-    'reminder_opening',
-    'organization_name',
-    'sector_name',
-    'secretary_name',
-    'easypaisa_number',
-    'account_title',
-    'fund_amount',
-    'special_fund_name',
-    'campaign_name',
-    'event_timing',
-    'event_venue',
-    'jp_minimum',
-    'sc_minimum',
-    'fm_minimum',
-    'collected',
-    'outstanding',
-    'expenses',
-    'cash_balance',
-    'total_members',
-    'paid_count',
-    'partial_count',
-    'pending_count',
-    'total_due'
-  ];
   @override
   void initState() {
     super.initState();
@@ -1295,7 +1266,7 @@ class _TemplateEditorState extends State<TemplateEditor> {
               Wrap(
                   spacing: 7,
                   runSpacing: 7,
-                  children: variables
+                  children: templateVariableNames
                       .map((v) => ActionChip(
                           label: Text('{$v}'),
                           onPressed: widget.readOnly ? null : () => insert(v)))

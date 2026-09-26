@@ -114,18 +114,20 @@ class _FinanceAppState extends State<FinanceApp> {
           'dark' => ThemeMode.dark,
           _ => ThemeMode.system,
         },
-        builder: (context, child) => ResponsiveBreakpoints.builder(
-          child: child!,
-          breakpoints: const [
-            Breakpoint(start: 0, end: 359, name: 'COMPACT'),
-            Breakpoint(start: 360, end: 599, name: MOBILE),
-            Breakpoint(start: 600, end: 1023, name: TABLET),
-            Breakpoint(
-              start: 1024,
-              end: double.infinity,
-              name: DESKTOP,
-            ),
-          ],
+        builder: (context, child) => GradientCanvas(
+          child: ResponsiveBreakpoints.builder(
+            child: child!,
+            breakpoints: const [
+              Breakpoint(start: 0, end: 359, name: 'COMPACT'),
+              Breakpoint(start: 360, end: 599, name: MOBILE),
+              Breakpoint(start: 600, end: 1023, name: TABLET),
+              Breakpoint(
+                start: 1024,
+                end: double.infinity,
+                name: DESKTOP,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -25,6 +25,9 @@ class AppSession extends ChangeNotifier {
   Future<void> restore() async {
     try {
       themeMode = await _storage.read(key: _themeKey) ?? 'system';
+      if (!const {'system', 'light', 'dark'}.contains(themeMode)) {
+        themeMode = 'system';
+      }
       client.token = await _storage.read(key: _tokenKey);
       role = await _storage.read(key: _roleKey);
       if (client.token != null) {
@@ -45,9 +48,13 @@ class AppSession extends ChangeNotifier {
   }
 
   Future<void> setThemeMode(String value) async {
+    if (!const {'system', 'light', 'dark'}.contains(value) ||
+        value == themeMode) {
+      return;
+    }
     themeMode = value;
-    await _storage.write(key: _themeKey, value: value);
     notifyListeners();
+    await _storage.write(key: _themeKey, value: value);
   }
 
   Future<void> persist(String newRole) async {

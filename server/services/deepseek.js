@@ -2,7 +2,7 @@ const crypto = require('crypto');
 
 const DEFAULT_BASE_URL = 'https://api.deepseek.com';
 const DEFAULT_TIMEOUT_MS = 18000;
-const MAX_OUTPUT_CHARS = 8000;
+const MAX_OUTPUT_CHARS = 24000;
 
 class DeepSeekError extends Error {
   constructor(message, { status = 503, code = 'AI_UNAVAILABLE' } = {}) {
@@ -22,8 +22,8 @@ function config() {
     baseUrl: String(process.env.DEEPSEEK_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, ''),
     model: process.env.DEEPSEEK_MODEL || '',
     timeoutMs: boundedInteger(process.env.AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, 3000, 45000),
-    maxInputChars: boundedInteger(process.env.AI_MAX_INPUT_CHARS, 16000, 1000, 50000),
-    maxTokens: boundedInteger(process.env.AI_MAX_OUTPUT_TOKENS, 900, 128, 3000),
+    maxInputChars: boundedInteger(process.env.AI_MAX_INPUT_CHARS, 40000, 1000, 100000),
+    maxTokens: boundedInteger(process.env.AI_MAX_OUTPUT_TOKENS, 3000, 128, 8000),
   };
 }
 

@@ -19,14 +19,7 @@ class AppLaunchScreen extends StatelessWidget {
   Widget build(BuildContext c) => Scaffold(
           body: Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(
-                color: Theme.of(c).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(24)),
-            child: Icon(Iconsax.wallet_3,
-                size: 34, color: Theme.of(c).colorScheme.primary)),
+        const BrandMark(size: 76),
         const SizedBox(height: 20),
         Text('United Pakistan', style: Theme.of(c).textTheme.titleLarge),
         const SizedBox(height: 18),
@@ -89,18 +82,7 @@ class _LoginState extends State<LoginScreen> {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Container(
-                                        width: 72,
-                                        height: 72,
-                                        alignment: Alignment.center,
-                                        decoration: BoxDecoration(
-                                            color: Theme.of(c)
-                                                .colorScheme
-                                                .primaryContainer,
-                                            borderRadius:
-                                                BorderRadius.circular(24)),
-                                        child: const Icon(Iconsax.wallet_3,
-                                            size: 34, color: AppColors.emerald))
+                                const BrandMark(size: 72)
                                     .animate()
                                     .fadeIn()
                                     .scale(),
@@ -344,14 +326,7 @@ class _ShellState extends State<AppShell> {
     return Scaffold(
         appBar: AppBar(
             title: Row(children: [
-              Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                      color: Theme.of(c).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(11)),
-                  child: Icon(Iconsax.wallet_3,
-                      size: 18, color: Theme.of(c).colorScheme.primary)),
+              const BrandMark(size: 34),
               const SizedBox(width: 10),
               const Text('United Pakistan')
             ]),
@@ -464,11 +439,22 @@ class Dashboard extends StatelessWidget {
     return RefreshIndicator(
         onRefresh: store.refresh,
         child: PageFrame(children: [
-          Text('Financial overview',
-              style: Theme.of(c).textTheme.headlineMedium),
-          Text('${store.members.length} members • ${store.month}',
-              style:
-                  TextStyle(color: Theme.of(c).colorScheme.onSurfaceVariant)),
+          BrandGradient(
+              child: Row(children: [
+            const BrandMark(size: 56, inverse: true),
+            const SizedBox(width: 16),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text('Financial overview',
+                      style: Theme.of(c).textTheme.headlineSmall?.copyWith(
+                          color: Colors.white, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 4),
+                  Text('${store.members.length} members • ${store.month}',
+                      style: const TextStyle(color: Color(0xFFFFE9EC)))
+                ]))
+          ])),
           const SizedBox(height: 18),
           Card(
               child: ListTile(
@@ -1317,22 +1303,23 @@ class PageFrame extends StatelessWidget {
   const PageFrame({super.key, required this.children});
   final List<Widget> children;
   @override
-  Widget build(BuildContext context) => ListView(
-          physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics()),
-          padding: EdgeInsets.fromLTRB(
-              MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
-              18,
-              MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
-              32),
-          children: [
+  Widget build(BuildContext context) => GradientCanvas(
+          child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics()),
+              padding: EdgeInsets.fromLTRB(
+                  MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
+                  18,
+                  MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
+                  32),
+              children: [
             Center(
                 child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 880),
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: children)))
-          ]);
+          ]));
 }
 
 class SectionHeader extends StatelessWidget {
