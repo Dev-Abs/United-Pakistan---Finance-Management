@@ -18,6 +18,7 @@ class FinanceStore extends ChangeNotifier {
   bool refreshing = false;
   String? error;
   String? refreshError;
+  int _loadRevision = 0;
 
   double get due => members.fold(0, (s, m) => s + number(m['Total Payable']));
   double get collected =>
@@ -45,7 +46,10 @@ class FinanceStore extends ChangeNotifier {
           : months.contains(previousMonth)
               ? previousMonth
               : latestMonth(months);
-      if (month != null) await _loadMonth(month!);
+      if (month != null) {
+        final revision = ++_loadRevision;
+        await _loadMonth(month!, revision);
+      }
     } catch (e) {
       if (month == null) {
         error = e.toString();
@@ -63,14 +67,17 @@ class FinanceStore extends ChangeNotifier {
     error = null;
     refreshError = null;
     notifyListeners();
+    final revision = ++_loadRevision;
     try {
-      await _loadMonth(value);
-      month = value;
+      final applied = await _loadMonth(value, revision);
+      if (applied) month = value;
     } catch (e) {
-      refreshError = e.toString();
+      if (revision == _loadRevision) refreshError = e.toString();
     }
-    loading = false;
-    notifyListeners();
+    if (revision == _loadRevision) {
+      loading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> refresh() async {
@@ -79,16 +86,20 @@ class FinanceStore extends ChangeNotifier {
     error = null;
     refreshError = null;
     notifyListeners();
+    final selected = month!;
+    final revision = ++_loadRevision;
     try {
-      await _loadMonth(month!);
+      await _loadMonth(selected, revision);
     } catch (e) {
-      refreshError = e.toString();
+      if (revision == _loadRevision) refreshError = e.toString();
     }
-    refreshing = false;
-    notifyListeners();
+    if (revision == _loadRevision) {
+      refreshing = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> _loadMonth(String selected) async {
+  Future<bool> _loadMonth(String selected, int revision) async {
     final result = await Future.wait([
       api.request('/api/members', query: {'month': selected}),
       api.request('/api/expenses', query: {'month': selected}),
@@ -104,12 +115,14 @@ class FinanceStore extends ChangeNotifier {
           .request('/api/special-fund', query: {'campaignId': campaign});
       nextContributions = _rows(fund['data']);
     }
+    if (revision != _loadRevision) return false;
     // Commit a complete snapshot only after every request succeeds. This keeps
     // the last known-good data visible when a refresh is interrupted/offline.
     members = nextMembers;
     expenses = nextExpenses;
     followUps = nextFollowUps;
     contributions = nextContributions;
+    return true;
   }
 
   List<Map<String, dynamic>> _rows(Object? value) =>
@@ -216,7 +229,7 @@ class FinanceStore extends ChangeNotifier {
         .request('/api/payments/${member['_rowId']}', method: 'POST', body: {
       'month': month,
       'amountPaid': amount,
-      'totalPayable': number(member['Total Payable']),
+      'expectedAmountPaid': number(member['Amount Paid']),
       'paymentDate': date,
       'remarks': remarks,
     });

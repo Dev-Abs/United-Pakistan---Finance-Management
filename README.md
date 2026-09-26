@@ -82,6 +82,8 @@ flutter build apk --release --dart-define=API_BASE_URL=https://YOUR-PROJECT.verc
 
 Do not add `/api` to `API_BASE_URL`; the app adds routes such as `/api/auth/login` itself. The generated APK is `mobile/build/app/outputs/flutter-apk/app-release.apk`. Install that APK on the phone, uninstalling the earlier emulator-configured build first if Android keeps the old app data.
 
+Payment conflict protection requires the current `apps-script/Code.gs` deployment. Publish it as a new Apps Script Web App version before deploying the matching Express/mobile/web clients; otherwise the new `updatePayment` action is unavailable.
+
 ### 5. Running Locally
 If you want to run the project on your own machine:
 1. Ensure Node.js (v18+) is installed.

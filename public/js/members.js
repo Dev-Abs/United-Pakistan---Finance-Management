@@ -323,19 +323,19 @@ function setupEventListeners() {
     document.getElementById('payment-form').addEventListener('submit', async function (e) {
         e.preventDefault();
         const pid = document.getElementById('p-member-id').value;
+        const paidMember = allMembers.find(function (x) { return String(x._rowId) === String(pid); });
         const pdata = {
             month: appInstance.state.currentMonth,
             amountPaid: document.getElementById('p-amount').value,
+            expectedAmountPaid: Number(paidMember && paidMember['Amount Paid']) || 0,
             paymentDate: document.getElementById('p-date').value,
-            remarks: document.getElementById('p-remarks').value,
-            totalPayable: document.getElementById('p-total-payable').value
+            remarks: document.getElementById('p-remarks').value
         };
         const btn = document.getElementById('btn-save-payment');
         btn.disabled = true;
         btn.textContent = 'Saving...';
         try {
             await api.post('/api/payments/' + pid, pdata);
-            const paidMember = allMembers.find(function (x) { return String(x._rowId) === String(pid); });
             if (paidMember) {
                 try {
                     await recordFollowUp(paidMember, {

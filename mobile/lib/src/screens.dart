@@ -230,7 +230,7 @@ class AppShell extends StatefulWidget {
   final bool readOnly;
   final VoidCallback onSignOut;
   final String themeMode;
-  final ValueChanged<String> onThemeModeChanged;
+  final Future<void> Function(String) onThemeModeChanged;
   @override
   State<AppShell> createState() => _ShellState();
 }
@@ -863,7 +863,7 @@ class More extends StatelessWidget {
   final bool readOnly;
   final VoidCallback signOut;
   final String themeMode;
-  final ValueChanged<String> onThemeModeChanged;
+  final Future<void> Function(String) onThemeModeChanged;
   @override
   Widget build(BuildContext c) {
     final fund = store.contributions
@@ -909,7 +909,17 @@ class More extends StatelessWidget {
                               '${mode[0].toUpperCase()}${mode.substring(1)}'),
                           onChanged: (v) => Navigator.pop(sheet, v)),
                   ])));
-          if (selected != null) onThemeModeChanged(selected);
+          if (selected != null) {
+            try {
+              await onThemeModeChanged(selected);
+            } catch (_) {
+              if (c.mounted) {
+                ScaffoldMessenger.of(c).showSnackBar(const SnackBar(
+                    content: Text(
+                        'Theme changed, but the preference could not be saved.')));
+              }
+            }
+          }
         },
       )),
       const SizedBox(height: 12),

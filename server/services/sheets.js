@@ -39,6 +39,9 @@ const sheetsService = {
 
   updateMember: (sheetName, rowId, data) => gasRequest('updateRow', { sheetName, rowId, data }),
 
+  updatePayment: (sheetName, rowId, expectedAmountPaid, amountPaid, paymentDate, remarks) =>
+    gasRequest('updatePayment', { sheetName, rowId, expectedAmountPaid, amountPaid, paymentDate, remarks }),
+
   deleteMember: (sheetName, rowId) => gasRequest('deleteRow', { sheetName, rowId }),
 
   createMonthSheet: (newSheetName, carryBalances) => gasRequest('createMonthSheet', { newSheetName, carryBalances }),

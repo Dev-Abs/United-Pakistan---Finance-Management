@@ -4,7 +4,7 @@ const SECRET = 'unitedpakistan2026'; // Match APPS_SCRIPT_SECRET in .env
 // Web App deployment is actually serving this version of the code, since
 // editing this file in the Apps Script editor does NOT update the deployed
 // Web App until you also publish "New version" under Manage deployments.
-const CODE_VERSION = '2026-09-20-special-fund';
+const CODE_VERSION = '2026-09-26-atomic-payments';
 
 function doPost(e) {
   return handleRequest(e, 'POST');
@@ -38,6 +38,9 @@ function handleRequest(e, method) {
         break;
       case 'updateRow':
         result = updateRow(params.sheetName, params.rowId, params.data);
+        break;
+      case 'updatePayment':
+        result = updatePayment(params.sheetName, params.rowId, params.expectedAmountPaid, params.amountPaid, params.paymentDate, params.remarks);
         break;
       case 'deleteRow':
         result = deleteRow(params.sheetName, params.rowId);
@@ -363,6 +366,56 @@ function updateRow(sheetName, rowId, data) {
   range.setValues([newRowData]);
   refreshMonthlyReportSheets(sheetName);
   return true;
+}
+
+function updatePayment(sheetName, rowId, expectedAmountPaid, amountPaid, paymentDate, remarks) {
+  const lock = LockService.getDocumentLock();
+  lock.waitLock(15000);
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) throw new Error('Sheet not found');
+    if (!Number.isInteger(Number(rowId)) || Number(rowId) < 2 || Number(rowId) > sheet.getLastRow()) {
+      throw new Error('Member row not found');
+    }
+    const headers = getHeaders(sheet);
+    const amountIdx = headers.indexOf('Amount Paid');
+    const totalIdx = headers.indexOf('Total Payable');
+    if (amountIdx === -1 || totalIdx === -1) throw new Error('Payment columns are missing');
+    const range = sheet.getRange(Number(rowId), 1, 1, headers.length);
+    const row = range.getValues()[0];
+    const current = Number(row[amountIdx]) || 0;
+    const expected = Number(expectedAmountPaid);
+    const next = Number(amountPaid);
+    const total = Number(row[totalIdx]) || 0;
+    if (!Number.isFinite(expected) || !Number.isFinite(next) || next < 0 || next > total) {
+      throw new Error('Invalid payment amount');
+    }
+    if (Math.abs(current - expected) > 0.005) {
+      throw new Error('PAYMENT_CONFLICT');
+    }
+    const data = {
+      'Amount Paid': next,
+      'Remaining Balance': Math.max(0, total - next),
+      'Payment Status': total > 0 && next >= total
+        ? 'Paid'
+        : (next > 0 ? 'Partially Paid' : 'Pending'),
+      'Payment Date': paymentDate || '',
+      'Remarks': remarks || ''
+    };
+    const updated = headers.map((header, index) => data[header] !== undefined ? data[header] : row[index]);
+    range.setValues([updated]);
+    SpreadsheetApp.flush();
+    refreshMonthlyReportSheets(sheetName);
+    return {
+      'Amount Paid': next,
+      'Remaining Balance': data['Remaining Balance'],
+      'Payment Status': data['Payment Status'],
+      'Payment Date': data['Payment Date'],
+      'Remarks': data['Remarks']
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function deleteRow(sheetName, rowId) {
