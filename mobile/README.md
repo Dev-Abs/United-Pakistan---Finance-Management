@@ -18,9 +18,10 @@ Do not include `/api` at the end of the URL. Before building, verify that
 `https://your-production-host.example/api/health` returns `configured: true`.
 The release APK is written to `build/app/outputs/flutter-apk/app-release.apk`.
 
-`10.0.2.2` is an Android-emulator alias for the development computer. It is
-not reachable from a physical phone, which is why an APK built with the default
-URL reports that it appears to be offline.
+`10.0.2.2` is used only as the debug-build fallback and is an Android-emulator
+alias for the development computer. Release builds fail closed unless an
+explicit HTTPS `API_BASE_URL` is supplied, so an emulator endpoint cannot be
+silently embedded in a distributable APK.
 
 The checked-in release configuration uses Android's standard debug signing until an organization keystore is configured. Never commit keystore files or passwords. Configure `key.properties` and the Gradle release signing block before external distribution.
 

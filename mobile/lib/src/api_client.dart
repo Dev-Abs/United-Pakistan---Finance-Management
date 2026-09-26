@@ -13,12 +13,7 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl})
-      : baseUrl = baseUrl ??
-            const String.fromEnvironment(
-              'API_BASE_URL',
-              defaultValue: 'http://10.0.2.2:3000',
-            ) {
+  ApiClient({String? baseUrl}) : baseUrl = _resolveBaseUrl(baseUrl) {
     _dio = Dio(
       BaseOptions(
         baseUrl: this.baseUrl,
@@ -43,14 +38,83 @@ class ApiClient {
 
   final String baseUrl;
   late final Dio _dio;
+  final Map<String, Future<Map<String, dynamic>>> _inflightGets = {};
   String? token;
   VoidCallback? onUnauthorized;
+
+  static String _resolveBaseUrl(String? override) {
+    final configured = (override ??
+            const String.fromEnvironment('API_BASE_URL', defaultValue: ''))
+        .trim()
+        .replaceAll(RegExp(r'/$'), '');
+    if (configured.isEmpty) {
+      if (kReleaseMode) {
+        throw StateError(
+          'API_BASE_URL must be provided for release builds.',
+        );
+      }
+      return 'http://10.0.2.2:3000';
+    }
+    final uri = Uri.tryParse(configured);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      throw ArgumentError.value(configured, 'baseUrl', 'Use an absolute URL.');
+    }
+    if (kReleaseMode && uri.scheme != 'https') {
+      throw StateError('Release builds require an HTTPS API_BASE_URL.');
+    }
+    return configured;
+  }
 
   Future<Map<String, dynamic>> request(
     String path, {
     String method = 'GET',
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
+    CancelToken? cancelToken,
+  }) async {
+    final normalizedMethod = method.toUpperCase();
+    final dedupeKey = normalizedMethod == 'GET' && cancelToken == null
+        ? _getKey(path, query)
+        : null;
+    if (dedupeKey != null) {
+      final existing = _inflightGets[dedupeKey];
+      if (existing != null) return existing;
+      final future = _performRequest(
+        path,
+        method: normalizedMethod,
+        body: body,
+        query: query,
+      );
+      _inflightGets[dedupeKey] = future;
+      try {
+        return await future;
+      } finally {
+        if (identical(_inflightGets[dedupeKey], future)) {
+          _inflightGets.remove(dedupeKey);
+        }
+      }
+    }
+    return _performRequest(
+      path,
+      method: normalizedMethod,
+      body: body,
+      query: query,
+      cancelToken: cancelToken,
+    );
+  }
+
+  String _getKey(String path, Map<String, dynamic>? query) {
+    final entries = (query ?? const <String, dynamic>{}).entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return '$path?${entries.map((e) => '${e.key}=${e.value}').join('&')}';
+  }
+
+  Future<Map<String, dynamic>> _performRequest(
+    String path, {
+    required String method,
+    Map<String, dynamic>? body,
+    Map<String, dynamic>? query,
+    CancelToken? cancelToken,
   }) async {
     try {
       final response = await _dio.request<Object?>(
@@ -58,6 +122,7 @@ class ApiClient {
         data: body,
         queryParameters: query,
         options: Options(method: method),
+        cancelToken: cancelToken,
       );
       final data = response.data;
       if (data == null) return <String, dynamic>{};
@@ -84,6 +149,9 @@ class ApiClient {
         throw const ApiException(
           'You appear to be offline. Check your connection and try again.',
         );
+      }
+      if (error.type == DioExceptionType.cancel) {
+        throw const ApiException('Request cancelled.');
       }
       throw ApiException('Request failed. Please try again.',
           statusCode: status);

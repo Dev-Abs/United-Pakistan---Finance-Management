@@ -63,6 +63,74 @@ abstract final class AppRadius {
   static const xl = 28.0;
 }
 
+abstract final class AppMotion {
+  static const fast = Duration(milliseconds: 160);
+  static const standard = Duration(milliseconds: 240);
+  static const emphasized = Duration(milliseconds: 320);
+  static const enterCurve = Curves.easeOutCubic;
+
+  static Duration duration(BuildContext context,
+          [Duration preferred = standard]) =>
+      MediaQuery.maybeOf(context)?.disableAnimations == true
+          ? Duration.zero
+          : preferred;
+
+  static Duration delay(BuildContext context, Duration preferred) =>
+      MediaQuery.maybeOf(context)?.disableAnimations == true
+          ? Duration.zero
+          : preferred;
+}
+
+@immutable
+class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
+  const AppSemanticColors({
+    required this.success,
+    required this.warning,
+    required this.info,
+  });
+
+  final Color success;
+  final Color warning;
+  final Color info;
+
+  static const light = AppSemanticColors(
+    success: Color(0xFF13713A),
+    warning: Color(0xFF805600),
+    info: Color(0xFF096A86),
+  );
+  static const dark = AppSemanticColors(
+    success: Color(0xFF72DB91),
+    warning: Color(0xFFFFCB70),
+    info: Color(0xFF70D4F4),
+  );
+
+  @override
+  AppSemanticColors copyWith({Color? success, Color? warning, Color? info}) =>
+      AppSemanticColors(
+        success: success ?? this.success,
+        warning: warning ?? this.warning,
+        info: info ?? this.info,
+      );
+
+  @override
+  AppSemanticColors lerp(covariant AppSemanticColors? other, double t) {
+    if (other == null) return this;
+    return AppSemanticColors(
+      success: Color.lerp(success, other.success, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
+      info: Color.lerp(info, other.info, t)!,
+    );
+  }
+}
+
+extension AppThemeContext on BuildContext {
+  AppSemanticColors get semanticColors =>
+      Theme.of(this).extension<AppSemanticColors>() ??
+      (Theme.of(this).brightness == Brightness.dark
+          ? AppSemanticColors.dark
+          : AppSemanticColors.light);
+}
+
 ThemeData buildTheme({
   required Brightness brightness,
   ColorScheme? dynamicScheme,
@@ -80,11 +148,26 @@ ThemeData buildTheme({
     primaryContainer: isDark ? const Color(0xFF07594F) : AppColors.mint,
     onPrimaryContainer: isDark ? AppColors.mint : AppColors.emeraldDark,
     secondary: isDark ? const Color(0xFFFFCB70) : AppColors.gold,
+    onSecondary: AppColors.navy,
     error: isDark ? const Color(0xFFFFB4AB) : AppColors.error,
+    onError: isDark ? const Color(0xFF690005) : Colors.white,
+    errorContainer: isDark ? const Color(0xFF93000A) : const Color(0xFFFFDAD6),
+    onErrorContainer:
+        isDark ? const Color(0xFFFFDAD6) : const Color(0xFF410002),
     surface: isDark ? const Color(0xFF092733) : Colors.white,
     onSurface: isDark ? const Color(0xFFE9FFFA) : AppColors.ink,
     onSurfaceVariant: isDark ? const Color(0xFFAACCC7) : AppColors.slate,
+    outline: isDark ? const Color(0xFF77958F) : const Color(0xFF687D79),
     outlineVariant: isDark ? const Color(0xFF28505A) : AppColors.border,
+    surfaceContainerLowest: isDark ? const Color(0xFF061E28) : Colors.white,
+    surfaceContainerLow:
+        isDark ? const Color(0xFF0D303B) : const Color(0xFFF7FBFA),
+    surfaceContainer:
+        isDark ? const Color(0xFF123641) : const Color(0xFFF0F7F5),
+    surfaceContainerHigh:
+        isDark ? const Color(0xFF183E49) : const Color(0xFFE8F2F0),
+    surfaceContainerHighest:
+        isDark ? const Color(0xFF204852) : const Color(0xFFDDEAE7),
   );
   final base = isDark
       ? FlexThemeData.dark(
@@ -118,35 +201,43 @@ ThemeData buildTheme({
           ),
         );
 
-  final textTheme = GoogleFonts.manropeTextTheme(base.textTheme).copyWith(
-    displaySmall: GoogleFonts.manrope(
-      fontSize: 34,
-      height: 1.08,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -1,
-    ),
-    headlineMedium: GoogleFonts.manrope(
-      fontSize: 28,
-      height: 1.15,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -.6,
-    ),
-    titleLarge: GoogleFonts.manrope(
-      fontSize: 20,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -.25,
-    ),
-    titleMedium: GoogleFonts.manrope(
-      fontSize: 16,
-      fontWeight: FontWeight.w700,
-    ),
-    bodyLarge: GoogleFonts.manrope(fontSize: 16, height: 1.5),
-    bodyMedium: GoogleFonts.manrope(fontSize: 14, height: 1.45),
-    labelLarge: GoogleFonts.manrope(fontWeight: FontWeight.w700),
-  );
+  final textTheme = GoogleFonts.manropeTextTheme(base.textTheme)
+      .copyWith(
+        displaySmall: GoogleFonts.manrope(
+          fontSize: 34,
+          height: 1.08,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1,
+        ),
+        headlineMedium: GoogleFonts.manrope(
+          fontSize: 28,
+          height: 1.15,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.6,
+        ),
+        titleLarge: GoogleFonts.manrope(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.25,
+        ),
+        titleMedium: GoogleFonts.manrope(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+        bodyLarge: GoogleFonts.manrope(fontSize: 16, height: 1.5),
+        bodyMedium: GoogleFonts.manrope(fontSize: 14, height: 1.45),
+        labelLarge: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+      )
+      .apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface);
   return base.copyWith(
+    colorScheme: scheme,
     textTheme: textTheme,
-    scaffoldBackgroundColor: Colors.transparent,
+    primaryTextTheme: GoogleFonts.manropeTextTheme(base.primaryTextTheme)
+        .apply(bodyColor: scheme.onPrimary, displayColor: scheme.onPrimary),
+    extensions: <ThemeExtension<dynamic>>[
+      isDark ? AppSemanticColors.dark : AppSemanticColors.light,
+    ],
+    scaffoldBackgroundColor: scheme.surfaceContainerLowest,
     appBarTheme: AppBarTheme(
       centerTitle: false,
       elevation: 0,
@@ -165,7 +256,8 @@ ThemeData buildTheme({
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: .7)),
       ),
     ),
-    iconTheme: IconThemeData(color: scheme.onSurfaceVariant),
+    iconTheme: IconThemeData(color: scheme.onSurfaceVariant, size: 22),
+    primaryIconTheme: IconThemeData(color: scheme.onPrimary, size: 22),
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
       filled: true,
       fillColor: scheme.surfaceContainerLowest,
@@ -178,6 +270,14 @@ ThemeData buildTheme({
         borderRadius: BorderRadius.circular(AppRadius.md),
         borderSide: BorderSide(color: scheme.outlineVariant),
       ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
+      ),
+      labelStyle: TextStyle(color: scheme.onSurfaceVariant),
+      hintStyle: TextStyle(color: scheme.onSurfaceVariant),
+      prefixIconColor: scheme.onSurfaceVariant,
+      suffixIconColor: scheme.onSurfaceVariant,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -216,13 +316,57 @@ ThemeData buildTheme({
                   ? FontWeight.w800
                   : FontWeight.w600)),
     ),
+    bottomSheetTheme: base.bottomSheetTheme.copyWith(
+      backgroundColor: scheme.surfaceContainerLow,
+      surfaceTintColor: Colors.transparent,
+      modalBackgroundColor: scheme.surfaceContainerLow,
+      modalBarrierColor: Colors.black.withValues(alpha: isDark ? .62 : .42),
+    ),
+    dialogTheme: base.dialogTheme.copyWith(
+      backgroundColor: scheme.surfaceContainerHigh,
+      surfaceTintColor: Colors.transparent,
+      titleTextStyle: textTheme.titleLarge,
+      contentTextStyle: textTheme.bodyMedium,
+    ),
+    popupMenuTheme: base.popupMenuTheme.copyWith(
+      color: scheme.surfaceContainerHigh,
+      surfaceTintColor: Colors.transparent,
+      textStyle: textTheme.bodyMedium,
+    ),
+    dropdownMenuTheme: DropdownMenuThemeData(
+      textStyle: textTheme.bodyLarge,
+      menuStyle: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(scheme.surfaceContainerHigh),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
+    ),
+    tooltipTheme: base.tooltipTheme.copyWith(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFFE9FFFA) : AppColors.navy,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      textStyle: textTheme.bodySmall?.copyWith(
+        color: isDark ? AppColors.navy : Colors.white,
+      ),
+    ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
+      backgroundColor: isDark ? const Color(0xFFD8F7EF) : AppColors.navy,
+      contentTextStyle: textTheme.bodyMedium?.copyWith(
+        color: isDark ? AppColors.navy : Colors.white,
+      ),
+      actionTextColor: isDark ? AppColors.emeraldDark : const Color(0xFF8BFFE0),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
+    progressIndicatorTheme: ProgressIndicatorThemeData(color: scheme.primary),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: scheme.primary,
+      selectionColor: scheme.primary.withValues(alpha: .28),
+      selectionHandleColor: scheme.primary,
+    ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),

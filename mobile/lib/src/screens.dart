@@ -17,15 +17,17 @@ class AppLaunchScreen extends StatelessWidget {
   const AppLaunchScreen({super.key});
   @override
   Widget build(BuildContext c) => Scaffold(
-          body: Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
+          body: GradientCanvas(
+              child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
         const BrandMark(size: 76),
         const SizedBox(height: 20),
         Text('United Pakistan', style: Theme.of(c).textTheme.titleLarge),
         const SizedBox(height: 18),
         const SizedBox.square(
             dimension: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
-      ]).animate().fadeIn(duration: 300.ms)));
+      ]).animate().fadeIn(
+                      duration: AppMotion.duration(c, AppMotion.emphasized)))));
 }
 
 class LoginScreen extends StatefulWidget {
@@ -52,6 +54,7 @@ class _LoginState extends State<LoginScreen> {
 
   Future<void> submit() async {
     if (!(key.currentState?.validate() ?? false)) return;
+    HapticFeedback.lightImpact();
     setState(() {
       busy = true;
       error = null;
@@ -71,151 +74,185 @@ class _LoginState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext c) => Scaffold(
-      body: SafeArea(
-          child: Center(
-              child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: Form(
-                          key: key,
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                const BrandMark(size: 72)
-                                    .animate()
-                                    .fadeIn()
-                                    .scale(),
-                                const SizedBox(height: 20),
-                                Text('United Pakistan',
-                                    textAlign: TextAlign.center,
-                                    style:
-                                        Theme.of(c).textTheme.headlineMedium),
-                                const Text('Finance, clear and accountable.',
-                                    textAlign: TextAlign.center),
-                                const SizedBox(height: 32),
-                                Card(
-                                        child: Padding(
-                                            padding: const EdgeInsets.all(24),
-                                            child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  Text('Welcome back',
-                                                      style: Theme.of(c)
-                                                          .textTheme
-                                                          .titleLarge),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                      'Sign in to securely manage your organization’s finances.',
-                                                      style: Theme.of(c)
-                                                          .textTheme
-                                                          .bodyMedium
-                                                          ?.copyWith(
-                                                              color: Theme.of(c)
-                                                                  .colorScheme
-                                                                  .onSurfaceVariant)),
-                                                  const SizedBox(height: 18),
-                                                  TextFormField(
-                                                      controller: user,
-                                                      autofillHints: const [
-                                                        AutofillHints.username
-                                                      ],
-                                                      textInputAction:
-                                                          TextInputAction.next,
-                                                      decoration: const InputDecoration(
-                                                          labelText: 'Username',
-                                                          prefixIcon: Icon(Icons
-                                                              .person_outline)),
-                                                      validator: (v) => v ==
-                                                                  null ||
-                                                              v.trim().isEmpty
-                                                          ? 'Username is required'
-                                                          : null),
-                                                  const SizedBox(height: 12),
-                                                  TextFormField(
-                                                      controller: pass,
-                                                      obscureText: hide,
-                                                      autofillHints: const [
-                                                        AutofillHints.password
-                                                      ],
-                                                      onFieldSubmitted: (_) =>
-                                                          submit(),
-                                                      decoration: InputDecoration(
-                                                          labelText: 'Password',
-                                                          prefixIcon:
-                                                              const Icon(Icons
-                                                                  .lock_outline),
-                                                          suffixIcon: IconButton(
-                                                              onPressed: () =>
-                                                                  setState(() =>
-                                                                      hide =
-                                                                          !hide),
-                                                              icon: Icon(hide
-                                                                  ? Icons
-                                                                      .visibility_outlined
-                                                                  : Icons
-                                                                      .visibility_off_outlined))),
-                                                      validator: (v) => v ==
-                                                                  null ||
-                                                              v.isEmpty
-                                                          ? 'Password is required'
-                                                          : null),
-                                                  if (error != null)
-                                                    Semantics(
-                                                        liveRegion: true,
-                                                        child: Container(
-                                                            margin:
-                                                                const EdgeInsets
-                                                                    .only(
-                                                                    top: 12),
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .all(12),
-                                                            decoration: BoxDecoration(
-                                                                color: Theme.of(
-                                                                        c)
-                                                                    .colorScheme
-                                                                    .errorContainer,
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            12)),
-                                                            child:
-                                                                Row(children: [
-                                                              Icon(
-                                                                  Icons
-                                                                      .error_outline,
+      body: GradientCanvas(
+          child: SafeArea(
+              child: Center(
+                  child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 440),
+                          child: Form(
+                              key: key,
+                              child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    const BrandMark(size: 72)
+                                        .animate()
+                                        .fadeIn(duration: AppMotion.duration(c))
+                                        .scale(duration: AppMotion.duration(c)),
+                                    const SizedBox(height: 20),
+                                    Text('United Pakistan',
+                                        textAlign: TextAlign.center,
+                                        style: Theme.of(c)
+                                            .textTheme
+                                            .headlineMedium),
+                                    const Text(
+                                        'Finance, clear and accountable.',
+                                        textAlign: TextAlign.center),
+                                    const SizedBox(height: 32),
+                                    Card(
+                                            child: Padding(
+                                                padding: const EdgeInsets.all(24),
+                                                child:
+                                                    Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .stretch,
+                                                        children: [
+                                                      Text('Welcome back',
+                                                          style: Theme.of(c)
+                                                              .textTheme
+                                                              .titleLarge),
+                                                      const SizedBox(height: 4),
+                                                      Text(
+                                                          'Sign in to securely manage your organization’s finances.',
+                                                          style: Theme.of(c)
+                                                              .textTheme
+                                                              .bodyMedium
+                                                              ?.copyWith(
                                                                   color: Theme
                                                                           .of(c)
                                                                       .colorScheme
-                                                                      .onErrorContainer),
-                                                              const SizedBox(
-                                                                  width: 10),
-                                                              Expanded(
-                                                                  child: Text(
-                                                                      error!))
-                                                            ]))),
-                                                  const SizedBox(height: 18),
-                                                  FilledButton(
-                                                      onPressed:
-                                                          busy ? null : submit,
-                                                      child: busy
-                                                          ? const SizedBox
-                                                              .square(
-                                                              dimension: 22,
-                                                              child: CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2,
-                                                                  color: Colors
-                                                                      .white))
-                                                          : const Text(
-                                                              'Sign in'))
-                                                ])))
-                                    .animate()
-                                    .fadeIn(delay: 100.ms)
-                                    .slideY(begin: .04)
-                              ])))))));
+                                                                      .onSurfaceVariant)),
+                                                      const SizedBox(
+                                                          height: 18),
+                                                      TextFormField(
+                                                          controller: user,
+                                                          autofocus: true,
+                                                          autofillHints: const [
+                                                            AutofillHints
+                                                                .username
+                                                          ],
+                                                          textInputAction:
+                                                              TextInputAction
+                                                                  .next,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                                  labelText:
+                                                                      'Username',
+                                                                  prefixIcon:
+                                                                      Icon(Icons
+                                                                          .person_outline)),
+                                                          validator: (v) => v ==
+                                                                      null ||
+                                                                  v
+                                                                      .trim()
+                                                                      .isEmpty
+                                                              ? 'Username is required'
+                                                              : null),
+                                                      const SizedBox(
+                                                          height: 12),
+                                                      TextFormField(
+                                                          controller: pass,
+                                                          obscureText: hide,
+                                                          autofillHints: const [
+                                                            AutofillHints
+                                                                .password
+                                                          ],
+                                                          onFieldSubmitted:
+                                                              (_) => submit(),
+                                                          decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Password',
+                                                              prefixIcon:
+                                                                  const Icon(Icons
+                                                                      .lock_outline),
+                                                              suffixIcon: IconButton(
+                                                                  tooltip: hide
+                                                                      ? 'Show password'
+                                                                      : 'Hide password',
+                                                                  onPressed: () =>
+                                                                      setState(() =>
+                                                                          hide =
+                                                                              !hide),
+                                                                  icon: Icon(hide
+                                                                      ? Icons
+                                                                          .visibility_outlined
+                                                                      : Icons
+                                                                          .visibility_off_outlined))),
+                                                          validator: (v) => v ==
+                                                                      null ||
+                                                                  v.isEmpty
+                                                              ? 'Password is required'
+                                                              : null),
+                                                      if (error != null)
+                                                        Semantics(
+                                                            liveRegion: true,
+                                                            child: Container(
+                                                                margin:
+                                                                    const EdgeInsets
+                                                                        .only(
+                                                                        top:
+                                                                            12),
+                                                                padding:
+                                                                    const EdgeInsets
+                                                                        .all(
+                                                                        12),
+                                                                decoration: BoxDecoration(
+                                                                    color: Theme
+                                                                            .of(
+                                                                                c)
+                                                                        .colorScheme
+                                                                        .errorContainer,
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                            12)),
+                                                                child: Row(
+                                                                    children: [
+                                                                      Icon(
+                                                                          Icons
+                                                                              .error_outline,
+                                                                          color: Theme.of(c)
+                                                                              .colorScheme
+                                                                              .onErrorContainer),
+                                                                      const SizedBox(
+                                                                          width:
+                                                                              10),
+                                                                      Expanded(
+                                                                          child:
+                                                                              Text(error!))
+                                                                    ]))),
+                                                      const SizedBox(
+                                                          height: 18),
+                                                      FilledButton(
+                                                          onPressed: busy
+                                                              ? null
+                                                              : submit,
+                                                          child: busy
+                                                              ? SizedBox.square(
+                                                                  dimension: 22,
+                                                                  child: CircularProgressIndicator(
+                                                                      strokeWidth:
+                                                                          2,
+                                                                      color: Theme.of(
+                                                                              c)
+                                                                          .colorScheme
+                                                                          .onPrimary))
+                                                              : const Text(
+                                                                  'Sign in'))
+                                                    ])))
+                                        .animate()
+                                        .fadeIn(
+                                            duration: AppMotion.duration(c),
+                                            delay: AppMotion.delay(
+                                                c,
+                                                const Duration(
+                                                    milliseconds: 80)))
+                                        .slideY(
+                                            begin: .04,
+                                            duration: AppMotion.duration(c))
+                                  ]))))))));
 }
 
 class AppShell extends StatefulWidget {
@@ -241,17 +278,12 @@ class _ShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    store = FinanceStore(widget.client)..addListener(changed);
+    store = FinanceStore(widget.client);
     store.initialize();
-  }
-
-  void changed() {
-    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    store.removeListener(changed);
     store.dispose();
     super.dispose();
   }
@@ -264,6 +296,7 @@ class _ShellState extends State<AppShell> {
   Future<void> chooseMonth() async {
     final v = await showModalBottomSheet<String>(
         context: context,
+        requestFocus: true,
         showDragHandle: true,
         builder: (c) => SafeArea(
                 child: ListView(
@@ -294,6 +327,7 @@ class _ShellState extends State<AppShell> {
     }
     final ok = await showModalBottomSheet<bool>(
         context: context,
+        requestFocus: true,
         isScrollControlled: true,
         showDragHandle: true,
         builder: (_) => PaymentSheet(store: store, initial: m));
@@ -304,6 +338,7 @@ class _ShellState extends State<AppShell> {
     if (widget.readOnly) return toast('Your account is read only', bad: true);
     final ok = await showModalBottomSheet<bool>(
         context: context,
+        requestFocus: true,
         isScrollControlled: true,
         showDragHandle: true,
         builder: (_) => ExpenseSheet(store: store));
@@ -312,112 +347,203 @@ class _ShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext c) {
-    final pages = [
-      Dashboard(store: store, readOnly: widget.readOnly, pay: payment),
-      Members(store: store, readOnly: widget.readOnly, pay: payment),
-      Activity(store: store, readOnly: widget.readOnly, add: expense),
-      More(
-          store: store,
-          readOnly: widget.readOnly,
-          signOut: widget.onSignOut,
-          themeMode: widget.themeMode,
-          onThemeModeChanged: widget.onThemeModeChanged)
-    ];
-    return Scaffold(
-        appBar: AppBar(
-            title: Row(children: [
-              const BrandMark(size: 34),
-              const SizedBox(width: 10),
-              const Text('United Pakistan')
-            ]),
-            actions: [
-              if (widget.readOnly)
-                const Padding(
-                    padding: EdgeInsets.only(right: 4),
-                    child: Chip(
-                        avatar: Icon(Icons.lock_outline, size: 15),
-                        label: Text('Read only'))),
-              IconButton(
-                  tooltip: 'Search members',
-                  onPressed: () => showSearch(
-                      context: c,
-                      delegate: MemberSearch(store, widget.readOnly, payment)),
-                  icon: const Icon(Icons.search))
-            ]),
-        body: Column(children: [
-          Material(
-              color: Theme.of(c).colorScheme.surface,
-              child: InkWell(
-                  onTap: store.months.isEmpty ? null : chooseMonth,
-                  child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 11),
-                      child: Row(children: [
-                        const Icon(Icons.calendar_month_outlined,
-                            color: AppColors.emerald),
-                        const SizedBox(width: 9),
-                        Expanded(
-                            child: Text(store.month ?? 'No reporting month',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w800))),
-                        if (store.refreshing)
-                          const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                        else
-                          const Icon(Icons.expand_more)
-                      ])))),
-          if (store.refreshError != null)
-            MaterialBanner(
-                content: Text('Showing saved data. ${store.refreshError}',
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
-                actions: [
-                  TextButton(
-                      onPressed: store.refresh, child: const Text('Try again'))
-                ]),
-          Expanded(
-              child: store.loading
-                  ? const LoadingState()
-                  : store.error != null
-                      ? ErrorState(
-                          message: store.error!, retry: store.initialize)
-                      : store.month == null
-                          ? const EmptyState(
-                              icon: Icons.calendar_month,
-                              title: 'No reporting months',
-                              message: 'Create a month in web admin to begin.')
-                          : AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 220),
-                              switchInCurve: Curves.easeOutCubic,
-                              switchOutCurve: Curves.easeInCubic,
-                              child: KeyedSubtree(
-                                  key: ValueKey(tab), child: pages[tab])))
-        ]),
-        bottomNavigationBar: NavigationBar(
-            selectedIndex: tab,
-            onDestinationSelected: (v) {
-              HapticFeedback.selectionClick();
-              setState(() => tab = v);
-            },
-            destinations: const [
-              NavigationDestination(
-                  icon: Icon(Iconsax.home_2_copy),
-                  selectedIcon: Icon(Iconsax.home_2),
-                  label: 'Overview'),
-              NavigationDestination(
-                  icon: Icon(Iconsax.people_copy),
-                  selectedIcon: Icon(Iconsax.people),
-                  label: 'Members'),
-              NavigationDestination(
-                  icon: Icon(Iconsax.receipt_2_1_copy),
-                  selectedIcon: Icon(Iconsax.receipt_2_1),
-                  label: 'Activity'),
-              NavigationDestination(
-                  icon: Icon(Iconsax.more_copy),
-                  selectedIcon: Icon(Iconsax.more),
-                  label: 'More')
-            ]));
+    return StoreSelector<Object>(
+      store: store,
+      select: (value) => (
+        value.loading,
+        value.error,
+        value.refreshError,
+        value.refreshing,
+        value.month,
+        value.months,
+      ),
+      builder: (c, _) => Scaffold(
+          appBar: AppBar(
+              title: Row(children: [
+                const BrandMark(size: 34),
+                const SizedBox(width: 10),
+                const Text('United Pakistan')
+              ]),
+              actions: [
+                if (widget.readOnly)
+                  const Padding(
+                      padding: EdgeInsets.only(right: 4),
+                      child: Chip(
+                          avatar: Icon(Icons.lock_outline, size: 15),
+                          label: Text('Read only'))),
+                IconButton(
+                    tooltip: 'Search members',
+                    onPressed: () => showSearch(
+                        context: c,
+                        delegate:
+                            MemberSearch(store, widget.readOnly, payment)),
+                    icon: const Icon(Icons.search))
+              ]),
+          body: Column(children: [
+            Material(
+                color: Theme.of(c).colorScheme.surface,
+                child: InkWell(
+                    onTap: store.months.isEmpty ? null : chooseMonth,
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 11),
+                        child: Row(children: [
+                          const Icon(Icons.calendar_month_outlined,
+                              color: AppColors.emerald),
+                          const SizedBox(width: 9),
+                          Expanded(
+                              child: Text(store.month ?? 'No reporting month',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800))),
+                          if (store.refreshing)
+                            const SizedBox.square(
+                                dimension: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                          else
+                            const Icon(Icons.expand_more)
+                        ])))),
+            if (store.refreshError != null)
+              MaterialBanner(
+                  content: Text('Showing saved data. ${store.refreshError}',
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+                  actions: [
+                    TextButton(
+                        onPressed: store.refresh,
+                        child: const Text('Try again'))
+                  ]),
+            Expanded(
+                child: store.loading
+                    ? const LoadingState()
+                    : store.error != null
+                        ? ErrorState(
+                            message: store.error!, retry: store.initialize)
+                        : store.month == null
+                            ? const EmptyState(
+                                icon: Icons.calendar_month,
+                                title: 'No reporting months',
+                                message:
+                                    'Create a month in web admin to begin.')
+                            : StoreSelector<Object>(
+                                store: store,
+                                select: _pageSelection,
+                                builder: (_, __) => _selectedPage()))
+          ]),
+          bottomNavigationBar: NavigationBar(
+              selectedIndex: tab,
+              onDestinationSelected: (v) {
+                HapticFeedback.selectionClick();
+                setState(() => tab = v);
+              },
+              destinations: const [
+                NavigationDestination(
+                    icon: Icon(Iconsax.home_2_copy),
+                    selectedIcon: Icon(Iconsax.home_2),
+                    label: 'Overview'),
+                NavigationDestination(
+                    icon: Icon(Iconsax.people_copy),
+                    selectedIcon: Icon(Iconsax.people),
+                    label: 'Members'),
+                NavigationDestination(
+                    icon: Icon(Iconsax.receipt_2_1_copy),
+                    selectedIcon: Icon(Iconsax.receipt_2_1),
+                    label: 'Activity'),
+                NavigationDestination(
+                    icon: Icon(Iconsax.magic_star_copy),
+                    selectedIcon: Icon(Iconsax.magic_star),
+                    label: 'Assistant'),
+                NavigationDestination(
+                    icon: Icon(Iconsax.more_copy),
+                    selectedIcon: Icon(Iconsax.more),
+                    label: 'More')
+              ])),
+    );
   }
+
+  Object _pageSelection(FinanceStore value) => switch (tab) {
+        0 => (value.month, value.members, value.expenses),
+        1 => (value.month, value.members),
+        2 => (value.month, value.members, value.expenses, value.contributions),
+        3 => (
+            value.month,
+            value.members,
+            value.expenses,
+            value.followUps,
+            value.contributions,
+            value.settings,
+          ),
+        _ => (
+            value.month,
+            value.settings,
+            value.members,
+            value.expenses,
+            value.contributions,
+          ),
+      };
+
+  Widget _selectedPage() => switch (tab) {
+        0 => Dashboard(store: store, readOnly: widget.readOnly, pay: payment),
+        1 => Members(store: store, readOnly: widget.readOnly, pay: payment),
+        2 => Activity(store: store, readOnly: widget.readOnly, add: expense),
+        3 => AssistantScreen(
+            store: store, readOnly: widget.readOnly, embedded: true),
+        _ => More(
+            store: store,
+            readOnly: widget.readOnly,
+            signOut: widget.onSignOut,
+            themeMode: widget.themeMode,
+            onThemeModeChanged: widget.onThemeModeChanged),
+      };
+}
+
+class StoreSelector<T> extends StatefulWidget {
+  const StoreSelector({
+    super.key,
+    required this.store,
+    required this.select,
+    required this.builder,
+  });
+  final FinanceStore store;
+  final T Function(FinanceStore store) select;
+  final Widget Function(BuildContext context, T value) builder;
+
+  @override
+  State<StoreSelector<T>> createState() => _StoreSelectorState<T>();
+}
+
+class _StoreSelectorState<T> extends State<StoreSelector<T>> {
+  late T selected;
+
+  @override
+  void initState() {
+    super.initState();
+    selected = widget.select(widget.store);
+    widget.store.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(covariant StoreSelector<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.store != widget.store) {
+      oldWidget.store.removeListener(_changed);
+      widget.store.addListener(_changed);
+    }
+    selected = widget.select(widget.store);
+  }
+
+  void _changed() {
+    final next = widget.select(widget.store);
+    if (next != selected && mounted) setState(() => selected = next);
+  }
+
+  @override
+  void dispose() {
+    widget.store.removeListener(_changed);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, selected);
 }
 
 class Dashboard extends StatelessWidget {
@@ -452,7 +578,8 @@ class Dashboard extends StatelessWidget {
                           color: Colors.white, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 4),
                   Text('${store.members.length} members • ${store.month}',
-                      style: const TextStyle(color: Color(0xFFFFE9EC)))
+                      style:
+                          TextStyle(color: Colors.white.withValues(alpha: .86)))
                 ]))
           ])),
           const SizedBox(height: 18),
@@ -467,7 +594,8 @@ class Dashboard extends StatelessWidget {
                   onTap: () => Navigator.push(
                       c,
                       MaterialPageRoute(
-                          builder: (_) => AssistantScreen(store: store))))),
+                          builder: (_) => AssistantScreen(
+                              store: store, readOnly: readOnly))))),
           const SizedBox(height: 12),
           LayoutBuilder(builder: (_, x) {
             final w = (x.maxWidth - 12) / 2;
@@ -477,19 +605,19 @@ class Dashboard extends StatelessWidget {
                   label: 'Collected',
                   value: money(store.collected),
                   icon: Icons.south_west,
-                  color: AppColors.success),
+                  color: c.semanticColors.success),
               Metric(
                   w: w,
                   label: 'Outstanding',
                   value: money(store.outstanding),
                   icon: Icons.schedule,
-                  color: AppColors.warning),
+                  color: c.semanticColors.warning),
               Metric(
                   w: w,
                   label: 'Expenses',
                   value: money(store.spent),
                   icon: Icons.north_east,
-                  color: AppColors.error),
+                  color: Theme.of(c).colorScheme.error),
               Metric(
                   w: w,
                   label: 'Cash balance',
@@ -529,19 +657,23 @@ class Dashboard extends StatelessWidget {
             ...recent(store).take(6).map((r) => ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
-                    backgroundColor:
-                        (r.$4 < 0 ? AppColors.error : AppColors.success)
-                            .withValues(alpha: .12),
+                    backgroundColor: (r.$4 < 0
+                            ? Theme.of(c).colorScheme.error
+                            : c.semanticColors.success)
+                        .withValues(alpha: .12),
                     child: Icon(r.$3,
                         size: 19,
-                        color: r.$4 < 0 ? AppColors.error : AppColors.success)),
+                        color: r.$4 < 0
+                            ? Theme.of(c).colorScheme.error
+                            : c.semanticColors.success)),
                 title: Text(r.$1),
                 subtitle: Text(r.$2),
                 trailing: Text(money(r.$4),
                     style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        color:
-                            r.$4 < 0 ? AppColors.error : AppColors.success))))
+                        color: r.$4 < 0
+                            ? Theme.of(c).colorScheme.error
+                            : c.semanticColors.success))))
         ]));
   }
 }
@@ -554,7 +686,11 @@ class CashFlowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final max = [store.collected, store.spent, store.outstanding]
         .fold<double>(1, (value, item) => item > value ? item : value);
-    final colors = [AppColors.success, AppColors.error, AppColors.warning];
+    final colors = [
+      context.semanticColors.success,
+      Theme.of(context).colorScheme.error,
+      context.semanticColors.warning,
+    ];
     final values = [store.collected, store.spent, store.outstanding];
     return Card(
       child: Padding(
@@ -580,56 +716,68 @@ class CashFlowCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 132,
-              child: BarChart(
-                BarChartData(
-                  maxY: max * 1.18,
-                  alignment: BarChartAlignment.spaceAround,
-                  borderData: FlBorderData(show: false),
-                  gridData: const FlGridData(show: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) => Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            const ['In', 'Out', 'Due'][value.toInt()],
-                            style: Theme.of(context).textTheme.labelSmall,
+            if (values.every((value) => value <= 0))
+              Semantics(
+                  label: 'Cash flow chart has no data for this month',
+                  child: EmptyState(
+                      icon: Iconsax.chart_2,
+                      title: 'No cash-flow data',
+                      message:
+                          'Collections, expenses and outstanding amounts will appear here.'))
+            else
+              Semantics(
+                label:
+                    'Cash flow chart. Collected ${values[0].round()}, spent ${values[1].round()}, outstanding ${values[2].round()}',
+                child: SizedBox(
+                    height: 132,
+                    child: BarChart(
+                      BarChartData(
+                        maxY: max * 1.18,
+                        alignment: BarChartAlignment.spaceAround,
+                        borderData: FlBorderData(show: false),
+                        gridData: const FlGridData(show: false),
+                        titlesData: FlTitlesData(
+                          leftTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                          topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) => Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  const ['In', 'Out', 'Due'][value.toInt()],
+                                  style: Theme.of(context).textTheme.labelSmall,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        barGroups: List.generate(
+                          3,
+                          (index) => BarChartGroupData(
+                            x: index,
+                            barRods: [
+                              BarChartRodData(
+                                toY: values[index],
+                                width: 26,
+                                color: colors[index],
+                                borderRadius: BorderRadius.circular(7),
+                                backDrawRodData: BackgroundBarChartRodData(
+                                  show: true,
+                                  toY: max * 1.18,
+                                  color: colors[index].withValues(alpha: .08),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  barGroups: List.generate(
-                    3,
-                    (index) => BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: values[index],
-                          width: 26,
-                          color: colors[index],
-                          borderRadius: BorderRadius.circular(7),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: max * 1.18,
-                            color: colors[index].withValues(alpha: .08),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                    )),
               ),
-            ),
           ],
         ),
       ),
@@ -803,8 +951,8 @@ class _ActivityState extends State<Activity> {
                         '${e['Category'] ?? 'Uncategorized'} • ${e['Date'] ?? ''}\nPaid by ${e['Paid By'] ?? '—'}'),
                     isThreeLine: true,
                     trailing: Text(money(-number(e['Amount'])),
-                        style: const TextStyle(
-                            color: AppColors.error,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
                             fontWeight: FontWeight.w800)),
                   ),
                 ))
@@ -838,17 +986,23 @@ class LedgerTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
           leading: CircleAvatar(
-              backgroundColor: (positive ? AppColors.success : AppColors.error)
+              backgroundColor: (positive
+                      ? context.semanticColors.success
+                      : Theme.of(context).colorScheme.error)
                   .withValues(alpha: .12),
               child: Icon(icon,
                   size: 19,
-                  color: positive ? AppColors.success : AppColors.error)),
+                  color: positive
+                      ? context.semanticColors.success
+                      : Theme.of(context).colorScheme.error)),
           title: Text(title),
           subtitle: Text(subtitle),
           trailing: Text(money(positive ? amount : -amount),
               style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: positive ? AppColors.success : AppColors.error))));
+                  color: positive
+                      ? context.semanticColors.success
+                      : Theme.of(context).colorScheme.error))));
 }
 
 class More extends StatelessWidget {
@@ -941,16 +1095,6 @@ class More extends StatelessWidget {
       Card(
           child: Column(children: [
         ListTile(
-            onTap: () => Navigator.push(
-                c,
-                MaterialPageRoute(
-                    builder: (_) => AssistantScreen(store: store))),
-            leading: const Icon(Icons.auto_awesome_outlined),
-            title: const Text('Management assistant'),
-            subtitle:
-                const Text('Briefings, report narratives and smart drafts'),
-            trailing: const Icon(Icons.chevron_right)),
-        ListTile(
             onTap: () => Navigator.push(c,
                 MaterialPageRoute(builder: (_) => ReportsScreen(store: store))),
             leading: const Icon(Icons.bar_chart),
@@ -972,8 +1116,11 @@ class More extends StatelessWidget {
         ListTile(
             leading: const Icon(Icons.health_and_safety_outlined),
             title: const Text('Connection'),
-            subtitle: Text(store.api.baseUrl),
-            trailing: const Icon(Icons.check_circle, color: AppColors.success)),
+            subtitle: Text(Uri.parse(store.api.baseUrl).scheme == 'https'
+                ? 'Secure production connection'
+                : 'Local development connection'),
+            trailing:
+                Icon(Icons.check_circle, color: c.semanticColors.success)),
         ListTile(
             leading: const Icon(Icons.payments_outlined),
             title: const Text('Default monthly fund'),
@@ -1038,6 +1185,7 @@ class _PaymentState extends State<PaymentSheet> {
 
   Future<void> save() async {
     if (!(key.currentState?.validate() ?? false) || member == null) return;
+    HapticFeedback.mediumImpact();
     setState(() => busy = true);
     try {
       await widget.store.recordPayment(member!, double.parse(amount.text),
@@ -1069,6 +1217,7 @@ class _PaymentState extends State<PaymentSheet> {
                         color: Theme.of(c).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<Map<String, dynamic>>(
+                    autofocus: true,
                     initialValue: member,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Member'),
@@ -1114,10 +1263,11 @@ class _PaymentState extends State<PaymentSheet> {
                 FilledButton(
                     onPressed: busy ? null : save,
                     child: busy
-                        ? const SizedBox.square(
+                        ? SizedBox.square(
                             dimension: 22,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary))
                         : const Text('Confirm payment'))
               ]))));
 }
@@ -1148,6 +1298,7 @@ class _ExpenseState extends State<ExpenseSheet> {
 
   Future<void> save() async {
     if (!(key.currentState?.validate() ?? false)) return;
+    HapticFeedback.mediumImpact();
     setState(() => busy = true);
     try {
       await widget.store.addExpense(
@@ -1184,6 +1335,7 @@ class _ExpenseState extends State<ExpenseSheet> {
                         color: Theme.of(c).colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 16),
                 DropdownButtonFormField(
+                    autofocus: true,
                     initialValue: category,
                     decoration: const InputDecoration(labelText: 'Category'),
                     items: [
@@ -1224,10 +1376,11 @@ class _ExpenseState extends State<ExpenseSheet> {
                 FilledButton(
                     onPressed: busy ? null : save,
                     child: busy
-                        ? const SizedBox.square(
+                        ? SizedBox.square(
                             dimension: 22,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary))
                         : const Text('Save expense'))
               ]))));
 }
@@ -1297,7 +1450,7 @@ class StatusPill extends StatelessWidget {
   final String status;
   @override
   Widget build(BuildContext context) {
-    final color = statusColor(status);
+    final color = statusColor(context, status);
     return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
@@ -1313,16 +1466,17 @@ class PageFrame extends StatelessWidget {
   const PageFrame({super.key, required this.children});
   final List<Widget> children;
   @override
-  Widget build(BuildContext context) => GradientCanvas(
-          child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics()),
-              padding: EdgeInsets.fromLTRB(
-                  MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
-                  18,
-                  MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
-                  32),
-              children: [
+  Widget build(BuildContext context) => ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+      child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics()),
+          padding: EdgeInsets.fromLTRB(
+              MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
+              18,
+              MediaQuery.sizeOf(context).width >= 700 ? 32 : 16,
+              32),
+          children: [
             Center(
                 child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 880),
@@ -1484,11 +1638,11 @@ String iso(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 String? requiredText(String? v) =>
     v == null || v.trim().isEmpty ? 'This field is required' : null;
-Color statusColor(String? s) => s == 'Paid'
-    ? AppColors.success
+Color statusColor(BuildContext context, String? s) => s == 'Paid'
+    ? context.semanticColors.success
     : s == 'Partially Paid'
-        ? AppColors.warning
-        : AppColors.error;
+        ? context.semanticColors.warning
+        : Theme.of(context).colorScheme.error;
 void showError(BuildContext c, Object e) =>
     ScaffoldMessenger.of(c).showSnackBar(SnackBar(
         content: Text(e.toString()), behavior: SnackBarBehavior.floating));

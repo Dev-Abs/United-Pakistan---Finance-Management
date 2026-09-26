@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
 import 'package:united_pakistan_finance/src/api_client.dart';
 import 'package:united_pakistan_finance/src/finance_store.dart';
 import 'package:united_pakistan_finance/src/parity_screens.dart';
 import 'package:united_pakistan_finance/src/screens.dart';
 import 'package:united_pakistan_finance/src/session.dart';
+import 'package:united_pakistan_finance/src/theme.dart';
 
 void main() {
   test('latestMonth uses calendar order instead of API order', () {
@@ -87,6 +89,96 @@ void main() {
     expect(session.themePersistenceError, isNotNull);
   });
 
+  test('session persistence failure clears the in-memory credential', () async {
+    final client = FakeClient()..token = 'temporary-token';
+    final session = AppSession(client,
+        credentialStore: FakeCredentialStore(failWrites: true));
+
+    await expectLater(session.persist('admin'), throwsException);
+
+    expect(session.isSignedIn, isFalse);
+    expect(session.role, isNull);
+    expect(session.sessionPersistenceError, isNotNull);
+  });
+
+  test('401 callback signs out globally even if secure deletion fails',
+      () async {
+    final client = FakeClient()..token = 'expired-token';
+    final session = AppSession(client,
+        credentialStore: FakeCredentialStore(failDeletes: true));
+
+    client.onUnauthorized?.call();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(session.isSignedIn, isFalse);
+    expect(session.sessionPersistenceError, isNotNull);
+  });
+
+  testWidgets('MaterialApp applies System → Light → Dark → System',
+      (tester) async {
+    tester.view.platformDispatcher.platformBrightnessTestValue =
+        Brightness.dark;
+    addTearDown(
+        tester.view.platformDispatcher.clearPlatformBrightnessTestValue);
+    final preferences = FakeThemePreferences();
+    final session = AppSession(FakeClient(), themeStore: preferences);
+
+    await tester.pumpWidget(_ThemeHarness(session: session));
+    expect(_themeBrightness(tester), Brightness.dark);
+
+    await session.setThemeMode('light');
+    expect(session.themeMode, 'light');
+    await tester.pumpAndSettle();
+    expect(_themeBrightness(tester), Brightness.light);
+
+    await session.setThemeMode('dark');
+    await tester.pumpAndSettle();
+    expect(_themeBrightness(tester), Brightness.dark);
+
+    await session.setThemeMode('system');
+    await tester.pumpAndSettle();
+    expect(_themeBrightness(tester), Brightness.dark);
+  });
+
+  test('light and dark themes apply readable semantic foregrounds', () {
+    for (final brightness in Brightness.values) {
+      final theme = buildTheme(brightness: brightness);
+      final scheme = theme.colorScheme;
+      final semantic = theme.extension<AppSemanticColors>()!;
+
+      expect(theme.textTheme.bodyMedium?.color, scheme.onSurface);
+      expect(theme.textTheme.titleLarge?.color, scheme.onSurface);
+      expect(_contrast(scheme.onSurface, scheme.surface),
+          greaterThanOrEqualTo(4.5));
+      expect(_contrast(scheme.onSurfaceVariant, scheme.surface),
+          greaterThanOrEqualTo(4.5));
+      expect(_contrast(scheme.onPrimary, scheme.primary),
+          greaterThanOrEqualTo(4.5));
+      expect(_contrast(semantic.success, scheme.surface),
+          greaterThanOrEqualTo(4.5));
+      expect(_contrast(semantic.warning, scheme.surface),
+          greaterThanOrEqualTo(4.5));
+      expect(
+          _contrast(semantic.info, scheme.surface), greaterThanOrEqualTo(4.5));
+    }
+  });
+
+  test('overlay and native-control themes use the active color scheme', () {
+    for (final brightness in Brightness.values) {
+      final theme = buildTheme(brightness: brightness);
+      final scheme = theme.colorScheme;
+
+      expect(theme.brightness, brightness);
+      expect(theme.dialogTheme.backgroundColor, scheme.surfaceContainerHigh);
+      expect(theme.bottomSheetTheme.modalBackgroundColor,
+          scheme.surfaceContainerLow);
+      expect(theme.popupMenuTheme.color, scheme.surfaceContainerHigh);
+      expect(
+          theme.inputDecorationTheme.fillColor, scheme.surfaceContainerLowest);
+      expect(theme.navigationBarTheme.backgroundColor, scheme.surface);
+    }
+  });
+
   testWidgets('login validates empty credentials', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: LoginScreen(client: FakeClient(), onSignedIn: (_) async {}),
@@ -120,6 +212,74 @@ void main() {
     expect(find.text('Record payment'), findsOneWidget);
     expect(find.text('Test Member'), findsOneWidget);
   });
+
+  testWidgets('store selector skips rebuilds for unrelated state',
+      (tester) async {
+    final store = FinanceStore(FakeClient());
+    var builds = 0;
+    await tester.pumpWidget(MaterialApp(
+        home: StoreSelector<int>(
+            store: store,
+            select: (value) => value.members.length,
+            builder: (_, value) {
+              builds += 1;
+              return Text('members: $value');
+            })));
+    expect(builds, 1);
+
+    await store.saveSettings({'ORG_NAME': 'Updated'});
+    await tester.pump();
+
+    expect(builds, 1);
+    expect(find.text('members: 0'), findsOneWidget);
+  });
+}
+
+double _contrast(Color a, Color b) {
+  final lighter = a.computeLuminance() > b.computeLuminance() ? a : b;
+  final darker = identical(lighter, a) ? b : a;
+  return (lighter.computeLuminance() + .05) / (darker.computeLuminance() + .05);
+}
+
+Brightness _themeBrightness(WidgetTester tester) =>
+    Theme.of(tester.element(find.byKey(const Key('theme-probe')))).brightness;
+
+class _ThemeHarness extends StatefulWidget {
+  const _ThemeHarness({required this.session});
+  final AppSession session;
+
+  @override
+  State<_ThemeHarness> createState() => _ThemeHarnessState();
+}
+
+class _ThemeHarnessState extends State<_ThemeHarness> {
+  @override
+  void initState() {
+    super.initState();
+    widget.session.addListener(_changed);
+  }
+
+  void _changed() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.session.removeListener(_changed);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        // The app's production themes are validated separately below. Keep this
+        // rebuild-boundary test independent of Google Fonts' async font loader.
+        theme: ThemeData(brightness: Brightness.light),
+        darkTheme: ThemeData(brightness: Brightness.dark),
+        themeMode: switch (widget.session.themeMode) {
+          'light' => ThemeMode.light,
+          'dark' => ThemeMode.dark,
+          _ => ThemeMode.system,
+        },
+        home: const SizedBox(key: Key('theme-probe')),
+      );
 }
 
 class FakeClient extends ApiClient {
@@ -127,7 +287,8 @@ class FakeClient extends ApiClient {
   Future<Map<String, dynamic>> request(String path,
           {String method = 'GET',
           Map<String, dynamic>? body,
-          Map<String, dynamic>? query}) async =>
+          Map<String, dynamic>? query,
+          CancelToken? cancelToken}) async =>
       <String, dynamic>{};
 }
 
@@ -138,7 +299,8 @@ class StatefulFakeClient extends ApiClient {
   Future<Map<String, dynamic>> request(String path,
       {String method = 'GET',
       Map<String, dynamic>? body,
-      Map<String, dynamic>? query}) async {
+      Map<String, dynamic>? query,
+      CancelToken? cancelToken}) async {
     if (path == '/api/months') {
       return {
         'data': ['January 2026', 'September 2026', 'December 2025']
@@ -172,10 +334,33 @@ class FakeThemePreferences implements ThemePreferenceStore {
 
   @override
   Future<void> writeThemeMode(String value) async {
-    await Future<void>.delayed(writeDelay);
+    if (writeDelay != Duration.zero) {
+      await Future<void>.delayed(writeDelay);
+    }
     if (fail) throw Exception('storage unavailable');
     writes.add(value);
     this.value = value;
+  }
+}
+
+class FakeCredentialStore implements SessionCredentialStore {
+  FakeCredentialStore({this.failWrites = false, this.failDeletes = false});
+  final bool failWrites, failDeletes;
+  final values = <String, String>{};
+
+  @override
+  Future<String?> read(String key) async => values[key];
+
+  @override
+  Future<void> write(String key, String value) async {
+    if (failWrites) throw Exception('write failed');
+    values[key] = value;
+  }
+
+  @override
+  Future<void> delete(String key) async {
+    if (failDeletes) throw Exception('delete failed');
+    values.remove(key);
   }
 }
 
@@ -184,7 +369,8 @@ class RacingFakeClient extends ApiClient {
   Future<Map<String, dynamic>> request(String path,
       {String method = 'GET',
       Map<String, dynamic>? body,
-      Map<String, dynamic>? query}) async {
+      Map<String, dynamic>? query,
+      CancelToken? cancelToken}) async {
     final month = query?['month']?.toString() ?? '';
     if (month == 'August 2026') {
       await Future<void>.delayed(const Duration(milliseconds: 30));

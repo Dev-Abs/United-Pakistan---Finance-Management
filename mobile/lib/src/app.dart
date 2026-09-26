@@ -59,10 +59,10 @@ class _FinanceAppState extends State<FinanceApp> {
               client: client,
               onSignedIn: session.persist,
             ),
-            transitionsBuilder: (_, animation, __, child) => FadeTransition(
-              opacity: animation,
-              child: child,
-            ),
+            transitionsBuilder: (context, animation, __, child) =>
+                MediaQuery.disableAnimationsOf(context)
+                    ? child
+                    : FadeTransition(opacity: animation, child: child),
           ),
         ),
         GoRoute(
@@ -114,7 +114,8 @@ class _FinanceAppState extends State<FinanceApp> {
           'dark' => ThemeMode.dark,
           _ => ThemeMode.system,
         },
-        builder: (context, child) => GradientCanvas(
+        builder: (context, child) => FocusTraversalGroup(
+          policy: OrderedTraversalPolicy(),
           child: ResponsiveBreakpoints.builder(
             child: child!,
             breakpoints: const [

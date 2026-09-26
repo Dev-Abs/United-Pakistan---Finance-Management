@@ -184,11 +184,11 @@ class _MemberDetailScreenState extends State<MemberDetailScreen> {
                     _Summary(
                         label: 'Paid',
                         value: _money(widget.member['Amount Paid']),
-                        color: AppColors.success),
+                        color: context.semanticColors.success),
                     _Summary(
                         label: 'Remaining',
                         value: _money(widget.member['Remaining Balance']),
-                        color: AppColors.warning),
+                        color: context.semanticColors.warning),
                   ]),
                   const SizedBox(height: 14),
                   Row(children: [
@@ -255,6 +255,7 @@ Future<void> showMemberEditor(BuildContext context, FinanceStore store,
     {Map<String, dynamic>? member}) async {
   final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
+      requestFocus: true,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => _MemberEditor(store: store, member: member));
@@ -326,6 +327,7 @@ class _MemberEditorState extends State<_MemberEditor> {
                 const SizedBox(height: 14),
                 TextFormField(
                     controller: name,
+                    autofocus: true,
                     decoration: const InputDecoration(labelText: 'Name'),
                     validator: (v) =>
                         v?.trim().isEmpty == true ? 'Name is required' : null),
@@ -378,6 +380,7 @@ class _MemberEditorState extends State<_MemberEditor> {
                 FilledButton(
                     onPressed: () {
                       if (!(key.currentState?.validate() ?? false)) return;
+                      HapticFeedback.mediumImpact();
                       final monthly = double.parse(fund.text),
                           prev = double.tryParse(previous.text) ?? 0;
                       final data = <String, dynamic>{
@@ -406,6 +409,7 @@ Future<void> showFollowUpEditor(BuildContext context, FinanceStore store,
     Map<String, dynamic> member) async {
   final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
+      requestFocus: true,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (_) => const _FollowUpEditor());
@@ -448,6 +452,7 @@ class _FollowUpEditorState extends State<_FollowUpEditor> {
         Text('Log follow-up', style: Theme.of(c).textTheme.titleLarge),
         const SizedBox(height: 14),
         DropdownButtonFormField<String>(
+            autofocus: true,
             initialValue: status,
             decoration: const InputDecoration(labelText: 'Reply status'),
             items: const [
@@ -474,13 +479,16 @@ class _FollowUpEditorState extends State<_FollowUpEditor> {
             decoration: const InputDecoration(labelText: 'Notes')),
         const SizedBox(height: 18),
         FilledButton(
-            onPressed: () => Navigator.pop(c, {
-                  'Event Type': 'Reply Received',
-                  'Reply Status': status,
-                  'Reason / Reply': reason.text.trim(),
-                  'Next Reminder Date': next.text.trim(),
-                  'Notes': notes.text.trim()
-                }),
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              Navigator.pop(c, {
+                'Event Type': 'Reply Received',
+                'Reply Status': status,
+                'Reason / Reply': reason.text.trim(),
+                'Next Reminder Date': next.text.trim(),
+                'Notes': notes.text.trim()
+              });
+            },
             child: const Text('Save follow-up'))
       ])));
 }
@@ -577,19 +585,19 @@ class ReportsScreen extends StatelessWidget {
                 _Summary(
                     label: 'Collected',
                     value: _money(store.collected),
-                    color: AppColors.success),
+                    color: context.semanticColors.success),
                 _Summary(
                     label: 'Outstanding',
                     value: _money(store.outstanding),
-                    color: AppColors.warning),
+                    color: context.semanticColors.warning),
                 _Summary(
                     label: 'Expenses',
                     value: _money(store.spent),
-                    color: AppColors.error),
+                    color: Theme.of(context).colorScheme.error),
                 _Summary(
                     label: 'Cash',
                     value: _money(store.balance),
-                    color: AppColors.emerald),
+                    color: Theme.of(context).colorScheme.primary),
               ]),
               const SizedBox(height: 18),
               OutlinedButton.icon(
@@ -792,6 +800,7 @@ class _SpecialFundScreenState extends State<SpecialFundScreen> {
       {Map<String, dynamic>? member}) async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
+        requestFocus: true,
         isScrollControlled: true,
         showDragHandle: true,
         builder: (_) =>
@@ -849,6 +858,7 @@ class _ContributionSheetState extends State<_ContributionSheet> {
                     style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<Map<String, dynamic>>(
+                    autofocus: true,
                     initialValue: member,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Member'),
@@ -883,6 +893,7 @@ class _ContributionSheetState extends State<_ContributionSheet> {
                     onPressed: () {
                       if (!(key.currentState?.validate() ?? false) ||
                           member == null) return;
+                      HapticFeedback.mediumImpact();
                       Navigator.pop(context, {
                         'Campaign ID':
                             widget.store.settings['SPECIAL_FUND_CAMPAIGN_ID'] ??

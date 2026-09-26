@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import 'api_client.dart';
@@ -19,6 +20,7 @@ class FinanceStore extends ChangeNotifier {
   String? error;
   String? refreshError;
   int _loadRevision = 0;
+  CancelToken? _monthRequest;
 
   double get due => members.fold(0, (s, m) => s + number(m['Total Payable']));
   double get collected =>
@@ -48,7 +50,7 @@ class FinanceStore extends ChangeNotifier {
               : latestMonth(months);
       if (month != null) {
         final revision = ++_loadRevision;
-        await _loadMonth(month!, revision);
+        await _loadMonth(month!, revision, _replaceMonthRequest());
       }
     } catch (e) {
       if (month == null) {
@@ -68,8 +70,9 @@ class FinanceStore extends ChangeNotifier {
     refreshError = null;
     notifyListeners();
     final revision = ++_loadRevision;
+    final request = _replaceMonthRequest();
     try {
-      final applied = await _loadMonth(value, revision);
+      final applied = await _loadMonth(value, revision, request);
       if (applied) month = value;
     } catch (e) {
       if (revision == _loadRevision) refreshError = e.toString();
@@ -88,8 +91,9 @@ class FinanceStore extends ChangeNotifier {
     notifyListeners();
     final selected = month!;
     final revision = ++_loadRevision;
+    final request = _replaceMonthRequest();
     try {
-      await _loadMonth(selected, revision);
+      await _loadMonth(selected, revision, request);
     } catch (e) {
       if (revision == _loadRevision) refreshError = e.toString();
     }
@@ -99,11 +103,20 @@ class FinanceStore extends ChangeNotifier {
     }
   }
 
-  Future<bool> _loadMonth(String selected, int revision) async {
+  CancelToken _replaceMonthRequest() {
+    _monthRequest?.cancel('Superseded by a newer month request.');
+    return _monthRequest = CancelToken();
+  }
+
+  Future<bool> _loadMonth(
+      String selected, int revision, CancelToken cancelToken) async {
     final result = await Future.wait([
-      api.request('/api/members', query: {'month': selected}),
-      api.request('/api/expenses', query: {'month': selected}),
-      api.request('/api/followups', query: {'month': selected}),
+      api.request('/api/members',
+          query: {'month': selected}, cancelToken: cancelToken),
+      api.request('/api/expenses',
+          query: {'month': selected}, cancelToken: cancelToken),
+      api.request('/api/followups',
+          query: {'month': selected}, cancelToken: cancelToken),
     ]);
     final nextMembers = _rows(result[0]['data']);
     final nextExpenses = _rows(result[1]['data']);
@@ -111,8 +124,8 @@ class FinanceStore extends ChangeNotifier {
     var nextContributions = contributions;
     final campaign = settings['SPECIAL_FUND_CAMPAIGN_ID']?.toString();
     if (campaign != null && campaign.isNotEmpty) {
-      final fund = await api
-          .request('/api/special-fund', query: {'campaignId': campaign});
+      final fund = await api.request('/api/special-fund',
+          query: {'campaignId': campaign}, cancelToken: cancelToken);
       nextContributions = _rows(fund['data']);
     }
     if (revision != _loadRevision) return false;
@@ -181,6 +194,7 @@ class FinanceStore extends ChangeNotifier {
 
   Future<void> addFollowUp(
       Map<String, dynamic> member, Map<String, dynamic> event) async {
+    final selectedMonth = month;
     await api.request('/api/followups', method: 'POST', body: {
       'data': {
         'Month': month,
@@ -192,7 +206,11 @@ class FinanceStore extends ChangeNotifier {
         ...event,
       }
     });
-    await refresh();
+    final result =
+        await api.request('/api/followups', query: {'month': selectedMonth});
+    if (month != selectedMonth) return;
+    followUps = _rows(result['data']);
+    notifyListeners();
   }
 
   Future<void> saveContribution(Map<String, dynamic> data, {int? rowId}) async {
@@ -255,6 +273,12 @@ class FinanceStore extends ChangeNotifier {
       }
     });
     await refresh();
+  }
+
+  @override
+  void dispose() {
+    _monthRequest?.cancel('Finance store disposed.');
+    super.dispose();
   }
 }
 

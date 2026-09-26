@@ -130,11 +130,17 @@ router.post('/command', asyncRoute(async (req, res) => {
   const month = requiredText(req.body.month, 'Month');
   const request = cleanMultiline(req.body.request, 1200);
   if (!request) throw httpError(400, 'Tell the assistant what you want it to do.');
-  const history = Array.isArray(req.body.history) ? req.body.history.slice(-10).map((item) => ({
+  const history = Array.isArray(req.body.history) ? req.body.history.slice(-6).map((item) => ({
     role: item?.role === 'assistant' ? 'assistant' : 'user',
     content: cleanMultiline(item?.content, 900),
   })) : [];
-  const context = await managementContext(month);
+  const fullContext = await managementContext(month);
+  const context = fitManagementContext(
+    fullContext,
+    request,
+    history,
+    deepseek.config().maxInputChars,
+  );
   const result = await deepseek.generateJson({
     operation: 'management-command',
     role: req.userRole,
@@ -143,10 +149,12 @@ router.post('/command', asyncRoute(async (req, res) => {
     facts: { context, conversation: history, request },
     instructions: `Act as an operational finance manager with access to the supplied authorized data.
 Understand the user's real intention, reason through the work, and return:
-{"summary":string,"answer":string,"needsClarification":boolean,"questions":[string],"plan":[string],"drafts":[{"recipientRowId":integer|null,"recipientName":string,"channel":"whatsapp"|"report"|"general","content":string}],"proposedActions":[{"type":"record-payment"|"add-expense"|"log-follow-up"|"update-template"|"open-whatsapp"|"copy-report"|"none","label":string,"requiresConfirmation":true,"payload":object}],"sources":[string]}
+{"summary":string,"answer":string,"needsClarification":boolean,"questions":[string],"plan":[string],"drafts":[{"recipientRowId":integer|null,"recipientName":string,"channel":"whatsapp"|"report"|"general","content":string}],"proposedActions":[{"type":"record-payment"|"add-expense"|"record-contribution"|"log-follow-up"|"update-template"|"update-settings"|"create-month"|"select-month"|"open-whatsapp"|"copy-report"|"none","label":string,"requiresConfirmation":true,"payload":object}],"sources":[string]}
 If information required for a correct result is missing, ask only the smallest necessary questions and do not guess. For member-specific work, use only supplied row IDs and exact source values. Personalize each requested member draft. A request for all members means every supplied member unless the user narrows it. Never claim an action was completed. Never send a message or write finance data. Every proposed mutation must require confirmation.`,
   });
-  const command = validateManagementCommand(result.value, context.members);
+  const command = validateManagementCommand(result.value, fullContext, {
+    canWrite: req.userRole !== 'reader',
+  });
   res.json({ success: true, data: {
     kind: 'management-command',
     ...command,
@@ -226,11 +234,12 @@ async function monthlyFacts(month) {
 
 async function managementContext(month) {
   await assertReportingMonth(month);
-  const [members, expenses, followUps, settings] = await Promise.all([
+  const [members, expenses, followUps, settings, months] = await Promise.all([
     sheets.getSheetData(month),
     sheets.getExpenses(month),
     sheets.getFollowUps(month),
     sheets.getSettings(),
+    sheets.getSheets(),
   ]);
   const campaignId = cleanText(settings.SPECIAL_FUND_CAMPAIGN_ID, 100);
   const contributions = campaignId ? await sheets.getSpecialFundContributions(campaignId) : [];
@@ -239,7 +248,10 @@ async function managementContext(month) {
     'ORG_NAME', 'SECTOR_NAME', 'ACCOUNT_TITLE', 'BANK_NAME', 'ACCOUNT_NUMBER',
     'IBAN', 'JAZZCASH_NUMBER', 'EASYPAISA_NUMBER', 'WHATSAPP_MEMBER_TEMPLATE',
     'WHATSAPP_REPORT_TEMPLATE', 'WHATSAPP_MONTHLY_REPORT_TEMPLATE',
-    'SPECIAL_FUND_CAMPAIGN_NAME', 'SPECIAL_FUND_TARGET',
+    'DEFAULT_MONTHLY_FUND', 'SECRETARY_NAME',
+    'SPECIAL_FUND_CAMPAIGN_ID', 'SPECIAL_FUND_CAMPAIGN_NAME',
+    'SPECIAL_FUND_TARGET', 'SPECIAL_FUND_JP_MINIMUM',
+    'SPECIAL_FUND_SC_MINIMUM', 'SPECIAL_FUND_FM_MINIMUM',
     'SPECIAL_FUND_MESSAGE_TEMPLATE', 'SPECIAL_FUND_REPORT_TEMPLATE',
     'AI_REPORT_TEMPLATE', 'AI_MESSAGE_TEMPLATE',
   ].forEach((key) => { if (settings[key] != null) safeSettings[key] = cleanMultiline(settings[key], 1200); });
@@ -253,6 +265,7 @@ async function managementContext(month) {
   const contributionFields = ['Campaign ID', 'Member Name', 'Phone Number', 'Member Category', 'Amount Paid', 'Payment Date', 'Payment Method', 'Reference', 'Remarks'];
   return {
     month,
+    months: months.map((item) => cleanText(item, 80)),
     organization: safeSettings,
     members: members.map((row) => cleanRow(row, memberFields)),
     expenses: expenses.map((row) => cleanRow(row, expenseFields)),
@@ -263,7 +276,60 @@ async function managementContext(month) {
   };
 }
 
-function validateManagementCommand(value, members) {
+function fitManagementContext(context, request, history = [], maxInputChars = 40000) {
+  const intent = `${request} ${history.map((item) => item.content || '').join(' ')}`.toLowerCase();
+  const mentions = (...words) => words.some((word) => intent.includes(word));
+  const wantsExpenses = mentions('expense', 'spend', 'cost', 'cash', 'report', 'summary', 'kharch', 'خرچ', 'رپورٹ');
+  const wantsFollowUps = mentions('follow', 'remind', 'message', 'whatsapp', 'pending', 'overdue', 'reply', 'یاد', 'پیغام');
+  const wantsSpecialFund = mentions('special', 'campaign', 'contribution', 'fund', 'چندہ', 'فنڈ');
+  const wantsTemplates = mentions('template', 'message', 'whatsapp', 'report', 'draft', 'پیغام', 'رپورٹ');
+  const wantsSettings = wantsTemplates || mentions('setting', 'organization', 'sector', 'account', 'easypaisa', 'jazzcash', 'bank', 'تنظیم');
+  const select = (row, fields) => fields.reduce((value, field) => {
+    if (row[field] != null && row[field] !== '') value[field] = row[field];
+    return value;
+  }, {});
+  const compact = {
+    month: context.month,
+    months: context.months,
+    organization: wantsSettings ? context.organization : select(context.organization, ['ORG_NAME', 'SECTOR_NAME']),
+    members: context.members.map((row) => ({
+      rowId: row.rowId,
+      name: row.Name,
+      ...(wantsFollowUps && row['Phone Number'] ? { phone: row['Phone Number'] } : {}),
+      category: row['Member Category'],
+      totalPayable: row['Total Payable'],
+      paid: row['Amount Paid'],
+      balance: row['Remaining Balance'],
+      status: row['Payment Status'],
+    })),
+    expenses: wantsExpenses ? context.expenses : [],
+    followUps: wantsFollowUps ? context.followUps : [],
+    specialFundContributions: wantsSpecialFund ? context.specialFundContributions : [],
+    sourceCounts: context.sourceCounts,
+    dataScope: context.dataScope,
+  };
+
+  // Keep the most recent supporting ledger rows if unusually large Sheets data
+  // still exceeds the configured request boundary. Member rows stay intact because
+  // row IDs and balances are required for safe member-specific proposals.
+  const allowance = Math.max(1000, maxInputChars - 6000);
+  const size = () => JSON.stringify(compact).length;
+  for (const key of ['followUps', 'specialFundContributions', 'expenses']) {
+    while (size() > allowance && compact[key].length > 25) {
+      compact[key] = compact[key].slice(Math.ceil(compact[key].length / 4));
+    }
+  }
+  compact.contextNotice = size() <= allowance
+    ? 'Relevant authorized records are included.'
+    : 'Member core records are complete; supporting ledgers were reduced to fit the configured AI request limit.';
+  return compact;
+}
+
+function validateManagementCommand(value, suppliedContext, { canWrite = true } = {}) {
+  const context = Array.isArray(suppliedContext)
+    ? { members: suppliedContext, months: [], organization: {} }
+    : suppliedContext;
+  const members = context.members || [];
   const allowedRows = new Set(members.map((member) => Number(member.rowId)));
   const list = (input, limit, max) => Array.isArray(input) ? input.slice(0, limit).map((item) => cleanMultiline(item, max)).filter(Boolean) : [];
   const drafts = Array.isArray(value.drafts) ? value.drafts.slice(0, Math.max(50, members.length)).map((draft) => {
@@ -276,13 +342,12 @@ function validateManagementCommand(value, members) {
       content: cleanMultiline(draft?.content, 4000),
     };
   }).filter((draft) => draft.content) : [];
-  const actionTypes = new Set(['record-payment', 'add-expense', 'log-follow-up', 'update-template', 'open-whatsapp', 'copy-report', 'none']);
-  const proposedActions = Array.isArray(value.proposedActions) ? value.proposedActions.slice(0, 30).map((action) => ({
-    type: actionTypes.has(action?.type) ? action.type : 'none',
-    label: cleanText(action?.label, 160),
-    requiresConfirmation: true,
-    payload: action?.payload && typeof action.payload === 'object' && !Array.isArray(action.payload) ? action.payload : {},
-  })) : [];
+  const proposedActions = Array.isArray(value.proposedActions)
+    ? value.proposedActions
+      .slice(0, 30)
+      .map((action) => validateManagementAction(action, context, canWrite))
+      .filter((action) => action.type !== 'none')
+    : [];
   return {
     summary: cleanText(value.summary, 240),
     answer: cleanMultiline(value.answer, 8000),
@@ -293,6 +358,144 @@ function validateManagementCommand(value, members) {
     proposedActions,
     sources: list(value.sources, 12, 160),
   };
+}
+
+const templateKeys = new Set([
+  'WHATSAPP_MEMBER_TEMPLATE',
+  'WHATSAPP_REPORT_TEMPLATE',
+  'WHATSAPP_MONTHLY_REPORT_TEMPLATE',
+  'SPECIAL_FUND_MESSAGE_TEMPLATE',
+  'SPECIAL_FUND_REPORT_TEMPLATE',
+]);
+const settingKeys = new Set([
+  'ORG_NAME',
+  'SECTOR_NAME',
+  'SECRETARY_NAME',
+  'DEFAULT_MONTHLY_FUND',
+  'EASYPAISA_NUMBER',
+  'ACCOUNT_TITLE',
+]);
+const mutatingActionTypes = new Set([
+  'record-payment',
+  'add-expense',
+  'record-contribution',
+  'log-follow-up',
+  'update-template',
+  'update-settings',
+  'create-month',
+]);
+
+function validateManagementAction(action, context, canWrite) {
+  const type = cleanText(action?.type, 40);
+  const label = cleanText(action?.label, 160) || 'Review action';
+  const raw = action?.payload && typeof action.payload === 'object' && !Array.isArray(action.payload)
+    ? action.payload
+    : {};
+  if (!canWrite && mutatingActionTypes.has(type)) {
+    return { type: 'none', label, requiresConfirmation: true, payload: {} };
+  }
+  const memberFor = (value) => {
+    const rowId = Number(value);
+    const member = (context.members || []).find((item) => Number(item.rowId) === rowId);
+    if (!member) throw httpError(502, 'AI returned an unknown member action target.');
+    return {
+      rowId,
+      name: cleanText(member.name ?? member.Name, 120),
+      phone: cleanText(member.phone ?? member['Phone Number'], 40),
+      currentPaid: money(member.paid ?? member['Amount Paid']),
+      totalPayable: money(member.totalPayable ?? member['Total Payable']),
+      category: cleanText(member.category ?? member['Member Category'], 80),
+    };
+  };
+  if (type === 'record-payment') {
+    const member = memberFor(raw.memberRowId);
+    const cumulativeAmount = money(raw.cumulativeAmount);
+    if (cumulativeAmount < 0 || cumulativeAmount > member.totalPayable) {
+      throw httpError(502, 'AI returned an invalid cumulative payment.');
+    }
+    return { type, label, requiresConfirmation: true, payload: {
+      memberRowId: member.rowId, memberName: member.name,
+      cumulativeAmount, currentPaid: member.currentPaid,
+      totalPayable: member.totalPayable, date: validDate(raw.date),
+      remarks: cleanText(raw.remarks, 250),
+    } };
+  }
+  if (type === 'add-expense') {
+    const amount = money(raw.amount);
+    if (amount <= 0 || amount > 100000000) throw httpError(502, 'AI returned an invalid expense amount.');
+    return { type, label, requiresConfirmation: true, payload: {
+      date: validDate(raw.date),
+      category: ['Operations', 'Travel', 'Events', 'Printing', 'Miscellaneous'].includes(raw.category) ? raw.category : 'Miscellaneous',
+      description: requiredText(raw.description, 'Expense description'),
+      amount, paidBy: requiredText(raw.paidBy, 'Paid by'),
+      remarks: cleanText(raw.remarks, 250),
+    } };
+  }
+  if (type === 'record-contribution') {
+    const member = memberFor(raw.memberRowId);
+    const amount = money(raw.amount);
+    if (amount <= 0 || amount > 100000000) throw httpError(502, 'AI returned an invalid contribution amount.');
+    return { type, label, requiresConfirmation: true, payload: {
+      memberRowId: member.rowId, memberName: member.name,
+      phone: member.phone, memberCategory: member.category, amount,
+      date: validDate(raw.date), remarks: cleanText(raw.remarks, 250),
+      receiptLink: cleanText(raw.receiptLink, 500),
+      campaignId: cleanText(context.organization?.SPECIAL_FUND_CAMPAIGN_ID, 100),
+    } };
+  }
+  if (type === 'log-follow-up') {
+    const member = memberFor(raw.memberRowId);
+    return { type, label, requiresConfirmation: true, payload: {
+      memberRowId: member.rowId, memberName: member.name,
+      eventType: ['Reminder Sent', 'Reply Received', 'Call Made'].includes(raw.eventType) ? raw.eventType : 'Reply Received',
+      replyStatus: cleanText(raw.replyStatus, 80),
+      reason: cleanText(raw.reason, 500), notes: cleanText(raw.notes, 500),
+      nextReminderDate: validDate(raw.nextReminderDate),
+    } };
+  }
+  if (type === 'update-template') {
+    const settingKey = cleanText(raw.settingKey, 80);
+    const content = cleanMultiline(raw.content, 8000);
+    if (!templateKeys.has(settingKey) || !content) throw httpError(502, 'AI returned an invalid template update.');
+    return { type, label, requiresConfirmation: true, payload: { settingKey, content } };
+  }
+  if (type === 'update-settings') {
+    const values = {};
+    const supplied = raw.values && typeof raw.values === 'object' ? raw.values : raw;
+    for (const [key, value] of Object.entries(supplied)) {
+      if (settingKeys.has(key)) values[key] = cleanText(value, 250);
+    }
+    if (!Object.keys(values).length) throw httpError(502, 'AI returned no supported settings changes.');
+    return { type, label, requiresConfirmation: true, payload: { values } };
+  }
+  if (type === 'create-month') {
+    const monthName = cleanText(raw.monthName, 80);
+    if (!/^[A-Za-z]+\s+\d{4}$/.test(monthName)) throw httpError(502, 'AI returned an invalid reporting month name.');
+    return { type, label, requiresConfirmation: true, payload: { monthName, carryBalances: raw.carryBalances !== false } };
+  }
+  if (type === 'select-month') {
+    const monthName = cleanText(raw.monthName, 80);
+    if (!(context.months || []).includes(monthName)) throw httpError(502, 'AI returned an unknown reporting month.');
+    return { type, label, requiresConfirmation: true, payload: { monthName } };
+  }
+  if (type === 'open-whatsapp') {
+    const content = cleanMultiline(raw.content, 4000);
+    if (!content) throw httpError(502, 'AI returned an empty message.');
+    const member = raw.memberRowId == null ? null : memberFor(raw.memberRowId);
+    return { type, label, requiresConfirmation: true, payload: {
+      content: cleanMultiline(content, 4000),
+      memberRowId: member?.rowId ?? null,
+      memberName: member?.name ?? '', phone: member?.phone ?? '',
+    } };
+  }
+  if (type === 'copy-report') {
+    const content = cleanMultiline(raw.content, 8000);
+    if (!content) throw httpError(502, 'AI returned an empty report.');
+    return { type, label, requiresConfirmation: true, payload: {
+      content,
+    } };
+  }
+  return { type: 'none', label, requiresConfirmation: true, payload: {} };
 }
 
 async function assertReportingMonth(month) {
@@ -362,4 +565,4 @@ function asyncRoute(handler) {
 }
 
 module.exports = router;
-module.exports._test = { monthlyFacts, managementContext, money, cleanText, validateEntryProposal, validateManagementCommand, deterministicReview };
+module.exports._test = { monthlyFacts, managementContext, fitManagementContext, money, cleanText, validateEntryProposal, validateManagementCommand, deterministicReview };
