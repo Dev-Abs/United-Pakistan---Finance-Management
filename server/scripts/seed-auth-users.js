@@ -20,7 +20,16 @@ async function insertUserIfMissing(client, { email, password, role, sectorId, cr
     if (user.role !== role || (user.sector_id == null ? null : Number(user.sector_id)) !== sectorId) {
       throw new Error(`Existing user has incompatible role or sector: ${email}`);
     }
-    return { id: user.id, inserted: false };
+    if (String(process.env.SEED_AUTH_RESET_PASSWORDS || '').toLowerCase() === 'true') {
+      validateNewPassword(password);
+      const hash = await bcrypt.hash(password, 12);
+      await client.query(
+        'update users set password_hash=$1, must_change_password=true where id=$2',
+        [hash, user.id],
+      );
+      return { id: user.id, inserted: false, passwordReset: true };
+    }
+    return { id: user.id, inserted: false, passwordReset: false };
   }
   validateNewPassword(password);
   const hash = await bcrypt.hash(password, 12);

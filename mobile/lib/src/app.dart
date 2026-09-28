@@ -71,6 +71,7 @@ class _FinanceAppState extends State<FinanceApp> {
             key: state.pageKey,
             child: AppShell(
               readOnly: session.isReadOnly,
+              superAdmin: session.isSuperAdmin,
               client: client,
               onSignOut: session.signOut,
               themeMode: session.themeMode,

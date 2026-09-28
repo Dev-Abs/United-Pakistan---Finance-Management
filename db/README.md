@@ -30,6 +30,12 @@ Postgres is the live finance datastore. Google Sheets is used only as the one-ti
 
 Keep the legacy Sheets data unchanged until the imported totals and a backup snapshot have both been checked. The import has no destructive replace mode by design.
 
+## Phase 2 authentication and sector scope
+
+Set `JWT_SECRET`, `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, `SEED_SECRETARY_EMAIL`, and `SEED_SECRETARY_PASSWORD` only in ignored/deployment environment variables, then run `npm run db:seed-auth`. The command is idempotent for compatible existing users and refuses role/sector mismatches. It stores bcrypt hashes only. Seed accounts are marked for a forced password change; the plaintext values are never inserted into `audit_log` or printed by the command.
+
+Every authenticated finance route resolves the user from the database on each request. Secretaries and read-only users are restricted to their token sector; a conflicting sector parameter is rejected. Super-admin finance requests must send one active sector in `X-Sector-Id`. Read-only users receive HTTP 403 on writes. `/api/auth/login`, `/api/auth/status`, and `/api/auth/change-password` retain stable client-compatible fields while also returning the system role and sector ID.
+
 ## Current-field mapping
 
 - Monthly tab identity fields (`Name`, `Phone Number`, `Designation`, `Member Category`) map to `members`.

@@ -57,6 +57,7 @@ class AppSession extends ChangeNotifier {
 
   static const _tokenKey = 'session_token';
   static const _roleKey = 'session_role';
+  static const _systemRoleKey = 'session_system_role';
   static const themeKey = 'theme_mode';
 
   final ApiClient client;
@@ -66,6 +67,8 @@ class AppSession extends ChangeNotifier {
   int _themeRevision = 0;
   bool initialized = false;
   String? role;
+  String? systemRole;
+  bool get isSuperAdmin => systemRole == 'super_admin';
   String themeMode = 'system';
   String? themePersistenceError;
   String? sessionPersistenceError;
@@ -87,17 +90,20 @@ class AppSession extends ChangeNotifier {
     try {
       client.token = await _credentialStore.read(_tokenKey);
       role = await _credentialStore.read(_roleKey);
+      systemRole = await _credentialStore.read(_systemRoleKey);
       if (client.token != null) {
         final status = await client.request('/api/auth/status');
         if (status['authenticated'] != true) {
           await _clear();
         } else {
           role = status['role']?.toString() ?? role;
+          systemRole = status['systemRole']?.toString() ?? systemRole;
         }
       }
     } catch (_) {
       client.token = null;
       role = null;
+      systemRole = null;
       sessionPersistenceError =
           'The saved session could not be restored. Please sign in again.';
     } finally {
@@ -129,18 +135,23 @@ class AppSession extends ChangeNotifier {
     }
   }
 
-  Future<void> persist(String newRole) async {
-    role = newRole;
+  Future<void> persist(Object session) async {
+    final data = session is Map<String, dynamic> ? session : <String, dynamic>{'role': session};
+    role = data['role']?.toString() ?? 'admin';
+    systemRole = data['systemRole']?.toString();
     final token = client.token;
     try {
       if (token != null) {
         await _credentialStore.write(_tokenKey, token);
-        await _credentialStore.write(_roleKey, newRole);
+        await _credentialStore.write(_roleKey, role!);
+        if (systemRole != null)
+          await _credentialStore.write(_systemRoleKey, systemRole!);
       }
       sessionPersistenceError = null;
     } catch (_) {
       client.token = null;
       role = null;
+      systemRole = null;
       sessionPersistenceError =
           'Secure sign-in storage is unavailable. Please try again.';
       notifyListeners();
@@ -152,6 +163,7 @@ class AppSession extends ChangeNotifier {
   Future<void> signOut() async {
     client.token = null;
     role = null;
+    systemRole = null;
     try {
       await _deleteCredentials();
       sessionPersistenceError = null;
@@ -166,6 +178,7 @@ class AppSession extends ChangeNotifier {
   Future<void> _clear() async {
     client.token = null;
     role = null;
+    systemRole = null;
     await _deleteCredentials();
   }
 
@@ -178,6 +191,7 @@ class AppSession extends ChangeNotifier {
     }
     try {
       await _credentialStore.delete(_roleKey);
+      await _credentialStore.delete(_systemRoleKey);
     } catch (error) {
       firstError ??= error;
     }

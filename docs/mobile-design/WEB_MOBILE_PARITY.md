@@ -1,6 +1,6 @@
 # Web → Mobile Feature Parity
 
-Last verified: 2026-09-26
+Last verified: 2026-09-28
 
 ## Available in mobile
 
@@ -16,6 +16,7 @@ Last verified: 2026-09-26
 - Organization/payment defaults, month creation, diagnostics/repair actions, and persisted System/Light/Dark appearance.
 - A first-class Assistant destination with bounded six-message context, validated action cards, explicit confirmation for persistent changes, reviewed individual/bulk WhatsApp drafts, anomaly review, and server-enforced reader restrictions.
 - Mobile networking now matches the web client’s 15-second timeout and identical-GET de-duplication behavior; superseded month loads are cancelled and stale responses remain rejected.
+- Super-admins can open Sector administration from More to list/create sectors; the web client additionally supports activation, secretary provisioning/reset, and audit-log review. Secretary credentials are one-time and must be changed after first login.
 
 ## Web-only or intentionally deferred
 
@@ -23,6 +24,7 @@ Last verified: 2026-09-26
 - Bulk-opening multiple WhatsApp reminder conversations. Mobile exposes safe member-by-member messaging to avoid OS popup/rate-limit problems.
 - Editing/deleting existing follow-up rows. The backend only exposes follow-up creation.
 - Push notifications and password reset. No matching backend APIs exist.
+- Permanent sector deletion is intentionally unavailable; deactivation preserves auditability and prevents new access.
 
 ## Business rules preserved
 
@@ -31,4 +33,5 @@ Last verified: 2026-09-26
 - Special Fund entries require a campaign, member, and amount greater than zero.
 - WhatsApp phone numbers normalize Pakistani local mobile numbers to country code `92`; invalid/missing numbers are blocked.
 - Readers can view finance data and templates but cannot mutate records, settings, diagnostics, or campaigns.
+- Super-admin finance requests require an explicit active sector selection; secretary and reader requests are always bound to their own sector, including AI context and exports.
 - Release builds require an explicit HTTPS `API_BASE_URL`; the emulator address is debug-only.

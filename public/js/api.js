@@ -63,6 +63,10 @@ export const api = {
         return this.request(url, { method: 'PUT', body: JSON.stringify(body) });
     },
 
+    patch(url, body) {
+        return this.request(url, { method: 'PATCH', body: JSON.stringify(body) });
+    },
+
     delete(url) {
         return this.request(url, { method: 'DELETE' });
     }

@@ -12,7 +12,8 @@ class App {
         this.state = {
             currentMonth: '',
             months: [],
-            userRole: null
+            userRole: null,
+            systemRole: null
         };
         this.routes = {
             'dashboard': { url: '/', title: 'Dashboard', script: `/js/dashboard.js?v=${ASSET_VERSION}` },
@@ -20,7 +21,8 @@ class App {
             'expenses': { url: '/expenses', title: 'Expenses', script: `/js/expenses.js?v=${ASSET_VERSION}` },
             'special-fund': { url: '/special-fund', title: 'Special Fund', script: `/js/special-fund.js?v=${ASSET_VERSION}` },
             'reports': { url: '/reports', title: 'Reports', script: `/js/reports.js?v=${ASSET_VERSION}` },
-            'settings': { url: '/settings', title: 'Settings', script: `/js/settings.js?v=${ASSET_VERSION}` }
+            'settings': { url: '/settings', title: 'Settings', script: `/js/settings.js?v=${ASSET_VERSION}` },
+            'admin': { url: '/admin', title: 'Sector administration', script: `/js/admin.js?v=${ASSET_VERSION}` }
         };
         this.commands = [
             { label: 'Dashboard', hint: 'Overview and priorities', icon: 'layout-dashboard', route: 'dashboard', keywords: 'home overview' },
@@ -68,7 +70,11 @@ class App {
             }
             if (authStatus.authenticated) {
                 this.state.userRole = authStatus.role || 'admin';
+                this.state.systemRole = authStatus.systemRole || null;
                 this.updateRoleBadge();
+                document.querySelectorAll('[data-admin-only]').forEach((el) => {
+                    el.hidden = this.state.systemRole !== 'super_admin';
+                });
             }
         } catch (error) {
             console.error('Auth check failed:', error);

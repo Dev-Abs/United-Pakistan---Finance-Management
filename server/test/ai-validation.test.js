@@ -1,9 +1,17 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const fs = require('node:fs');
 
 const { fitManagementContext, validateEntryProposal, validateManagementCommand } = require('../routes/ai')._test;
 
 const members = [{ rowId: 2, name: 'Test Member', currentPaid: 1000, totalPayable: 5000 }];
+
+test('scoped chat binds its facts and rate key to the authenticated sector', () => {
+  const source = fs.readFileSync(require.resolve('../routes/ai'), 'utf8');
+  assert.match(source, /const key = `\$\{day\}:\$\{req\.user\.id\}:\$\{req\.sectorId\}/);
+  assert.match(source, /const facts = await monthlyFacts\(month, req\.sectorId\);/);
+  assert.match(source, /router\.use\(requireAuth, scopeToSector\)/);
+});
 
 test('payment installment is converted to a server-calculated cumulative amount', () => {
   const value = validateEntryProposal({ type: 'payment', memberRowId: 2, amountMeaning: 'installment', amount: 750, date: '2026-09-26' }, members);

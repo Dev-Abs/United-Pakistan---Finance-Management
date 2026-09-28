@@ -48,12 +48,10 @@ Admin-triggered backup: Express → Google Apps Script → DBBackup_* Sheets tab
 ### 3. Vercel Deployment
 1. Go to [Vercel](https://vercel.com/) and import your new GitHub repository.
 2. Add the following Environment Variables for **Production, Preview, and Development** in the Vercel dashboard:
-   - `ADMIN_USERNAME`: for example, `secretary`
-   - `ADMIN_PASSWORD`: choose a strong, unique password
-   - `SESSION_SECRET`: a long random value used as the admin bearer token
-   - `READER_USERNAME`: optional read-only account name
-   - `READER_PASSWORD`: optional read-only account password
-   - `READER_SECRET`: a second long random value, different from `SESSION_SECRET`
+   - `JWT_SECRET`: at least 32 random characters used to sign bearer sessions
+   - `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`: environment-only credentials for the seeded super administrator
+   - `SEED_SECRETARY_EMAIL` / `SEED_SECRETARY_PASSWORD`: environment-only credentials for the migrated sector secretary
+   - `SEED_SECTOR_SLUG`: defaults to `united-pakistan`
    - `DATABASE_URL`: Supabase Postgres transaction-pooler URI; percent-encode reserved password characters and keep `uselibpqcompat=true&sslmode=require`
    - `APPS_SCRIPT_URL`: the deployed Google Apps Script Web App URL from step 1.7
    - `APPS_SCRIPT_SECRET`: the random value configured in Apps Script properties; needed only for migration and backup export
@@ -65,7 +63,7 @@ Admin-triggered backup: Express → Google Apps Script → DBBackup_* Sheets tab
    - Optional organization fields from `.env.example`
 3. Click **Deploy**. Vercel will use `vercel.json` to host the Express API and static web app.
 4. Open `https://YOUR-PROJECT.vercel.app/api/health`. Continue only when it returns `configured: true`.
-5. Test the web login at `https://YOUR-PROJECT.vercel.app/login.html` before building the mobile app.
+5. Run `npm run db:seed-auth` once the seed credentials are configured, then test the web login at `https://YOUR-PROJECT.vercel.app/login.html` before building the mobile app.
 
 Never paste deployment secrets into source files, commit them, or share them in screenshots. Values previously committed as examples should be treated as exposed and rotated before production use.
 
@@ -83,7 +81,7 @@ flutter build apk --release --dart-define=API_BASE_URL=https://YOUR-PROJECT.verc
 
 Do not add `/api` to `API_BASE_URL`; the app adds routes such as `/api/auth/login` itself. The generated APK is `mobile/build/app/outputs/flutter-apk/app-release.apk`. Install that APK on the phone, uninstalling the earlier emulator-configured build first if Android keeps the old app data.
 
-Before the Phase 1 cutover, follow the migration and backup runbook in `db/README.md`. Payment conflict protection now runs inside a Postgres transaction with a locked payment row.
+Before the Phase 1 cutover, follow the migration and backup runbook in `db/README.md`. Payment conflict protection now runs inside a Postgres transaction with a locked payment row. Phase 2 authentication uses bcrypt password hashes, signed JWTs, forced password changes for seeded/provisioned accounts, and explicit `X-Sector-Id` selection for super-admin finance requests.
 
 ### 5. Running Locally
 If you want to run the project on your own machine:

@@ -11,7 +11,7 @@ import 'finance_store.dart';
 import 'parity_screens.dart';
 import 'theme.dart';
 
-typedef SignedIn = Future<void> Function(String role);
+typedef SignedIn = Future<void> Function(Map<String, dynamic> session);
 
 class AppLaunchScreen extends StatelessWidget {
   const AppLaunchScreen({super.key});
@@ -68,7 +68,7 @@ class _LoginState extends State<LoginScreen> {
       if (r['mustChangePassword'] == true) {
         session = await changeRequiredPassword();
       }
-      await widget.onSignedIn(session['role']?.toString() ?? 'admin');
+      await widget.onSignedIn(session);
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
     } finally {
@@ -366,11 +366,13 @@ class AppShell extends StatefulWidget {
       {super.key,
       required this.client,
       required this.readOnly,
+      required this.superAdmin,
       required this.onSignOut,
       required this.themeMode,
       required this.onThemeModeChanged});
   final ApiClient client;
   final bool readOnly;
+  final bool superAdmin;
   final VoidCallback onSignOut;
   final String themeMode;
   final Future<void> Function(String) onThemeModeChanged;
@@ -596,6 +598,7 @@ class _ShellState extends State<AppShell> {
         _ => More(
             store: store,
             readOnly: widget.readOnly,
+            superAdmin: widget.superAdmin,
             signOut: widget.onSignOut,
             themeMode: widget.themeMode,
             onThemeModeChanged: widget.onThemeModeChanged),
@@ -1116,11 +1119,13 @@ class More extends StatelessWidget {
       {super.key,
       required this.store,
       required this.readOnly,
+      required this.superAdmin,
       required this.signOut,
       required this.themeMode,
       required this.onThemeModeChanged});
   final FinanceStore store;
   final bool readOnly;
+  final bool superAdmin;
   final VoidCallback signOut;
   final String themeMode;
   final Future<void> Function(String) onThemeModeChanged;
@@ -1200,6 +1205,16 @@ class More extends StatelessWidget {
       const SizedBox(height: 12),
       Card(
           child: Column(children: [
+        if (superAdmin)
+          ListTile(
+              onTap: () => Navigator.push(
+                  c,
+                  MaterialPageRoute(
+                      builder: (_) => AdminScreen(client: store.api))),
+              leading: const Icon(Icons.admin_panel_settings_outlined),
+              title: const Text('Sector administration'),
+              subtitle: const Text('Provision sectors and secretary access'),
+              trailing: const Icon(Icons.chevron_right)),
         ListTile(
             onTap: () => Navigator.push(c,
                 MaterialPageRoute(builder: (_) => ReportsScreen(store: store))),
@@ -1257,6 +1272,87 @@ class More extends StatelessWidget {
           label: const Text('Sign out'))
     ]);
   }
+}
+
+class AdminScreen extends StatefulWidget {
+  const AdminScreen({super.key, required this.client});
+  final ApiClient client;
+  @override
+  State<AdminScreen> createState() => _AdminScreenState();
+}
+
+class _AdminScreenState extends State<AdminScreen> {
+  List<Map<String, dynamic>> sectors = const [];
+  bool loading = true;
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final result = await widget.client.request('/api/admin/sectors');
+      if (mounted)
+        setState(() {
+          sectors =
+              (result['data'] as List? ?? []).cast<Map<String, dynamic>>();
+          loading = false;
+        });
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> createSector() async {
+    final name = TextEditingController();
+    final created = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+                title: const Text('Create sector'),
+                content: TextField(
+                    controller: name,
+                    autofocus: true,
+                    decoration:
+                        const InputDecoration(labelText: 'Sector name')),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c),
+                      child: const Text('Cancel')),
+                  FilledButton(
+                      onPressed: () async {
+                        if (name.text.trim().isEmpty) return;
+                        await widget.client.request('/api/admin/sectors',
+                            method: 'POST', body: {'name': name.text.trim()});
+                        if (c.mounted) Navigator.pop(c, true);
+                      },
+                      child: const Text('Create'))
+                ]));
+    name.dispose();
+    if (created == true) await load();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+      appBar: AppBar(title: const Text('Sector administration'), actions: [
+        IconButton(onPressed: load, icon: const Icon(Icons.refresh))
+      ]),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(padding: const EdgeInsets.all(16), children: [
+              FilledButton.icon(
+                  onPressed: createSector,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create sector')),
+              const SizedBox(height: 16),
+              ...sectors.map((s) => Card(
+                  child: ListTile(
+                      title: Text(s['name']?.toString() ?? ''),
+                      subtitle: Text(
+                          '${s['slug']} • ${s['active'] == true ? 'Active' : 'Inactive'}'),
+                      trailing:
+                          Text('${s['secretary_count'] ?? 0} secretary'))))
+            ]));
 }
 
 class PaymentSheet extends StatefulWidget {
