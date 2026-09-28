@@ -86,7 +86,7 @@
                     <span class="role-badge" id="user-role-badge">Admin</span>
                     <button id="notifications-btn" class="btn btn-sm btn-secondary" type="button" aria-expanded="false" aria-controls="notifications-panel"><i data-lucide="bell"></i><span class="sr-only">Notifications</span><span id="notifications-count" class="notification-count hidden">0</span></button>
                     <div class="month-selector">
-                        <select id="current-month-select" class="form-control">
+                        <select id="current-month-select" class="form-control" aria-label="Reporting month">
                             <option value="">Loading...</option>
                         </select>
                     </div>
@@ -136,7 +136,7 @@
             </button>
         </nav>
 
-        <div class="mobile-more-overlay" id="mobile-more-menu" aria-hidden="true">
+        <div class="mobile-more-overlay" id="mobile-more-menu" aria-hidden="true" hidden>
             <section class="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
                 <div class="mobile-more-handle" aria-hidden="true"></div>
                 <div class="mobile-more-header">
@@ -154,7 +154,7 @@
         </div>
     </div>
 
-    <div class="command-overlay" id="command-menu" aria-hidden="true">
+    <div class="command-overlay" id="command-menu" aria-hidden="true" hidden>
         <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
             <div class="command-search">
                 <i data-lucide="search"></i>

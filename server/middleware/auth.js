@@ -82,9 +82,9 @@ async function scopeToSector(req, res, next) {
   try {
     const supplied = suppliedSectorId(req);
     if (req.user.role === 'super_admin') {
-      if (!supplied) return res.status(400).json({ success: false, error: 'X-Sector-Id is required for this super-admin request' });
+      if (!supplied) return res.status(400).json({ success: false, code: 'SECTOR_CONTEXT_REQUIRED', error: 'Select a sector before opening finance data.' });
       const sector = await db.query('select id from sectors where id=$1 and active=true', [supplied]);
-      if (!sector.rowCount) return res.status(404).json({ success: false, error: 'Active sector not found' });
+      if (!sector.rowCount) return res.status(404).json({ success: false, code: 'SECTOR_CONTEXT_INVALID', error: 'That sector is no longer available. Select another sector.' });
       req.sectorId = supplied;
       return next();
     }
@@ -94,7 +94,7 @@ async function scopeToSector(req, res, next) {
     req.sectorId = req.user.sector_id;
     return next();
   } catch (error) {
-    return res.status(400).json({ success: false, error: error.message });
+    return res.status(400).json({ success: false, code: 'SECTOR_CONTEXT_INVALID', error: error.message || 'Select a valid sector and try again.' });
   }
 }
 

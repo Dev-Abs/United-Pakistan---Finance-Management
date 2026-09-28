@@ -76,6 +76,10 @@ class App {
                     el.hidden = this.state.systemRole !== 'super_admin';
                 });
                 this.updateSectorContext();
+                const hasSector = Boolean(localStorage.getItem('selected_sector_id'));
+                if (this.state.systemRole === 'super_admin' && !hasSector && window.location.pathname !== '/admin') {
+                    history.replaceState({}, '', '/admin');
+                }
             }
         } catch (error) {
             console.error('Auth check failed:', error);
@@ -131,6 +135,10 @@ class App {
         this.setupNotifications();
         this.setupShellPreferences();
         this.setupNetworkStatus();
+        window.addEventListener('sectorContextInvalid', (event) => {
+            utils.showToast?.(event.detail || 'Select a sector to continue.', 'error');
+            if (window.location.pathname !== '/admin') this.navigate('admin');
+        });
         // Sidebar navigation
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', (e) => {
@@ -185,10 +193,12 @@ class App {
         const closeMore = () => {
             moreMenu?.classList.remove('active');
             moreMenu?.setAttribute('aria-hidden', 'true');
+            if (moreMenu) moreMenu.hidden = true;
             moreButton?.setAttribute('aria-expanded', 'false');
             document.body.classList.remove('overlay-open');
         };
         const openMore = () => {
+            if (moreMenu) moreMenu.hidden = false;
             moreMenu?.classList.add('active');
             moreMenu?.setAttribute('aria-hidden', 'false');
             moreButton?.setAttribute('aria-expanded', 'true');
@@ -247,7 +257,10 @@ class App {
         const banner = document.getElementById('sector-context-banner');
         const name = document.getElementById('sector-context-name');
         const sectorId = localStorage.getItem('selected_sector_id');
-        if (!banner || !name || this.state.systemRole !== 'super_admin' || !sectorId) return;
+        if (!banner || !name) return;
+        banner.hidden = true;
+        name.textContent = '';
+        if (this.state.systemRole !== 'super_admin' || !sectorId) return;
         name.textContent = localStorage.getItem('selected_sector_name') || `#${sectorId}`;
         banner.hidden = false;
     }
@@ -293,6 +306,7 @@ class App {
         const close = () => {
             overlay?.classList.remove('active');
             overlay?.setAttribute('aria-hidden', 'true');
+            if (overlay) overlay.hidden = true;
             document.body.classList.remove('overlay-open');
             trigger?.focus();
         };
@@ -323,6 +337,7 @@ class App {
             this.renderIcons();
         };
         const open = () => {
+            if (overlay) overlay.hidden = false;
             overlay?.classList.add('active');
             overlay?.setAttribute('aria-hidden', 'false');
             document.body.classList.add('overlay-open');
@@ -333,8 +348,10 @@ class App {
         };
         trigger?.addEventListener('click', open);
         mobileTrigger?.addEventListener('click', () => {
-            document.getElementById('mobile-more-menu')?.classList.remove('active');
-            document.getElementById('mobile-more-menu')?.setAttribute('aria-hidden', 'true');
+            const moreMenu = document.getElementById('mobile-more-menu');
+            moreMenu?.classList.remove('active');
+            moreMenu?.setAttribute('aria-hidden', 'true');
+            if (moreMenu) moreMenu.hidden = true;
             document.getElementById('mobile-more-btn')?.setAttribute('aria-expanded', 'false');
             open();
         });

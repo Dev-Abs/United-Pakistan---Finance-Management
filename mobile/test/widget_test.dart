@@ -114,6 +114,22 @@ void main() {
     expect(session.sessionPersistenceError, isNotNull);
   });
 
+  test('super-admin sector context persists and clears as one unit', () async {
+    final client = FakeClient();
+    final credentials = FakeCredentialStore();
+    final session = AppSession(client, credentialStore: credentials);
+
+    await session.selectSector(42, 'Central Sector');
+    expect(client.sectorId, 42);
+    expect(session.sectorName, 'Central Sector');
+    expect(session.hasSectorContext, isTrue);
+
+    await session.clearSectorContext();
+    expect(client.sectorId, isNull);
+    expect(session.sectorName, isNull);
+    expect(session.hasSectorContext, isFalse);
+  });
+
   testWidgets('MaterialApp applies System → Light → Dark → System',
       (tester) async {
     tester.view.platformDispatcher.platformBrightnessTestValue =
@@ -288,6 +304,7 @@ class FakeClient extends ApiClient {
           {String method = 'GET',
           Map<String, dynamic>? body,
           Map<String, dynamic>? query,
+          Map<String, dynamic>? headers,
           CancelToken? cancelToken}) async =>
       <String, dynamic>{};
 }
@@ -300,6 +317,7 @@ class StatefulFakeClient extends ApiClient {
       {String method = 'GET',
       Map<String, dynamic>? body,
       Map<String, dynamic>? query,
+      Map<String, dynamic>? headers,
       CancelToken? cancelToken}) async {
     if (path == '/api/months') {
       return {
@@ -370,6 +388,7 @@ class RacingFakeClient extends ApiClient {
       {String method = 'GET',
       Map<String, dynamic>? body,
       Map<String, dynamic>? query,
+      Map<String, dynamic>? headers,
       CancelToken? cancelToken}) async {
     final month = query?['month']?.toString() ?? '';
     if (month == 'August 2026') {

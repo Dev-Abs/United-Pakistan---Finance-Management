@@ -368,12 +368,16 @@ class AppShell extends StatefulWidget {
       required this.readOnly,
       required this.superAdmin,
       required this.onSignOut,
+      this.sectorName,
+      this.onSwitchSector,
       required this.themeMode,
       required this.onThemeModeChanged});
   final ApiClient client;
   final bool readOnly;
   final bool superAdmin;
   final VoidCallback onSignOut;
+  final String? sectorName;
+  final Future<void> Function()? onSwitchSector;
   final String themeMode;
   final Future<void> Function(String) onThemeModeChanged;
   @override
@@ -488,6 +492,16 @@ class _ShellState extends State<AppShell> {
                     icon: const Icon(Icons.search))
               ]),
           body: Column(children: [
+            if (widget.superAdmin && widget.sectorName != null)
+              Material(
+                  color: Theme.of(c).colorScheme.primaryContainer,
+                  child: ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.apartment_outlined),
+                      title: Text('Viewing ${widget.sectorName}'),
+                      trailing: TextButton(
+                          onPressed: widget.onSwitchSector,
+                          child: const Text('Switch')))),
             Material(
                 color: Theme.of(c).colorScheme.surface,
                 child: InkWell(
@@ -1206,8 +1220,10 @@ class More extends StatelessWidget {
       Card(
           child: Column(children: [
         ListTile(
-            onTap: () => Navigator.push(c,
-                MaterialPageRoute(builder: (_) => NotificationsScreen(client: store.api))),
+            onTap: () => Navigator.push(
+                c,
+                MaterialPageRoute(
+                    builder: (_) => NotificationsScreen(client: store.api))),
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('Notifications'),
             subtitle: const Text('Overdue payments and due follow-ups'),
@@ -1304,18 +1320,24 @@ class NotificationsScreen extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(child: Text('Notifications unavailable: ${snapshot.error}'));
+              return Center(
+                  child: Text('Notifications unavailable: ${snapshot.error}'));
             }
-            final items = (snapshot.data?['data'] as List<dynamic>? ?? const []);
-            if (items.isEmpty) return const Center(child: Text('No notifications.'));
+            final items =
+                (snapshot.data?['data'] as List<dynamic>? ?? const []);
+            if (items.isEmpty)
+              return const Center(child: Text('No notifications.'));
             return ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (_, index) {
                 final item = Map<String, dynamic>.from(items[index] as Map);
-                return Card(child: ListTile(
-                  leading: Icon(item['type'] == 'overdue_payment' ? Icons.payments_outlined : Icons.event_note_outlined),
+                return Card(
+                    child: ListTile(
+                  leading: Icon(item['type'] == 'overdue_payment'
+                      ? Icons.payments_outlined
+                      : Icons.event_note_outlined),
                   title: Text(item['title']?.toString() ?? 'Notification'),
                   subtitle: Text(item['detail']?.toString() ?? ''),
                 ));
@@ -1324,6 +1346,155 @@ class NotificationsScreen extends StatelessWidget {
           },
         ),
       );
+}
+
+class SectorSelectionScreen extends StatefulWidget {
+  const SectorSelectionScreen({
+    super.key,
+    required this.client,
+    required this.onSelected,
+    required this.onSignOut,
+  });
+
+  final ApiClient client;
+  final Future<void> Function(int id, String name) onSelected;
+  final VoidCallback onSignOut;
+
+  @override
+  State<SectorSelectionScreen> createState() => _SectorSelectionScreenState();
+}
+
+class _SectorSelectionScreenState extends State<SectorSelectionScreen> {
+  final search = TextEditingController();
+  List<Map<String, dynamic>> sectors = const [];
+  bool loading = true;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final result = await widget.client.request('/api/admin/sectors');
+      if (!mounted) return;
+      setState(() {
+        sectors = (result['data'] as List? ?? const [])
+            .map((value) => Map<String, dynamic>.from(value as Map))
+            .where((value) => value['active'] == true)
+            .toList();
+        loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error =
+            'Sectors could not be loaded. Check your connection and try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = search.text.trim().toLowerCase();
+    final visible = sectors
+        .where((sector) =>
+            (sector['name']?.toString().toLowerCase() ?? '').contains(query) ||
+            (sector['slug']?.toString().toLowerCase() ?? '').contains(query))
+        .toList();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Select a sector'), actions: [
+        IconButton(
+            onPressed: widget.onSignOut,
+            tooltip: 'Sign out',
+            icon: const Icon(Icons.logout)),
+      ]),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Choose where you want to work',
+                      style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 6),
+                  const Text(
+                      'Your actions and finance data will stay scoped to this sector.'),
+                  const SizedBox(height: 16),
+                  TextField(
+                      controller: search,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                          labelText: 'Search sectors',
+                          prefixIcon: Icon(Icons.search))),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: loading
+                        ? const LoadingState()
+                        : error != null
+                            ? ErrorState(message: error!, retry: load)
+                            : visible.isEmpty
+                                ? const EmptyState(
+                                    icon: Icons.apartment_outlined,
+                                    title: 'No sectors found',
+                                    message:
+                                        'Try another search or create a sector in web administration.')
+                                : ListView.builder(
+                                    itemCount: visible.length,
+                                    itemBuilder: (_, index) {
+                                      final sector = visible[index];
+                                      final id =
+                                          int.tryParse(sector['id'].toString());
+                                      final name =
+                                          sector['name']?.toString().trim() ??
+                                              '';
+                                      return Card(
+                                        child: ListTile(
+                                          minVerticalPadding: 14,
+                                          leading: const CircleAvatar(
+                                              child: Icon(
+                                                  Icons.apartment_outlined)),
+                                          title: Text(name.isEmpty
+                                              ? 'Unnamed sector'
+                                              : name),
+                                          subtitle: Text(
+                                              sector['slug']?.toString() ?? ''),
+                                          trailing:
+                                              const Icon(Icons.arrow_forward),
+                                          onTap: id == null || name.isEmpty
+                                              ? null
+                                              : () =>
+                                                  widget.onSelected(id, name),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key, required this.client});
@@ -1452,13 +1623,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   }
 
   Future<void> load() async {
-    if (mounted) setState(() {
-      loading = true;
-      error = null;
-    });
+    if (mounted)
+      setState(() {
+        loading = true;
+        error = null;
+      });
     try {
-      final result = await widget.client
-          .request('/api/team/users', headers: _headers);
+      final result =
+          await widget.client.request('/api/team/users', headers: _headers);
       if (!mounted) return;
       setState(() {
         users = (result['data'] as List? ?? const [])
@@ -1518,7 +1690,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-                title: Text(active ? 'Activate account?' : 'Deactivate account?'),
+                title:
+                    Text(active ? 'Activate account?' : 'Deactivate account?'),
                 content: Text(user['email']?.toString() ?? 'Read-only account'),
                 actions: [
                   TextButton(
@@ -1561,11 +1734,12 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                 actions: [
                   TextButton.icon(
                       onPressed: () async {
-                        await Clipboard.setData(ClipboardData(
-                            text: '${user['email']}\n$password'));
+                        await Clipboard.setData(
+                            ClipboardData(text: '${user['email']}\n$password'));
                         if (dialogContext.mounted) {
                           ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(content: Text('Credential copied')));
+                              const SnackBar(
+                                  content: Text('Credential copied')));
                         }
                       },
                       icon: const Icon(Icons.copy_outlined),
@@ -1598,7 +1772,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Text('Read-only access', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
-        Text('Create viewer accounts and control their access. New and reset passwords are shown once.'),
+        Text(
+            'Create viewer accounts and control their access. New and reset passwords are shown once.'),
         const SizedBox(height: 16),
         TextField(
             controller: email,
