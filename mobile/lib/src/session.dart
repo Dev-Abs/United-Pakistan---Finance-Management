@@ -53,6 +53,7 @@ class AppSession extends ChangeNotifier {
             SecureThemePreferenceStore(
                 storage ?? const FlutterSecureStorage()) {
     client.onUnauthorized = signOut;
+    client.onSectorContextInvalid = clearSectorContext;
     client.onTokensRefreshed = (access, refresh) async {
       client.token = access;
       client.refreshToken = refresh;
@@ -65,6 +66,8 @@ class AppSession extends ChangeNotifier {
   static const _roleKey = 'session_role';
   static const _systemRoleKey = 'session_system_role';
   static const _refreshTokenKey = 'session_refresh_token';
+  static const _sectorIdKey = 'session_sector_id';
+  static const _sectorNameKey = 'session_sector_name';
   static const themeKey = 'theme_mode';
 
   final ApiClient client;
@@ -75,7 +78,9 @@ class AppSession extends ChangeNotifier {
   bool initialized = false;
   String? role;
   String? systemRole;
+  String? sectorName;
   bool get isSuperAdmin => systemRole == 'super_admin';
+  bool get hasSectorContext => client.sectorId != null;
   String themeMode = 'system';
   String? themePersistenceError;
   String? sessionPersistenceError;
@@ -99,6 +104,9 @@ class AppSession extends ChangeNotifier {
       client.refreshToken = await _credentialStore.read(_refreshTokenKey);
       role = await _credentialStore.read(_roleKey);
       systemRole = await _credentialStore.read(_systemRoleKey);
+      final savedSectorId = await _credentialStore.read(_sectorIdKey);
+      sectorName = await _credentialStore.read(_sectorNameKey);
+      client.sectorId = int.tryParse(savedSectorId ?? '');
       if (client.token != null) {
         final status = await client.request('/api/auth/status');
         if (status['authenticated'] != true) {
@@ -106,6 +114,12 @@ class AppSession extends ChangeNotifier {
         } else {
           role = status['role']?.toString() ?? role;
           systemRole = status['systemRole']?.toString() ?? systemRole;
+          if (!isSuperAdmin) {
+            client.sectorId = null;
+            sectorName = null;
+            await _credentialStore.delete(_sectorIdKey);
+            await _credentialStore.delete(_sectorNameKey);
+          }
         }
       }
     } catch (_) {
@@ -113,6 +127,8 @@ class AppSession extends ChangeNotifier {
       client.refreshToken = null;
       role = null;
       systemRole = null;
+      client.sectorId = null;
+      sectorName = null;
       sessionPersistenceError =
           'The saved session could not be restored. Please sign in again.';
     } finally {
@@ -151,6 +167,10 @@ class AppSession extends ChangeNotifier {
     role = data['role']?.toString() ?? 'admin';
     systemRole = data['systemRole']?.toString();
     client.refreshToken = data['refreshToken']?.toString();
+    if (!isSuperAdmin) {
+      client.sectorId = null;
+      sectorName = null;
+    }
     final token = client.token;
     try {
       if (token != null) {
@@ -161,6 +181,12 @@ class AppSession extends ChangeNotifier {
         }
         if (systemRole != null) {
           await _credentialStore.write(_systemRoleKey, systemRole!);
+        } else {
+          await _credentialStore.delete(_systemRoleKey);
+        }
+        if (!isSuperAdmin) {
+          await _credentialStore.delete(_sectorIdKey);
+          await _credentialStore.delete(_sectorNameKey);
         }
       }
       sessionPersistenceError = null;
@@ -191,6 +217,8 @@ class AppSession extends ChangeNotifier {
     client.refreshToken = null;
     role = null;
     systemRole = null;
+    client.sectorId = null;
+    sectorName = null;
     try {
       await _deleteCredentials();
       sessionPersistenceError = null;
@@ -207,6 +235,8 @@ class AppSession extends ChangeNotifier {
     client.refreshToken = null;
     role = null;
     systemRole = null;
+    client.sectorId = null;
+    sectorName = null;
     await _deleteCredentials();
   }
 
@@ -221,9 +251,30 @@ class AppSession extends ChangeNotifier {
       await _credentialStore.delete(_roleKey);
       await _credentialStore.delete(_systemRoleKey);
       await _credentialStore.delete(_refreshTokenKey);
+      await _credentialStore.delete(_sectorIdKey);
+      await _credentialStore.delete(_sectorNameKey);
     } catch (error) {
       firstError ??= error;
     }
     if (firstError != null) throw firstError;
+  }
+
+  Future<void> selectSector(int id, String name) async {
+    client.sectorId = id;
+    sectorName = name.trim();
+    await _credentialStore.write(_sectorIdKey, id.toString());
+    await _credentialStore.write(_sectorNameKey, sectorName!);
+    notifyListeners();
+  }
+
+  Future<void> clearSectorContext() async {
+    client.sectorId = null;
+    sectorName = null;
+    try {
+      await _credentialStore.delete(_sectorIdKey);
+      await _credentialStore.delete(_sectorNameKey);
+    } finally {
+      notifyListeners();
+    }
   }
 }

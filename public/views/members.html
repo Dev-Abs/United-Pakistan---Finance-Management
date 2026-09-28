@@ -20,13 +20,13 @@
         <div class="card mb-md management-toolbar">
             <div class="filter-group">
                 <label class="search-field" for="search-input"><i data-lucide="search"></i><span class="sr-only">Search members</span><input type="search" id="search-input" class="form-control" placeholder="Search name, phone, category or reply"></label>
-                <select id="status-filter" class="form-control" style="max-width: 150px;">
+                <select id="status-filter" class="form-control" style="max-width: 150px;" aria-label="Payment status">
                     <option value="all">All Status</option>
                     <option value="Pending">Pending</option>
                     <option value="Partially Paid">Partially Paid</option>
                     <option value="Paid">Paid</option>
                 </select>
-                <select id="followup-filter" class="form-control" style="max-width: 180px;">
+                <select id="followup-filter" class="form-control" style="max-width: 180px;" aria-label="Follow-up status">
                     <option value="all">All Follow-ups</option>
                     <option value="due">Reminder Due</option>
                     <option value="awaiting">Awaiting Reply</option>

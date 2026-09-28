@@ -4,8 +4,9 @@ Last updated: 2026-09-28
 
 ## Current request status
 
-- UI rebuild is blocked at the required U0 evidence gate. `docs/ui-revamp/HARNESS.md`, `docs/ui-revamp/shots/index.html`, and a baseline `layout-report.json` are missing, and `package.json` does not define `ui:shots`.
-- The worktree is not clean (`git status --short` reports existing tracked and untracked changes), so no `ui/rebuild` branch or UI changes were created. No verification or deployment steps were performed. Next action: provide/restore the visual harness and a clean committed snapshot, then rerun U0.
+- The full UI/UX audit and rebuild is implemented on `ui-overhaul`. Explicit super-admin sector context is enforced across server, web, and Flutter; shared generated tokens, dark-mode-safe surfaces, accessibility fixes, deterministic Playwright/axe checks, and Flutter goldens are in place.
+- Verification: Node 57/57; Playwright/axe 43/43 across seven routes, three viewport classes, and light/dark; 42 web and 12 Flutter images in each baseline/target/result set. The earlier Flutter golden run passed 27/27. A final Flutter rerun remained compiler-active but silent and was stopped, so it is not claimed. Android release packaging is blocked by this host's Java loopback failure after reaching Gradle with OpenJDK 21.
+- Final handoff and remaining owner/environment checks are in `docs/REPORT.md`. The React migration decision remains “do not migrate now.”
 
 ## Latest discovery
 
@@ -212,6 +213,7 @@ A responsive Express/vanilla-JavaScript finance management PWA migrating from Go
 - Post-cleanup live gate: `VERIFY_LIVE=true DATABASE_RLS_ROLE=authenticated npm run verify:release` passes end to end after the Windows invocation change, including 57/57 tests, zero audit vulnerabilities, all server syntax checks, live RLS isolation, and the complete Phase 2 role matrix.
 - Owner completion runbook: added `docs/ui-revamp/OWNER_COMPLETION_RUNBOOK.md` with exact Vercel/RLS commands, web and Flutter walkthrough steps, device/text-scale checks, external-provider boundaries, and final sign-off artifacts. It contains no secrets and keeps owner-only evidence explicitly open.
 - Final repository integrity check: `git diff --check` passes with only normal LF/CRLF notices, and default `npm run verify:release` passes after the runbook addition.
+- Flutter release correction: the pasted APK build log exposed a missing closing brace for `NotificationsScreen` in `mobile/lib/src/screens.dart`, which caused the cascade of nested-class parser errors. The brace was restored. A fresh split-ABI release build was started with the production HTTPS API define, but the host Dart/Gradle process produced no output and remained live for several minutes, so it was stopped; APK success is not claimed yet.
 
 ## Deployment and next actions
 

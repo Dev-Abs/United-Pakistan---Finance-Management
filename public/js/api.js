@@ -51,7 +51,15 @@ export const api = {
             }
 
             if (!response.ok) {
-                throw new Error(data.error || 'API Request Failed');
+                if (data.code === 'SECTOR_CONTEXT_REQUIRED' || data.code === 'SECTOR_CONTEXT_INVALID') {
+                    localStorage.removeItem('selected_sector_id');
+                    localStorage.removeItem('selected_sector_name');
+                    window.dispatchEvent(new CustomEvent('sectorContextInvalid', { detail: data.error }));
+                }
+                const apiError = new Error(data.error || 'We could not complete that request. Please try again.');
+                apiError.code = data.code || 'API_REQUEST_FAILED';
+                apiError.status = response.status;
+                throw apiError;
             }
 
             return data;

@@ -69,14 +69,24 @@ class _FinanceAppState extends State<FinanceApp> {
           path: '/',
           pageBuilder: (_, state) => NoTransitionPage<void>(
             key: state.pageKey,
-            child: AppShell(
-              readOnly: session.isReadOnly,
-              superAdmin: session.isSuperAdmin,
-              client: client,
-              onSignOut: session.signOut,
-              themeMode: session.themeMode,
-              onThemeModeChanged: session.setThemeMode,
-            ),
+            child: session.isSuperAdmin && !session.hasSectorContext
+                ? SectorSelectionScreen(
+                    client: client,
+                    onSelected: session.selectSector,
+                    onSignOut: session.signOut,
+                  )
+                : AppShell(
+                    readOnly: session.isReadOnly,
+                    superAdmin: session.isSuperAdmin,
+                    client: client,
+                    onSignOut: session.signOut,
+                    sectorName: session.sectorName,
+                    onSwitchSector: session.isSuperAdmin
+                        ? session.clearSectorContext
+                        : null,
+                    themeMode: session.themeMode,
+                    onThemeModeChanged: session.setThemeMode,
+                  ),
           ),
         ),
       ],

@@ -141,9 +141,9 @@ function renderTable() {
 
         tr.innerHTML =
             '<td data-label="Name" class="font-bold">' +
-            '<a href="#" class="text-primary" style="text-decoration:none;" onclick="window.membersJS.showHistory(' + m._rowId + '); return false;">' + (m['Name'] || '') + '</a></td>' +
-            '<td data-label="Phone">' + (m['Phone Number'] || '') + '</td>' +
-            '<td data-label="Category"><span class="badge badge-default">' + (m['Member Category'] || 'Fellow Member (FM)') + '</span></td>' +
+            '<a href="#" class="text-primary" style="text-decoration:none;" onclick="window.membersJS.showHistory(' + m._rowId + '); return false;">' + escapeHtml(m['Name'] || '') + '</a></td>' +
+            '<td data-label="Phone">' + escapeHtml(m['Phone Number'] || '') + '</td>' +
+            '<td data-label="Category"><span class="badge badge-default">' + escapeHtml(m['Member Category'] || 'Fellow Member (FM)') + '</span></td>' +
             '<td data-label="Monthly Fund">' + utils.formatCurrency(m['Monthly Fund']) + '</td>' +
             '<td data-label="Previous Balance" class="' + (prevBal > 0 ? 'text-danger' : 'text-muted') + '">' + utils.formatCurrency(prevBal) + '</td>' +
             '<td data-label="Total Due" class="font-bold">' + utils.formatCurrency(m['Total Payable']) + '</td>' +

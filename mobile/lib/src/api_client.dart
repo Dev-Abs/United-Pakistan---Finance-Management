@@ -30,6 +30,9 @@ class ApiClient {
           if (token case final value?) {
             options.headers[HttpHeaders.authorizationHeader] = 'Bearer $value';
           }
+          if (sectorId case final value?) {
+            options.headers['X-Sector-Id'] = value.toString();
+          }
           if (options.method.toUpperCase() != 'GET' &&
               !options.headers.containsKey('Idempotency-Key')) {
             options.headers['Idempotency-Key'] =
@@ -46,7 +49,9 @@ class ApiClient {
   final Map<String, Future<Map<String, dynamic>>> _inflightGets = {};
   String? token;
   String? refreshToken;
+  int? sectorId;
   VoidCallback? onUnauthorized;
+  VoidCallback? onSectorContextInvalid;
   Future<void> Function(String accessToken, String refreshToken)?
       onTokensRefreshed;
 
@@ -175,6 +180,12 @@ class ApiClient {
       if (status == 401) onUnauthorized?.call();
       final data = error.response?.data;
       final serverMessage = data is Map ? data['error']?.toString() : null;
+      final serverCode = data is Map ? data['code']?.toString() : null;
+      if (serverCode == 'SECTOR_CONTEXT_REQUIRED' ||
+          serverCode == 'SECTOR_CONTEXT_INVALID') {
+        sectorId = null;
+        onSectorContextInvalid?.call();
+      }
       if (serverMessage != null && serverMessage.isNotEmpty) {
         throw ApiException(serverMessage, statusCode: status);
       }

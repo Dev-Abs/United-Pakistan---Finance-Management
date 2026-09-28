@@ -1,24 +1,24 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'generated_tokens.dart';
 
 abstract final class AppColors {
-  static const crimson950 = Color(0xFF1A0305);
-  static const crimson900 = Color(0xFF2A0508);
-  static const crimson800 = Color(0xFF4A0A10);
-  static const crimson700 = Color(0xFF7A0F1A);
-  static const crimson600 = Color(0xFFA3121F);
-  static const crimson500 = Color(0xFFC8102E);
-  static const crimson400 = Color(0xFFE23A4A);
-  static const crimson300 = Color(0xFFF27A83);
-  static const crimson100 = Color(0xFFFFE5E7);
-  static const ember = Color(0xFFFF5A4F);
-  static const gold = Color(0xFFFFC857);
-  static const background = Color(0xFFFBF6F5);
-  static const surface = Colors.white;
-  static const ink = Color(0xFF241014);
-  static const slate = Color(0xFF6F5B60);
-  static const border = Color(0xFFEADADD);
+  static const crimson950 = GeneratedTokens.brand950;
+  static const crimson900 = GeneratedTokens.brand900;
+  static const crimson800 = GeneratedTokens.brand800;
+  static const crimson700 = GeneratedTokens.brand700;
+  static const crimson600 = GeneratedTokens.brand600;
+  static const crimson500 = GeneratedTokens.brand500;
+  static const crimson400 = GeneratedTokens.brand400;
+  static const crimson300 = GeneratedTokens.brand300;
+  static const crimson100 = GeneratedTokens.brand100;
+  static const ember = GeneratedTokens.ember;
+  static const gold = GeneratedTokens.gold;
+  static const background = GeneratedTokens.lightBackground;
+  static const surface = GeneratedTokens.lightSurface;
+  static const ink = GeneratedTokens.lightText;
+  static const slate = GeneratedTokens.lightMuted;
+  static const border = GeneratedTokens.lightBorder;
   static const success = Color(0xFF15803D);
   static const warning = Color(0xFFE09A13);
   static const error = Color(0xFF7A0F1A);
@@ -213,38 +213,47 @@ ThemeData buildTheme({
           ),
         );
 
-  final textTheme = GoogleFonts.manropeTextTheme(base.textTheme)
+  final textTheme = base.textTheme
+      .apply(fontFamily: 'Roboto')
       .copyWith(
-        displaySmall: GoogleFonts.manrope(
+        displaySmall: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 34,
           height: 1.08,
           fontWeight: FontWeight.w800,
           letterSpacing: -1,
         ),
-        headlineMedium: GoogleFonts.manrope(
+        headlineMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 28,
           height: 1.15,
           fontWeight: FontWeight.w800,
           letterSpacing: -.6,
         ),
-        titleLarge: GoogleFonts.manrope(
+        titleLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 20,
           fontWeight: FontWeight.w800,
           letterSpacing: -.25,
         ),
-        titleMedium: GoogleFonts.manrope(
+        titleMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
-        bodyLarge: GoogleFonts.manrope(fontSize: 16, height: 1.5),
-        bodyMedium: GoogleFonts.manrope(fontSize: 14, height: 1.45),
-        labelLarge: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+        bodyLarge:
+            const TextStyle(fontFamily: 'Roboto', fontSize: 16, height: 1.5),
+        bodyMedium:
+            const TextStyle(fontFamily: 'Roboto', fontSize: 14, height: 1.45),
+        labelLarge:
+            const TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w700),
       )
       .apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface);
   return base.copyWith(
     colorScheme: scheme,
     textTheme: textTheme,
-    primaryTextTheme: GoogleFonts.manropeTextTheme(base.primaryTextTheme)
+    primaryTextTheme: base.primaryTextTheme
+        .apply(fontFamily: 'Roboto')
         .apply(bodyColor: scheme.onPrimary, displayColor: scheme.onPrimary),
     extensions: <ThemeExtension<dynamic>>[
       isDark ? AppSemanticColors.dark : AppSemanticColors.light,

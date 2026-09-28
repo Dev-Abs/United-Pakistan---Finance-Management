@@ -83,6 +83,8 @@ test('super admin must explicitly select one active sector', async () => {
   const missingRes = responseRecorder();
   await middleware.scopeToSector(missing, missingRes, () => assert.fail('next must not run'));
   assert.equal(missingRes.statusCode, 400);
+  assert.equal(missingRes.body.code, 'SECTOR_CONTEXT_REQUIRED');
+  assert.doesNotMatch(missingRes.body.error, /header|X-Sector/i);
 
   const originalQuery = db.query;
   db.query = async (_sql, params) => ({ rowCount: params[0] === 5 ? 1 : 0, rows: [{ id: 5 }] });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
 import 'package:united_pakistan_finance/src/api_client.dart';
@@ -9,6 +10,15 @@ import 'package:united_pakistan_finance/src/session.dart';
 import 'package:united_pakistan_finance/src/theme.dart';
 
 void main() {
+  setUpAll(() async {
+    final fonts = FontLoader('Roboto')
+      ..addFont(rootBundle.load('assets/fonts/Roboto-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Roboto-Bold.ttf'));
+    await fonts.load();
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await icons.load();
+  });
   test('latestMonth uses calendar order instead of API order', () {
     expect(latestMonth(['January 2026', 'December 2025', 'September 2026']),
         'September 2026');
@@ -112,6 +122,22 @@ void main() {
 
     expect(session.isSignedIn, isFalse);
     expect(session.sessionPersistenceError, isNotNull);
+  });
+
+  test('super-admin sector context persists and clears as one unit', () async {
+    final client = FakeClient();
+    final credentials = FakeCredentialStore();
+    final session = AppSession(client, credentialStore: credentials);
+
+    await session.selectSector(42, 'Central Sector');
+    expect(client.sectorId, 42);
+    expect(session.sectorName, 'Central Sector');
+    expect(session.hasSectorContext, isTrue);
+
+    await session.clearSectorContext();
+    expect(client.sectorId, isNull);
+    expect(session.sectorName, isNull);
+    expect(session.hasSectorContext, isFalse);
   });
 
   testWidgets('MaterialApp applies System → Light → Dark → System',
@@ -233,6 +259,56 @@ void main() {
     expect(builds, 1);
     expect(find.text('members: 0'), findsOneWidget);
   });
+
+  for (final size in const [
+    Size(360, 800),
+    Size(412, 915),
+    Size(320, 568),
+  ]) {
+    for (final brightness in Brightness.values) {
+      final suffix =
+          '${size.width.toInt()}x${size.height.toInt()}-${brightness.name}-1.3x';
+      testWidgets('login golden $suffix', (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = size;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        await tester.pumpWidget(MaterialApp(
+          theme: buildTheme(brightness: brightness),
+          home: MediaQuery(
+            data: MediaQueryData(
+                size: size, textScaler: const TextScaler.linear(1.3)),
+            child: LoginScreen(client: FakeClient(), onSignedIn: (_) async {}),
+          ),
+        ));
+        await tester.pumpAndSettle();
+        await expectLater(find.byType(LoginScreen),
+            matchesGoldenFile('goldens/login-$suffix.png'));
+      });
+
+      testWidgets('sector selection golden $suffix', (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = size;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        await tester.pumpWidget(MaterialApp(
+          theme: buildTheme(brightness: brightness),
+          home: MediaQuery(
+            data: MediaQueryData(
+                size: size, textScaler: const TextScaler.linear(1.3)),
+            child: SectorSelectionScreen(
+              client: SectorFakeClient(),
+              onSelected: (_, __) async {},
+              onSignOut: () {},
+            ),
+          ),
+        ));
+        await tester.pumpAndSettle();
+        await expectLater(find.byType(SectorSelectionScreen),
+            matchesGoldenFile('goldens/sector-selection-$suffix.png'));
+      });
+    }
+  }
 }
 
 double _contrast(Color a, Color b) {
@@ -288,8 +364,39 @@ class FakeClient extends ApiClient {
           {String method = 'GET',
           Map<String, dynamic>? body,
           Map<String, dynamic>? query,
+          Map<String, dynamic>? headers,
           CancelToken? cancelToken}) async =>
       <String, dynamic>{};
+}
+
+class SectorFakeClient extends FakeClient {
+  @override
+  Future<Map<String, dynamic>> request(String path,
+      {String method = 'GET',
+      Map<String, dynamic>? body,
+      Map<String, dynamic>? query,
+      Map<String, dynamic>? headers,
+      CancelToken? cancelToken}) async {
+    if (path == '/api/admin/sectors') {
+      return {
+        'data': [
+          {
+            'id': 1,
+            'name': 'Central Sector',
+            'slug': 'central',
+            'active': true
+          },
+          {'id': 2, 'name': 'North Sector', 'slug': 'north', 'active': true},
+        ],
+      };
+    }
+    return super.request(path,
+        method: method,
+        body: body,
+        query: query,
+        headers: headers,
+        cancelToken: cancelToken);
+  }
 }
 
 class StatefulFakeClient extends ApiClient {
@@ -300,6 +407,7 @@ class StatefulFakeClient extends ApiClient {
       {String method = 'GET',
       Map<String, dynamic>? body,
       Map<String, dynamic>? query,
+      Map<String, dynamic>? headers,
       CancelToken? cancelToken}) async {
     if (path == '/api/months') {
       return {
@@ -370,6 +478,7 @@ class RacingFakeClient extends ApiClient {
       {String method = 'GET',
       Map<String, dynamic>? body,
       Map<String, dynamic>? query,
+      Map<String, dynamic>? headers,
       CancelToken? cancelToken}) async {
     final month = query?['month']?.toString() ?? '';
     if (month == 'August 2026') {

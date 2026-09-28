@@ -14,7 +14,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="/css/style.css?v=20260925-enterprise">
+    <link rel="stylesheet" href="/css/generated-tokens.css?v=20260928-ui">
+    <link rel="stylesheet" href="/css/style.css?v=20260928-ui">
     <link rel="stylesheet" href="/css/components.css?v=20260925-enterprise">
     <link rel="stylesheet" href="/css/responsive.css?v=20260925-enterprise">
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
@@ -80,13 +81,13 @@
                     <div class="page-identity"><span class="page-breadcrumb">United Pakistan</span><h1 id="page-title">Dashboard</h1></div>
                 </div>
                 <div class="header-actions">
-                    <button id="command-menu-btn" class="command-trigger" type="button" aria-haspopup="dialog" aria-controls="command-menu">
+                    <button id="command-menu-btn" class="command-trigger" type="button" aria-label="Search pages and actions" aria-haspopup="dialog" aria-controls="command-menu">
                         <i data-lucide="search"></i><span>Search or jump to…</span><kbd>Ctrl K</kbd>
                     </button>
                     <span class="role-badge" id="user-role-badge">Admin</span>
                     <button id="notifications-btn" class="btn btn-sm btn-secondary" type="button" aria-expanded="false" aria-controls="notifications-panel"><i data-lucide="bell"></i><span class="sr-only">Notifications</span><span id="notifications-count" class="notification-count hidden">0</span></button>
                     <div class="month-selector">
-                        <select id="current-month-select" class="form-control">
+                        <select id="current-month-select" class="form-control" aria-label="Reporting month">
                             <option value="">Loading...</option>
                         </select>
                     </div>
@@ -136,7 +137,7 @@
             </button>
         </nav>
 
-        <div class="mobile-more-overlay" id="mobile-more-menu" aria-hidden="true">
+        <div class="mobile-more-overlay" id="mobile-more-menu" aria-hidden="true" hidden>
             <section class="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
                 <div class="mobile-more-handle" aria-hidden="true"></div>
                 <div class="mobile-more-header">
@@ -154,7 +155,7 @@
         </div>
     </div>
 
-    <div class="command-overlay" id="command-menu" aria-hidden="true">
+    <div class="command-overlay" id="command-menu" aria-hidden="true" hidden>
         <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
             <div class="command-search">
                 <i data-lucide="search"></i>

@@ -80,7 +80,7 @@
 }
 
 .bottom-nav-item.active {
-    color: var(--primary);
+    color: var(--primary-on-soft);
     background: var(--primary-soft);
 }
 
@@ -296,7 +296,7 @@
         padding: 12px;
         border: 1px solid var(--border);
         border-radius: var(--border-radius);
-        background: #ffffff;
+        background: var(--bg-card);
     }
 
     .mobile-card-table td {

@@ -154,15 +154,19 @@ function renderTable() {
         var act = '<span class="text-muted text-sm">-</span>';
         if (!ro) act = '<div class="flex gap-sm"><button class="btn-icon" title="Edit" onclick="window.expensesJS.openEditModal(' + exp._rowId + ')"><i data-lucide="pencil"></i></button><button class="btn-icon text-danger" title="Delete" onclick="window.expensesJS.deleteExpense(' + exp._rowId + ')"><i data-lucide="trash-2"></i></button></div>';
         tr.innerHTML = '<td data-label="Date" class="text-sm">' + utils.formatDate(exp.Date) + '</td>' +
-            '<td data-label="Category"><span class="badge badge-default">' + (exp.Category || 'Uncategorized') + '</span></td>' +
-            '<td data-label="Description">' + (exp.Description || '-') + '</td>' +
+            '<td data-label="Category"><span class="badge badge-default">' + escapeHtml(exp.Category || 'Uncategorized') + '</span></td>' +
+            '<td data-label="Description">' + escapeHtml(exp.Description || '-') + '</td>' +
             '<td data-label="Amount" class="font-bold text-danger">' + utils.formatCurrency(exp.Amount) + '</td>' +
-            '<td data-label="Paid By">' + (exp['Paid By'] || '-') + '</td>' +
-            '<td data-label="Remarks" class="text-sm text-muted">' + (exp.Remarks || '-') + '</td>' +
+            '<td data-label="Paid By">' + escapeHtml(exp['Paid By'] || '-') + '</td>' +
+            '<td data-label="Remarks" class="text-sm text-muted">' + escapeHtml(exp.Remarks || '-') + '</td>' +
             '<td data-label="Actions">' + act + '</td>';
         tbody.appendChild(tr);
     });
     renderIcons();
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 }
 
 function setupEventListeners() {
