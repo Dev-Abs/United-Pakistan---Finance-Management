@@ -64,11 +64,117 @@ class _LoginState extends State<LoginScreen> {
           method: 'POST',
           body: {'username': user.text.trim(), 'password': pass.text});
       widget.client.token = r['token']?.toString();
-      await widget.onSignedIn(r['role']?.toString() ?? 'admin');
+      var session = r;
+      if (r['mustChangePassword'] == true) {
+        session = await changeRequiredPassword();
+      }
+      await widget.onSignedIn(session['role']?.toString() ?? 'admin');
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
     } finally {
       if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<Map<String, dynamic>> changeRequiredPassword() async {
+    final formKey = GlobalKey<FormState>();
+    final next = TextEditingController(), confirm = TextEditingController();
+    var saving = false;
+    String? dialogError;
+    try {
+      final result = await showDialog<Map<String, dynamic>>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => StatefulBuilder(
+              builder: (context, setDialogState) => PopScope(
+                  canPop: false,
+                  child: AlertDialog(
+                      title: const Text('Choose a new password'),
+                      content: Form(
+                          key: formKey,
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                            const Text(
+                                'Replace your temporary password before accessing finance data.'),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                                controller: next,
+                                autofocus: true,
+                                obscureText: true,
+                                autofillHints: const [
+                                  AutofillHints.newPassword
+                                ],
+                                decoration: const InputDecoration(
+                                    labelText: 'New password'),
+                                validator: (value) => (value ?? '').length < 12
+                                    ? 'Use at least 12 characters'
+                                    : null),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                                controller: confirm,
+                                obscureText: true,
+                                autofillHints: const [
+                                  AutofillHints.newPassword
+                                ],
+                                decoration: const InputDecoration(
+                                    labelText: 'Confirm password'),
+                                validator: (value) => value != next.text
+                                    ? 'Passwords do not match'
+                                    : null),
+                            if (dialogError != null) ...[
+                              const SizedBox(height: 12),
+                              Text(dialogError!,
+                                  style: TextStyle(
+                                      color:
+                                          Theme.of(context).colorScheme.error))
+                            ]
+                          ])),
+                      actions: [
+                        FilledButton(
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    if (!(formKey.currentState?.validate() ??
+                                        false)) {
+                                      return;
+                                    }
+                                    setDialogState(() {
+                                      saving = true;
+                                      dialogError = null;
+                                    });
+                                    try {
+                                      final response = await widget.client
+                                          .request('/api/auth/change-password',
+                                              method: 'POST',
+                                              body: {
+                                            'currentPassword': pass.text,
+                                            'newPassword': next.text
+                                          });
+                                      widget.client.token =
+                                          response['token']?.toString();
+                                      if (dialogContext.mounted) {
+                                        Navigator.of(dialogContext)
+                                            .pop(response);
+                                      }
+                                    } catch (error) {
+                                      setDialogState(() {
+                                        saving = false;
+                                        dialogError = error.toString();
+                                      });
+                                    }
+                                  },
+                            child: saving
+                                ? const SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Text('Change password'))
+                      ]))));
+      if (result == null) throw StateError('Password change was not completed');
+      return result;
+    } finally {
+      next.dispose();
+      confirm.dispose();
     }
   }
 

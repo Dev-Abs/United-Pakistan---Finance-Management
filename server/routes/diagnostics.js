@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const sheetsService = require('../services/sheets');
-const { requireAuth, requireWriteAccess } = require('../middleware/auth');
+const sheetsService = require('../services/finance-db');
+const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
 
-router.use(requireAuth);
+router.use(requireAuth, scopeToSector);
 router.use(requireWriteAccess);
 
 router.get('/', async (req, res) => {
   try {
     const month = String(req.query.month || '').trim();
-    const data = await sheetsService.getDiagnostics(month || null);
+    const data = await sheetsService.getDiagnostics(month || null, req.sectorId);
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 
 router.post('/repair-month-columns', async (req, res) => {
   try {
-    const data = await sheetsService.repairMonthColumns();
+    const data = await sheetsService.repairMonthColumns(req.sectorId);
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

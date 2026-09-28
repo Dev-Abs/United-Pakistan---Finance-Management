@@ -1,6 +1,6 @@
 # United Pakistan - Finance Management
 
-A lightweight, full-stack web application for managing the monthly finances of the United Pakistan political party. Replaces manual Excel + WhatsApp operations with a clean admin panel backed by Google Sheets via Google Apps Script.
+A lightweight, full-stack web application for managing monthly finances. Supabase Postgres is the authoritative datastore; Google Sheets remains a one-time migration source and one-way disaster-recovery export target.
 
 ## Features
 
@@ -18,10 +18,10 @@ A lightweight, full-stack web application for managing the monthly finances of t
 Browser (HTML/CSS/Vanilla JS)
         ↓  REST calls
 Express.js Server (Node.js, hosted on Vercel as serverless functions)
-        ↓  HTTPS POST/GET
-Google Apps Script Web App (acts as thin sheet API)
-        ↓
-Google Sheets (one tab per month, acts as database)
+        ↓  parameterized SQL
+Supabase Postgres (authoritative datastore)
+
+Admin-triggered backup: Express → Google Apps Script → DBBackup_* Sheets tabs
 ```
 
 ## Setup & Deployment Guide
@@ -34,7 +34,7 @@ Google Sheets (one tab per month, acts as database)
 5. Select **Web app**.
 6. Set **Execute as**: `Me` and **Who has access**: `Anyone`.
 7. Click Deploy, authorize the app, and copy the **Web app URL**.
-8. In the Apps Script code, replace the `SECRET` value with a new random value. Use the same value for `APPS_SCRIPT_SECRET` in Vercel. Do not commit it.
+8. Under **Project Settings → Script properties**, add `APPS_SCRIPT_SECRET` with a new random value. Use the same value in Vercel. Do not place it in `Code.gs` or commit it.
 
 ### 2. GitHub Setup
 1. Initialize a git repository in this project folder:
@@ -54,8 +54,9 @@ Google Sheets (one tab per month, acts as database)
    - `READER_USERNAME`: optional read-only account name
    - `READER_PASSWORD`: optional read-only account password
    - `READER_SECRET`: a second long random value, different from `SESSION_SECRET`
+   - `DATABASE_URL`: Supabase Postgres transaction-pooler URI; percent-encode reserved password characters and keep `uselibpqcompat=true&sslmode=require`
    - `APPS_SCRIPT_URL`: the deployed Google Apps Script Web App URL from step 1.7
-   - `APPS_SCRIPT_SECRET`: the random value configured in `Code.gs`
+   - `APPS_SCRIPT_SECRET`: the random value configured in Apps Script properties; needed only for migration and backup export
    - `DEEPSEEK_API_KEY`: DeepSeek API key; server secret only, never add it to Flutter or an APK
    - `DEEPSEEK_MODEL`: a currently supported model selected after evaluation (the example file uses `deepseek-flash`)
    - `AI_FEATURES_ENABLED`: set to `true` only after approving the external-data policy and configuring the key/model
@@ -82,18 +83,19 @@ flutter build apk --release --dart-define=API_BASE_URL=https://YOUR-PROJECT.verc
 
 Do not add `/api` to `API_BASE_URL`; the app adds routes such as `/api/auth/login` itself. The generated APK is `mobile/build/app/outputs/flutter-apk/app-release.apk`. Install that APK on the phone, uninstalling the earlier emulator-configured build first if Android keeps the old app data.
 
-Payment conflict protection requires the current `apps-script/Code.gs` deployment. Publish it as a new Apps Script Web App version before deploying the matching Express/mobile/web clients; otherwise the new `updatePayment` action is unavailable.
+Before the Phase 1 cutover, follow the migration and backup runbook in `db/README.md`. Payment conflict protection now runs inside a Postgres transaction with a locked payment row.
 
 ### 5. Running Locally
 If you want to run the project on your own machine:
 1. Ensure Node.js (v18+) is installed.
 2. Run `npm install` in the project root.
-3. Rename `.env.example` to `.env` and fill in the required variables (especially `APPS_SCRIPT_URL`).
+3. Copy `.env.example` to `.env` and fill in the required variables, especially `DATABASE_URL`. Add Apps Script values when running the migration or Sheets backup.
 4. Run `npm start`.
 5. Open `http://localhost:3000` in your browser.
 
 ## Project Structure
-- `/apps-script/` - Google Apps Script code to paste into Google Sheets.
+- `/db/` - ordered Postgres migrations and the migration/backup runbook.
+- `/apps-script/` - Google Apps Script backup destination code.
 - `/public/` - Vanilla HTML, CSS, and JS for the frontend. No build step required.
 - `/server/` - Express server acting as the API layer and Vercel serverless entry points.
 

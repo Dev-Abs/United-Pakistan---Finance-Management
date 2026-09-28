@@ -1,28 +1,109 @@
-function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
+const auth = require('../services/auth');
+const db = require('../services/db');
 
-  const adminSecret = process.env.SESSION_SECRET || 'secret-token';
-  const readerSecret = process.env.READER_SECRET || 'reader-secret-token';
+function bearerToken(req) {
+  const match = String(req.headers.authorization || '').match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+}
 
-  if (token === adminSecret) {
-    req.userRole = 'admin';
-    return next();
+async function attachAuthenticatedUser(req) {
+  const token = bearerToken(req);
+  if (!token) throw Object.assign(new Error('Unauthorized'), { code: 'UNAUTHORIZED' });
+  const user = await auth.userFromToken(token);
+  req.user = auth.publicUser(user);
+  req.user.password_hash = user.password_hash;
+  req.userRole = auth.clientRole(user.role);
+  return req.user;
+}
+
+function authError(res, error) {
+  const inactive = error.code === 'SECTOR_INACTIVE';
+  return res.status(inactive ? 403 : 401).json({ success: false, error: error.message || 'Unauthorized' });
+}
+
+async function requireAuthAllowPasswordChange(req, res, next) {
+  try {
+    await attachAuthenticatedUser(req);
+    next();
+  } catch (error) {
+    authError(res, error);
   }
+}
 
-  if (token === readerSecret) {
-    req.userRole = 'reader';
-    return next();
+async function requireAuth(req, res, next) {
+  try {
+    await attachAuthenticatedUser(req);
+    if (req.user.must_change_password) {
+      return res.status(403).json({
+        success: false,
+        code: 'PASSWORD_CHANGE_REQUIRED',
+        error: 'Password change is required before accessing finance data.',
+      });
+    }
+    next();
+  } catch (error) {
+    authError(res, error);
   }
+}
 
-  return res.status(401).json({ success: false, error: 'Unauthorized' });
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
+    next();
+  };
 }
 
 function requireWriteAccess(req, res, next) {
-  if (req.userRole === 'reader') {
+  if (req.user?.role === 'read_only') {
     return res.status(403).json({ success: false, error: 'Read-only access. You do not have permission to modify data.' });
   }
   next();
 }
 
-module.exports = { requireAuth, requireWriteAccess };
+function suppliedSectorId(req) {
+  const values = [
+    req.headers['x-sector-id'],
+    req.query?.sectorId,
+    req.query?.sector_id,
+    req.body?.sectorId,
+    req.body?.sector_id,
+  ].filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+  if (!values.length) return null;
+  const distinct = [...new Set(values.map((value) => String(value).trim()))];
+  if (distinct.length !== 1) throw Object.assign(new Error('Conflicting sector context'), { code: 'INVALID_SECTOR' });
+  const parsed = Number(distinct[0]);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw Object.assign(new Error('Invalid sector context'), { code: 'INVALID_SECTOR' });
+  return parsed;
+}
+
+async function scopeToSector(req, res, next) {
+  try {
+    const supplied = suppliedSectorId(req);
+    if (req.user.role === 'super_admin') {
+      if (!supplied) return res.status(400).json({ success: false, error: 'X-Sector-Id is required for this super-admin request' });
+      const sector = await db.query('select id from sectors where id=$1 and active=true', [supplied]);
+      if (!sector.rowCount) return res.status(404).json({ success: false, error: 'Active sector not found' });
+      req.sectorId = supplied;
+      return next();
+    }
+    if (supplied && supplied !== req.user.sector_id) {
+      return res.status(403).json({ success: false, error: 'Cross-sector access is forbidden' });
+    }
+    req.sectorId = req.user.sector_id;
+    return next();
+  } catch (error) {
+    return res.status(400).json({ success: false, error: error.message });
+  }
+}
+
+module.exports = {
+  bearerToken,
+  requireAuth,
+  requireAuthAllowPasswordChange,
+  requireRole,
+  requireWriteAccess,
+  scopeToSector,
+  _test: { attachAuthenticatedUser, suppliedSectorId },
+};

@@ -2,6 +2,7 @@
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL;
 const APPS_SCRIPT_SECRET = process.env.APPS_SCRIPT_SECRET;
+const APPS_SCRIPT_TIMEOUT_MS = 30000;
 
 async function gasRequest(action, params = {}) {
   const payload = {
@@ -12,6 +13,7 @@ async function gasRequest(action, params = {}) {
 
   const response = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
+    signal: AbortSignal.timeout(APPS_SCRIPT_TIMEOUT_MS),
     headers: {
       'Content-Type': 'application/json'
     },
@@ -76,7 +78,10 @@ const sheetsService = {
 
   getSettings: () => gasRequest('getSettings'),
 
-  saveSettings: (data) => gasRequest('saveSettings', { data })
+  saveSettings: (data) => gasRequest('saveSettings', { data }),
+
+  // Phase 1 keeps Sheets only as a one-way disaster-recovery destination.
+  replaceBackupSnapshot: (snapshot) => gasRequest('replaceBackupSnapshot', { snapshot })
 };
 
 module.exports = sheetsService;

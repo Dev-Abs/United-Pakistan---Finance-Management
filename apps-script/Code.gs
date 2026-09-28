@@ -1,10 +1,10 @@
-const SECRET = 'unitedpakistan2026'; // Match APPS_SCRIPT_SECRET in .env
+const SECRET = PropertiesService.getScriptProperties().getProperty('APPS_SCRIPT_SECRET');
 
 // Bump whenever this file changes. Lets /api/diagnostics confirm the live
 // Web App deployment is actually serving this version of the code, since
 // editing this file in the Apps Script editor does NOT update the deployed
 // Web App until you also publish "New version" under Manage deployments.
-const CODE_VERSION = '2026-09-26-atomic-payments';
+const CODE_VERSION = '2026-09-28-postgres-backup';
 
 function doPost(e) {
   return handleRequest(e, 'POST');
@@ -19,7 +19,7 @@ function handleRequest(e, method) {
     const params = method === 'POST' ? JSON.parse(e.postData.contents) : e.parameter;
 
     // Validate secret
-    if (params.secret !== SECRET) {
+    if (!SECRET || params.secret !== SECRET) {
       return response({ error: 'Unauthorized' }, 401);
     }
 
@@ -90,6 +90,9 @@ function handleRequest(e, method) {
       case 'saveSettings':
         result = saveSettings(params.data);
         break;
+      case 'replaceBackupSnapshot':
+        result = replaceBackupSnapshot(params.snapshot);
+        break;
       case 'refreshReportSheets':
         result = refreshMonthlyReportSheets(params.month);
         break;
@@ -107,6 +110,35 @@ function handleRequest(e, method) {
   } catch (error) {
     return response({ success: false, error: error.toString() }, 500);
   }
+}
+
+// Postgres is authoritative after Phase 1. This operation writes only to
+// dedicated backup tabs and never mutates the legacy operational sheets.
+function replaceBackupSnapshot(snapshot) {
+  if (!snapshot || !Array.isArray(snapshot.sheets)) {
+    throw new Error('Invalid backup snapshot');
+  }
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const result = {};
+  snapshot.sheets.forEach(function(item) {
+    if (!item || !/^DBBackup_[A-Za-z0-9_]+$/.test(item.name)) {
+      throw new Error('Invalid backup sheet name');
+    }
+    const headers = Array.isArray(item.headers) ? item.headers : [];
+    const rows = Array.isArray(item.rows) ? item.rows : [];
+    if (rows.some(function(row) { return !Array.isArray(row) || row.length !== headers.length; })) {
+      throw new Error('Invalid backup row width for ' + item.name);
+    }
+    const sheet = spreadsheet.getSheetByName(item.name) || spreadsheet.insertSheet(item.name);
+    sheet.clearContents();
+    if (headers.length) {
+      const values = [headers].concat(rows);
+      sheet.getRange(1, 1, values.length, headers.length).setValues(values);
+      sheet.setFrozenRows(1);
+    }
+    result[item.name] = rows.length;
+  });
+  return { generatedAt: snapshot.generatedAt || '', rowCounts: result };
 }
 
 function response(data, code = 200) {

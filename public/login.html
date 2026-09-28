@@ -31,6 +31,26 @@
                 <div id="login-error" class="text-danger mt-sm hidden text-sm"></div>
                 <button type="submit" class="btn btn-primary w-full mt-md">Sign in</button>
             </form>
+            <form id="password-change-form" class="hidden">
+                <div class="text-center mb-md">
+                    <h3>Choose a new password</h3>
+                    <p class="text-muted">Your temporary password must be replaced before finance data can be accessed.</p>
+                </div>
+                <div class="form-group">
+                    <label for="current-password">Current password</label>
+                    <input type="password" id="current-password" name="currentPassword" class="form-control" autocomplete="current-password" required>
+                </div>
+                <div class="form-group mt-sm">
+                    <label for="new-password">New password</label>
+                    <input type="password" id="new-password" name="newPassword" class="form-control" autocomplete="new-password" minlength="12" required>
+                </div>
+                <div class="form-group mt-sm">
+                    <label for="confirm-password">Confirm new password</label>
+                    <input type="password" id="confirm-password" name="confirmPassword" class="form-control" autocomplete="new-password" minlength="12" required>
+                </div>
+                <div id="password-change-error" class="text-danger mt-sm hidden text-sm"></div>
+                <button type="submit" class="btn btn-primary w-full mt-md">Change password</button>
+            </form>
         </div>
     </div>
     
@@ -63,6 +83,13 @@
                 if (res.success) {
                     localStorage.setItem('auth_token', res.token);
                     if (res.role) localStorage.setItem('user_role', res.role);
+                    if (res.mustChangePassword) {
+                        document.getElementById('login-form').classList.add('hidden');
+                        document.getElementById('password-change-form').classList.remove('hidden');
+                        document.getElementById('current-password').value = password;
+                        document.getElementById('new-password').focus();
+                        return;
+                    }
                     window.location.href = '/';
                 }
             } catch (error) {
@@ -71,6 +98,35 @@
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Sign in';
+            }
+        });
+
+        document.getElementById('password-change-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('password-change-error');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const currentPassword = e.target.currentPassword.value;
+            const newPassword = e.target.newPassword.value;
+            const confirmPassword = e.target.confirmPassword.value;
+            errorDiv.classList.add('hidden');
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'New passwords do not match.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Changing password…';
+            try {
+                const res = await api.post('/api/auth/change-password', { currentPassword, newPassword });
+                localStorage.setItem('auth_token', res.token);
+                if (res.role) localStorage.setItem('user_role', res.role);
+                window.location.href = '/';
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Unable to change password.';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Change password';
             }
         });
     </script>

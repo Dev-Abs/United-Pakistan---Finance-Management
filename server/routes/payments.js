@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const sheetsService = require('../services/sheets');
-const { requireAuth, requireWriteAccess } = require('../middleware/auth');
+const sheetsService = require('../services/finance-db');
+const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
 
-router.use(requireAuth);
+router.use(requireAuth, scopeToSector);
 
 router.post('/:id', requireWriteAccess, async (req, res) => {
   try {
@@ -26,6 +26,7 @@ router.post('/:id', requireWriteAccess, async (req, res) => {
       paid,
       paymentDate || '',
       remarks || '',
+      req.sectorId,
     );
 
     res.json({ success: true, data: result });

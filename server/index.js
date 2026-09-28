@@ -13,11 +13,8 @@ app.use(express.urlencoded({ extended: true }));
 // running and reports only whether required integrations were configured.
 app.get('/api/health', (req, res) => {
   const configured = Boolean(
-    process.env.ADMIN_USERNAME &&
-    process.env.ADMIN_PASSWORD &&
-    process.env.SESSION_SECRET &&
-    process.env.APPS_SCRIPT_URL &&
-    process.env.APPS_SCRIPT_SECRET
+    process.env.JWT_SECRET &&
+    process.env.DATABASE_URL
   );
 
   res.status(configured ? 200 : 503).json({
@@ -59,7 +56,7 @@ app.get('*', (req, res) => {
 });
 
 // For local development
-if (process.env.NODE_ENV !== 'production') {
+if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

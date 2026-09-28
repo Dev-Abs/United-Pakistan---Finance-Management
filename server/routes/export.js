@@ -1,10 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const sheetsService = require('../services/sheets');
-const { requireAuth } = require('../middleware/auth');
+const sheetsService = require('../services/finance-db');
+const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
 const ExcelJS = require('exceljs');
+const sheetsBackup = require('../services/sheets-backup');
 
-router.use(requireAuth);
+router.use(requireAuth, scopeToSector);
+
+router.post('/sheets-backup', requireWriteAccess, async (req, res) => {
+  try {
+    const result = await sheetsBackup.exportBackup(undefined, undefined, req.sectorId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 router.get('/csv', async (req, res) => {
   try {
@@ -12,8 +22,8 @@ router.get('/csv', async (req, res) => {
     if (!month) return res.status(400).send('Month required');
     
     const [members, followUps] = await Promise.all([
-      sheetsService.getSheetData(month),
-      sheetsService.getFollowUps(month).catch(() => [])
+      sheetsService.getSheetData(month, req.sectorId),
+      sheetsService.getFollowUps(month, req.sectorId).catch(() => [])
     ]);
     
     if (members.length === 0) {
@@ -52,7 +62,7 @@ router.get('/expense/csv', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
 
-    const expenses = await sheetsService.getExpenses(month);
+    const expenses = await sheetsService.getExpenses(month, req.sectorId);
 
     if (expenses.length === 0) {
       return res.status(404).send('No expenses found for this month');
@@ -88,7 +98,7 @@ router.get('/expense/excel', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
 
-    const expenses = await sheetsService.getExpenses(month);
+    const expenses = await sheetsService.getExpenses(month, req.sectorId);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Expenses');
@@ -122,8 +132,8 @@ router.get('/excel', async (req, res) => {
     if (!month) return res.status(400).send('Month required');
     
     const [members, followUps] = await Promise.all([
-      sheetsService.getSheetData(month),
-      sheetsService.getFollowUps(month).catch(() => [])
+      sheetsService.getSheetData(month, req.sectorId),
+      sheetsService.getFollowUps(month, req.sectorId).catch(() => [])
     ]);
     
     const workbook = new ExcelJS.Workbook();

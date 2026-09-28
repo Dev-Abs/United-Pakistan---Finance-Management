@@ -6,13 +6,24 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "nodemon server/index.js",
+    "db:check": "node server/scripts/check-db.js",
+    "db:migrate": "node server/scripts/migrate-db.js",
+    "db:verify-schema": "node server/scripts/check-schema.js",
+    "db:migrate-from-sheets": "node server/scripts/migrate-from-sheets.js",
+    "db:sync-seed-settings": "node server/scripts/sync-seed-settings.js",
+    "db:seed-auth": "node server/scripts/seed-auth-users.js",
+    "smoke:phase1": "node server/scripts/smoke-phase1.js",
+    "smoke:phase2": "node server/scripts/smoke-phase2.js",
     "test": "node server/test/run.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
     "express": "^4.19.2",
-    "express-session": "^1.18.0"
+    "express-session": "^1.18.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const sheetsService = require('../services/sheets');
-const { requireAuth, requireWriteAccess } = require('../middleware/auth');
+const sheetsService = require('../services/finance-db');
+const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
 
-router.use(requireAuth);
+router.use(requireAuth, scopeToSector);
 
 router.get('/', async (req, res) => {
   try {
@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     if (!campaignId) {
       return res.status(400).json({ success: false, error: 'Campaign ID is required' });
     }
-    const data = await sheetsService.getSpecialFundContributions(campaignId);
+    const data = await sheetsService.getSpecialFundContributions(campaignId, req.sectorId);
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -28,7 +28,7 @@ router.post('/', requireWriteAccess, async (req, res) => {
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ success: false, error: 'Contribution amount must be greater than zero' });
     }
-    const result = await sheetsService.addSpecialFundContribution(data);
+    const result = await sheetsService.addSpecialFundContribution(data, req.sectorId);
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -39,13 +39,13 @@ router.put('/:id', requireWriteAccess, async (req, res) => {
   try {
     const rowId = Number(req.params.id);
     const { data } = req.body;
-    if (!Number.isInteger(rowId) || rowId < 2 || !data) {
+    if (!Number.isInteger(rowId) || rowId < 1 || !data) {
       return res.status(400).json({ success: false, error: 'Valid contribution and data are required' });
     }
     if (data['Amount Paid'] !== undefined && (!Number.isFinite(Number(data['Amount Paid'])) || Number(data['Amount Paid']) <= 0)) {
       return res.status(400).json({ success: false, error: 'Contribution amount must be greater than zero' });
     }
-    await sheetsService.updateSpecialFundContribution(rowId, data);
+    await sheetsService.updateSpecialFundContribution(rowId, data, req.sectorId);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -55,10 +55,10 @@ router.put('/:id', requireWriteAccess, async (req, res) => {
 router.delete('/:id', requireWriteAccess, async (req, res) => {
   try {
     const rowId = Number(req.params.id);
-    if (!Number.isInteger(rowId) || rowId < 2) {
+    if (!Number.isInteger(rowId) || rowId < 1) {
       return res.status(400).json({ success: false, error: 'Valid contribution is required' });
     }
-    await sheetsService.deleteSpecialFundContribution(rowId);
+    await sheetsService.deleteSpecialFundContribution(rowId, req.sectorId);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
