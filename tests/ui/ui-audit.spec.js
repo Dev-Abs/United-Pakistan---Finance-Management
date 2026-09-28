@@ -8,7 +8,7 @@ const viewports = [
   { name: 'mobile', width: 390, height: 844 },
 ];
 
-const routes = ['dashboard', 'members', 'expenses', 'special-fund', 'reports', 'settings'];
+const routes = ['dashboard', 'members', 'expenses', 'special-fund', 'reports', 'settings', 'admin'];
 const colorSchemes = ['light', 'dark'];
 const sampleMember = {
   'Name': 'Ayesha Khan', 'Phone Number': '03001234567', 'Member Category': 'Fellow Member (FM)',

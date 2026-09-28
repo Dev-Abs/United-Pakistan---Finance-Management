@@ -1,6 +1,5 @@
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'generated_tokens.dart';
 
 abstract final class AppColors {
@@ -214,38 +213,47 @@ ThemeData buildTheme({
           ),
         );
 
-  final textTheme = GoogleFonts.manropeTextTheme(base.textTheme)
+  final textTheme = base.textTheme
+      .apply(fontFamily: 'Roboto')
       .copyWith(
-        displaySmall: GoogleFonts.manrope(
+        displaySmall: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 34,
           height: 1.08,
           fontWeight: FontWeight.w800,
           letterSpacing: -1,
         ),
-        headlineMedium: GoogleFonts.manrope(
+        headlineMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 28,
           height: 1.15,
           fontWeight: FontWeight.w800,
           letterSpacing: -.6,
         ),
-        titleLarge: GoogleFonts.manrope(
+        titleLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 20,
           fontWeight: FontWeight.w800,
           letterSpacing: -.25,
         ),
-        titleMedium: GoogleFonts.manrope(
+        titleMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
-        bodyLarge: GoogleFonts.manrope(fontSize: 16, height: 1.5),
-        bodyMedium: GoogleFonts.manrope(fontSize: 14, height: 1.45),
-        labelLarge: GoogleFonts.manrope(fontWeight: FontWeight.w700),
+        bodyLarge:
+            const TextStyle(fontFamily: 'Roboto', fontSize: 16, height: 1.5),
+        bodyMedium:
+            const TextStyle(fontFamily: 'Roboto', fontSize: 14, height: 1.45),
+        labelLarge:
+            const TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.w700),
       )
       .apply(bodyColor: scheme.onSurface, displayColor: scheme.onSurface);
   return base.copyWith(
     colorScheme: scheme,
     textTheme: textTheme,
-    primaryTextTheme: GoogleFonts.manropeTextTheme(base.primaryTextTheme)
+    primaryTextTheme: base.primaryTextTheme
+        .apply(fontFamily: 'Roboto')
         .apply(bodyColor: scheme.onPrimary, displayColor: scheme.onPrimary),
     extensions: <ThemeExtension<dynamic>>[
       isDark ? AppSemanticColors.dark : AppSemanticColors.light,
