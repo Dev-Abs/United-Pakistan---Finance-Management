@@ -233,12 +233,16 @@ function renderExpenseCategoryBreakdown(expenses) {
         const item = categories[category];
         const share = total > 0 ? Math.round((item.total / total) * 100) : 0;
         return '<tr>' +
-            '<td data-label="Category"><span class="badge badge-default">' + category + '</span></td>' +
+            '<td data-label="Category"><span class="badge badge-default">' + escapeHtml(category) + '</span></td>' +
             '<td data-label="Transactions">' + item.count + '</td>' +
             '<td data-label="Total Amount" class="font-bold text-danger">' + utils.formatCurrency(item.total) + '</td>' +
             '<td data-label="Share">' + share + '%</td>' +
             '</tr>';
     }).join('');
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 }
 
 function setupWhatsAppReport() {

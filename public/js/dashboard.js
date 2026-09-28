@@ -296,7 +296,7 @@ function updateTopPendingMembers(members) {
 
     list.innerHTML = pending.map(function(m) {
         return '<div class="dashboard-list-item">' +
-            '<div><strong>' + (m['Name'] || 'Member') + '</strong><span>' + (m['Payment Status'] || 'Pending') + '</span></div>' +
+            '<div><strong>' + escapeHtml(m['Name'] || 'Member') + '</strong><span>' + escapeHtml(m['Payment Status'] || 'Pending') + '</span></div>' +
             '<b class="text-danger">' + utils.formatCurrency(m['Remaining Balance']) + '</b>' +
             '</div>';
     }).join('');
@@ -428,8 +428,8 @@ function updateActivityLog(members, expenses) {
 
     list.innerHTML = items.map(function(item) {
         return '<div class="dashboard-list-item">' +
-            '<div><strong>' + item.title + '</strong><span>' + item.type + ' - ' + utils.formatDate(item.date) + '</span></div>' +
-            '<b>' + item.detail + '</b>' +
+            '<div><strong>' + escapeHtml(item.title) + '</strong><span>' + escapeHtml(item.type) + ' - ' + utils.formatDate(item.date) + '</span></div>' +
+            '<b>' + escapeHtml(item.detail) + '</b>' +
             '</div>';
     }).join('');
 }
@@ -519,7 +519,7 @@ function updateRecentPayments(members) {
         var tr = document.createElement('tr');
         var badge = '<span class="badge badge-warning">Partially Paid</span>';
         if (m['Payment Status'] === 'Paid') badge = '<span class="badge badge-success">Paid</span>';
-        tr.innerHTML = '<td>' + (m['Name'] || '') + '</td><td class="font-bold">' + utils.formatCurrency(m['Amount Paid']) + '</td><td class="text-sm text-muted">' + utils.formatDate(m['Payment Date']) + '</td><td>' + badge + '</td>';
+        tr.innerHTML = '<td>' + escapeHtml(m['Name'] || '') + '</td><td class="font-bold">' + utils.formatCurrency(m['Amount Paid']) + '</td><td class="text-sm text-muted">' + utils.formatDate(m['Payment Date']) + '</td><td>' + badge + '</td>';
         tbody.appendChild(tr);
     });
 }
@@ -544,7 +544,7 @@ function updateRecentExpenses(expenses) {
 
     recent.forEach(function(e) {
         var tr = document.createElement('tr');
-        tr.innerHTML = '<td class="text-sm">' + utils.formatDate(e['Date']) + '</td><td class="text-sm">' + (e['Description'] || '-') + '</td><td class="font-bold text-danger">' + utils.formatCurrency(e['Amount']) + '</td>';
+        tr.innerHTML = '<td class="text-sm">' + utils.formatDate(e['Date']) + '</td><td class="text-sm">' + escapeHtml(e['Description'] || '-') + '</td><td class="font-bold text-danger">' + utils.formatCurrency(e['Amount']) + '</td>';
         tbody.appendChild(tr);
     });
 }
