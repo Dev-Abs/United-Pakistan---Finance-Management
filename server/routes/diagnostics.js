@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/finance-db');
 const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
+const idempotency = require('../middleware/idempotency');
 
 router.use(requireAuth, scopeToSector);
-router.use(requireWriteAccess);
+router.use(requireWriteAccess, idempotency());
 
 router.get('/', async (req, res) => {
   try {

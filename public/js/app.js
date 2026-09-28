@@ -75,6 +75,7 @@ class App {
                 document.querySelectorAll('[data-admin-only]').forEach((el) => {
                     el.hidden = this.state.systemRole !== 'super_admin';
                 });
+                this.updateSectorContext();
             }
         } catch (error) {
             console.error('Auth check failed:', error);
@@ -127,6 +128,7 @@ class App {
 
     setupEventListeners() {
         this.setupCommandMenu();
+        this.setupNotifications();
         this.setupShellPreferences();
         this.setupNetworkStatus();
         // Sidebar navigation
@@ -161,6 +163,7 @@ class App {
         const logoutHandler = async () => {
             try {
                 localStorage.removeItem('auth_token');
+                localStorage.removeItem('auth_refresh_token');
                 window.location.href = '/login.html';
             } catch (error) {
                 utils.showToast('Failed to logout', 'error');
@@ -168,6 +171,11 @@ class App {
         };
         document.getElementById('logout-btn')?.addEventListener('click', logoutHandler);
         document.getElementById('bottom-logout-btn')?.addEventListener('click', logoutHandler);
+        document.getElementById('sector-context-exit')?.addEventListener('click', () => {
+            localStorage.removeItem('selected_sector_id');
+            localStorage.removeItem('selected_sector_name');
+            window.location.href = '/admin';
+        });
 
         const moreMenu = document.getElementById('mobile-more-menu');
         const moreButton = document.getElementById('mobile-more-btn');
@@ -230,6 +238,15 @@ class App {
             // Dispatch custom event to notify current view to reload data
             window.dispatchEvent(new CustomEvent('monthChanged', { detail: this.state.currentMonth }));
         });
+    }
+
+    updateSectorContext() {
+        const banner = document.getElementById('sector-context-banner');
+        const name = document.getElementById('sector-context-name');
+        const sectorId = localStorage.getItem('selected_sector_id');
+        if (!banner || !name || this.state.systemRole !== 'super_admin' || !sectorId) return;
+        name.textContent = localStorage.getItem('selected_sector_name') || `#${sectorId}`;
+        banner.hidden = false;
     }
 
     setupShellPreferences() {
@@ -328,6 +345,13 @@ class App {
             if (event.key === 'ArrowUp') { event.preventDefault(); activeIndex = (activeIndex - 1 + Math.max(visible.length, 1)) % Math.max(visible.length, 1); render(); }
             if (event.key === 'Enter' && visible[activeIndex]) { event.preventDefault(); run(visible[activeIndex]); }
         });
+    }
+
+    setupNotifications() {
+        const button = document.getElementById('notifications-btn'); const panel = document.getElementById('notifications-panel'); const close = document.getElementById('notifications-close'); const list = document.getElementById('notifications-list'); const count = document.getElementById('notifications-count');
+        if (!button || !panel || !list) return;
+        const load = async () => { try { const result = await api.get('/api/notifications?limit=50'); const items = result.data || []; count.textContent = String(items.length); count.classList.toggle('hidden', !items.length); list.replaceChildren(...(items.length ? items.map((item) => { const article = document.createElement('article'); article.className = 'notification-item'; const title = document.createElement('strong'); title.textContent = item.title; const detail = document.createElement('p'); detail.className = 'text-muted'; detail.textContent = item.detail; article.append(title, detail); return article; }) : [Object.assign(document.createElement('p'), { className: 'text-muted', textContent: 'No notifications.' })])); } catch { list.textContent = 'Notifications unavailable.'; } };
+        button.addEventListener('click', async () => { const opening = panel.hidden; panel.hidden = !opening; button.setAttribute('aria-expanded', String(opening)); if (opening) await load(); }); close?.addEventListener('click', () => { panel.hidden = true; button.setAttribute('aria-expanded', 'false'); });
     }
 
     closeModal(modal) {

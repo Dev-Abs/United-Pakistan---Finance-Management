@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/finance-db');
 const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
+const idempotency = require('../middleware/idempotency');
 
 router.use(requireAuth, scopeToSector);
 
@@ -18,7 +19,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', requireWriteAccess, async (req, res) => {
+router.post('/', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const { data } = req.body;
     if (!data || !String(data['Campaign ID'] || '').trim() || !String(data['Member Name'] || '').trim()) {
@@ -35,7 +36,7 @@ router.post('/', requireWriteAccess, async (req, res) => {
   }
 });
 
-router.put('/:id', requireWriteAccess, async (req, res) => {
+router.put('/:id', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const rowId = Number(req.params.id);
     const { data } = req.body;
@@ -52,7 +53,7 @@ router.put('/:id', requireWriteAccess, async (req, res) => {
   }
 });
 
-router.delete('/:id', requireWriteAccess, async (req, res) => {
+router.delete('/:id', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const rowId = Number(req.params.id);
     if (!Number.isInteger(rowId) || rowId < 1) {

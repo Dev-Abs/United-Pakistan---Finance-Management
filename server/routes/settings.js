@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/finance-db');
 const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
+const idempotency = require('../middleware/idempotency');
 const { getSettingsDefaults } = require('../services/settings-defaults');
 
 router.use(requireAuth, scopeToSector);
@@ -19,7 +20,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', requireWriteAccess, async (req, res) => {
+router.post('/', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const { data } = req.body;
     if (!data) {

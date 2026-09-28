@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - United Pakistan Finance Management</title>
-    <meta name="theme-color" content="#047857">
+    <meta name="theme-color" content="#C8102E">
     <meta name="description" content="Sign in to United Pakistan Finance Management.">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -31,6 +31,17 @@
                 <div id="login-error" class="text-danger mt-sm hidden text-sm"></div>
                 <button type="submit" class="btn btn-primary w-full mt-md">Sign in</button>
             </form>
+            <details class="mt-lg">
+                <summary>Request a new sector</summary>
+                <form id="sector-request-form" class="mt-md">
+                    <label for="request-sector-name">Sector name</label><input id="request-sector-name" class="form-control" required>
+                    <label for="request-email" class="mt-sm">Contact email</label><input id="request-email" type="email" class="form-control" required>
+                    <label for="request-notes" class="mt-sm">Notes (optional)</label><textarea id="request-notes" class="form-control" maxlength="1000"></textarea>
+                    <input id="request-website" autocomplete="off" tabindex="-1" aria-hidden="true" class="hidden">
+                    <div id="request-result" class="text-sm mt-sm" role="status"></div>
+                    <button type="submit" class="btn btn-secondary w-full mt-md">Submit request</button>
+                </form>
+            </details>
             <form id="password-change-form" class="hidden">
                 <div class="text-center mb-md">
                     <h3>Choose a new password</h3>
@@ -82,6 +93,7 @@
                 const res = await api.post('/api/auth/login', { username, password });
                 if (res.success) {
                     localStorage.setItem('auth_token', res.token);
+                    if (res.refreshToken) localStorage.setItem('auth_refresh_token', res.refreshToken);
                     if (res.role) localStorage.setItem('user_role', res.role);
                     if (res.mustChangePassword) {
                         document.getElementById('login-form').classList.add('hidden');
@@ -119,6 +131,7 @@
             try {
                 const res = await api.post('/api/auth/change-password', { currentPassword, newPassword });
                 localStorage.setItem('auth_token', res.token);
+                if (res.refreshToken) localStorage.setItem('auth_refresh_token', res.refreshToken);
                 if (res.role) localStorage.setItem('user_role', res.role);
                 window.location.href = '/';
             } catch (error) {
@@ -128,6 +141,11 @@
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Change password';
             }
+        });
+
+        document.getElementById('sector-request-form').addEventListener('submit', async (e) => {
+            e.preventDefault(); const result = document.getElementById('request-result'); const button = e.target.querySelector('button'); button.disabled = true;
+            try { await fetch('/api/onboarding/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sectorName: document.getElementById('request-sector-name').value, email: document.getElementById('request-email').value, notes: document.getElementById('request-notes').value, website: document.getElementById('request-website').value }) }).then(async (response) => { const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Unable to submit request'); return data; }); e.target.reset(); result.textContent = 'Request submitted for platform review.'; result.className = 'text-sm mt-sm text-success'; } catch (error) { result.textContent = error.message; result.className = 'text-sm mt-sm text-danger'; } finally { button.disabled = false; }
         });
     </script>
 </body>

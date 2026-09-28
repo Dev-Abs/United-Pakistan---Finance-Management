@@ -131,6 +131,35 @@ test('every live finance route applies authenticated sector scoping', () => {
   });
 });
 
+test('platform admin endpoints are super-admin guarded and SQL aggregated', () => {
+  const source = fs.readFileSync(require.resolve('../routes/admin'), 'utf8');
+  assert.match(source, /router\.use\(requireAuth, requireRole\('super_admin'\), rateLimit\)/);
+  assert.match(source, /router\.get\('\/overview'/);
+  assert.match(source, /router\.get\('\/sectors\/:id\/summary'/);
+  assert.match(source, /router\.get\('\/sectors\/:id\/users'/);
+  assert.match(source, /with member_counts as/);
+});
+
+test('login failures temporarily lock the same username and client key', () => {
+  const authRoute = require('../routes/auth')._test;
+  const req = { body: { username: `lockout-${Date.now()}@example.test` }, ip: '127.0.0.1' };
+  const key = authRoute.loginKey(req);
+  for (let i = 0; i < 5; i += 1) authRoute.recordFailure(key);
+  assert.equal(authRoute.isLocked(key), true);
+  authRoute.loginFailures.delete(key);
+});
+
+test('finance mutations expose durable idempotency protection', () => {
+  const middleware = fs.readFileSync(require.resolve('../middleware/idempotency'), 'utf8');
+  const payments = fs.readFileSync(require.resolve('../routes/payments'), 'utf8');
+  const expenses = fs.readFileSync(require.resolve('../routes/expenses'), 'utf8');
+  assert.match(middleware, /idempotency_keys/);
+  assert.match(middleware, /This request has already been accepted/);
+  assert.match(middleware, /mutation_accepted/);
+  assert.match(payments, /idempotency\(\)/);
+  assert.match(expenses, /idempotency\(\)/);
+});
+
 test('example environment contains placeholders only for authentication secrets', () => {
   const source = fs.readFileSync(path.join(__dirname, '../../.env.example'), 'utf8');
   assert.match(source, /^JWT_SECRET=replace-with-/m);

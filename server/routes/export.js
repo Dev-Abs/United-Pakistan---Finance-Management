@@ -2,12 +2,18 @@ const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/finance-db');
 const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
+const idempotency = require('../middleware/idempotency');
 const ExcelJS = require('exceljs');
 const sheetsBackup = require('../services/sheets-backup');
+const db = require('../services/db');
 
 router.use(requireAuth, scopeToSector);
 
-router.post('/sheets-backup', requireWriteAccess, async (req, res) => {
+async function auditExport(req, format, month) {
+  await db.query(`insert into audit_log (actor_user_id, sector_id, action, entity_type, metadata) values ($1,$2,'export_requested','export',$3)`, [req.user.id, req.sectorId, { format, month: String(month || '').slice(0, 100) }]);
+}
+
+router.post('/sheets-backup', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const result = await sheetsBackup.exportBackup(undefined, undefined, req.sectorId);
     res.json({ success: true, data: result });
@@ -16,10 +22,19 @@ router.post('/sheets-backup', requireWriteAccess, async (req, res) => {
   }
 });
 
+router.post('/audit', idempotency(), async (req, res) => {
+  const format = String(req.body?.format || '').trim();
+  const month = String(req.body?.month || '').trim();
+  if (format !== 'pdf' || !month) return res.status(400).json({ success: false, error: 'PDF format and month are required' });
+  await auditExport(req, 'pdf', month);
+  res.status(204).end();
+});
+
 router.get('/csv', async (req, res) => {
   try {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
+    await auditExport(req, 'csv', month);
     
     const [members, followUps] = await Promise.all([
       sheetsService.getSheetData(month, req.sectorId),
@@ -61,6 +76,7 @@ router.get('/expense/csv', async (req, res) => {
   try {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
+    await auditExport(req, 'expense_csv', month);
 
     const expenses = await sheetsService.getExpenses(month, req.sectorId);
 
@@ -97,6 +113,7 @@ router.get('/expense/excel', async (req, res) => {
   try {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
+    await auditExport(req, 'expense_excel', month);
 
     const expenses = await sheetsService.getExpenses(month, req.sectorId);
 
@@ -130,6 +147,7 @@ router.get('/excel', async (req, res) => {
   try {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
+    await auditExport(req, 'excel', month);
     
     const [members, followUps] = await Promise.all([
       sheetsService.getSheetData(month, req.sectorId),

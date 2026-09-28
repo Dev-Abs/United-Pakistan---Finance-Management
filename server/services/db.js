@@ -39,6 +39,16 @@ async function withTransaction(callback) {
   }
 }
 
+// RLS-ready transaction context. Policies can read these transaction-local
+// settings through current_setting(..., true) once every tenant mutation/read
+// is migrated to this helper. It deliberately does not alter ordinary queries.
+async function withSectorTransaction({ sectorId, role } = {}, callback) {
+  return withTransaction(async (client) => {
+    await client.query(`select set_config('app.current_sector_id', $1, true), set_config('app.current_role', $2, true)`, [sectorId == null ? '' : String(sectorId), role == null ? '' : String(role)]);
+    return callback(client);
+  });
+}
+
 async function closePool() {
   if (pool) {
     const currentPool = pool;
@@ -47,4 +57,4 @@ async function closePool() {
   }
 }
 
-module.exports = { getPool, query, withTransaction, closePool };
+module.exports = { getPool, query, withTransaction, withSectorTransaction, closePool };

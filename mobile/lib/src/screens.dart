@@ -1205,6 +1205,13 @@ class More extends StatelessWidget {
       const SizedBox(height: 12),
       Card(
           child: Column(children: [
+        ListTile(
+            onTap: () => Navigator.push(c,
+                MaterialPageRoute(builder: (_) => NotificationsScreen(client: store.api))),
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Notifications'),
+            subtitle: const Text('Overdue payments and due follow-ups'),
+            trailing: const Icon(Icons.chevron_right)),
         if (superAdmin)
           ListTile(
               onTap: () => Navigator.push(
@@ -1273,6 +1280,40 @@ class More extends StatelessWidget {
     ]);
   }
 }
+
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key, required this.client});
+  final ApiClient client;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Notifications')),
+        body: FutureBuilder<Map<String, dynamic>>(
+          future: client.request('/api/notifications?limit=100'),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Notifications unavailable: ${snapshot.error}'));
+            }
+            final items = (snapshot.data?['data'] as List<dynamic>? ?? const []);
+            if (items.isEmpty) return const Center(child: Text('No notifications.'));
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, index) {
+                final item = Map<String, dynamic>.from(items[index] as Map);
+                return Card(child: ListTile(
+                  leading: Icon(item['type'] == 'overdue_payment' ? Icons.payments_outlined : Icons.event_note_outlined),
+                  title: Text(item['title']?.toString() ?? 'Notification'),
+                  subtitle: Text(item['detail']?.toString() ?? ''),
+                ));
+              },
+            );
+          },
+        ),
+      );
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key, required this.client});

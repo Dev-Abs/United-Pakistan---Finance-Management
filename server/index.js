@@ -27,6 +27,8 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/onboarding', require('./routes/onboarding'));
+app.use('/api/team', require('./routes/team'));
 app.use('/api/members', require('./routes/members'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/expenses', require('./routes/expenses'));
@@ -36,6 +38,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/special-fund', require('./routes/special-fund'));
 app.use('/api/export', require('./routes/export'));
 app.use('/api/diagnostics', require('./routes/diagnostics'));
+app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/ai', require('./routes/ai'));
 
 // Fingerprinted/versioned app assets can be cached; HTML stays fresh so a

@@ -3,8 +3,29 @@ const auth = require('../services/auth');
 const { bearerToken, requireAuthAllowPasswordChange } = require('../middleware/auth');
 
 const router = express.Router();
+const loginFailures = new Map();
+const LOCKOUT_MS = 15 * 60 * 1000;
+const MAX_FAILURES = 5;
 
-function sessionPayload(user) {
+function loginKey(req) {
+  return `${String(req.body?.username || '').trim().toLowerCase()}:${req.ip || 'unknown'}`;
+}
+
+function isLocked(key) {
+  const state = loginFailures.get(key);
+  if (!state) return false;
+  if (Date.now() >= state.lockedUntil) { loginFailures.delete(key); return false; }
+  return state.failures >= MAX_FAILURES;
+}
+
+function recordFailure(key) {
+  const state = loginFailures.get(key) || { failures: 0, lockedUntil: 0 };
+  state.failures += 1;
+  if (state.failures >= MAX_FAILURES) state.lockedUntil = Date.now() + LOCKOUT_MS;
+  loginFailures.set(key, state);
+}
+
+async function sessionPayload(user) {
   return {
     success: true,
     token: auth.signToken(user),
@@ -13,14 +34,19 @@ function sessionPayload(user) {
     username: user.email,
     sectorId: user.sector_id == null ? null : Number(user.sector_id),
     mustChangePassword: Boolean(user.must_change_password),
+    refreshToken: await auth.issueRefreshToken(user),
   };
 }
 
 router.post('/login', async (req, res) => {
+  const key = loginKey(req);
+  if (isLocked(key)) return res.status(429).json({ success: false, error: 'Too many failed attempts. Try again later.' });
   try {
     const user = await auth.authenticate(req.body?.username, req.body?.password);
-    res.json(sessionPayload(user));
+    loginFailures.delete(key);
+    res.json(await sessionPayload(user));
   } catch (error) {
+    if (error.code === 'INVALID_CREDENTIALS') recordFailure(key);
     const forbidden = error.code === 'SECTOR_INACTIVE';
     res.status(forbidden ? 403 : 401).json({
       success: false,
@@ -31,6 +57,15 @@ router.post('/login', async (req, res) => {
 
 router.post('/logout', (_req, res) => {
   res.json({ success: true });
+});
+
+router.post('/refresh', async (req, res) => {
+  try {
+    const rotated = await auth.rotateRefreshToken(req.body?.refreshToken);
+    res.json(await sessionPayload(rotated.user));
+  } catch (_error) {
+    res.status(401).json({ success: false, error: 'Invalid refresh token' });
+  }
 });
 
 router.get('/status', async (req, res) => {
@@ -55,11 +90,11 @@ router.get('/status', async (req, res) => {
 router.post('/change-password', requireAuthAllowPasswordChange, async (req, res) => {
   try {
     const user = await auth.changePassword(req.user, req.body?.currentPassword, req.body?.newPassword);
-    res.json(sessionPayload(user));
+    res.json(await sessionPayload(user));
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
 });
 
 module.exports = router;
-module.exports._test = { sessionPayload };
+module.exports._test = { sessionPayload, isLocked, recordFailure, loginKey, loginFailures };

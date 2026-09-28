@@ -42,6 +42,83 @@ function audit(client, actor, sectorId, action, entityType, entityId, metadata =
 
 router.use(requireAuth, requireRole('super_admin'), rateLimit);
 
+router.get('/status', async (_req, res) => {
+  let database = 'ok';
+  try { await db.query('select 1'); } catch (_) { database = 'error'; }
+  res.json({
+    success: database === 'ok',
+    data: {
+      database,
+      aiFeaturesEnabled: String(process.env.AI_FEATURES_ENABLED || 'false').toLowerCase() === 'true',
+      aiControlledActionsEnabled: String(process.env.AI_CONTROLLED_ACTIONS_ENABLED || 'false').toLowerCase() === 'true',
+      deploymentConfigured: Boolean(process.env.DATABASE_URL && process.env.JWT_SECRET),
+    },
+  });
+});
+
+router.get('/overview', async (_req, res) => {
+  const result = await db.query(`
+    with member_counts as (select sector_id, count(*)::int members from members group by sector_id),
+      secretary_counts as (select sector_id, count(*)::int secretaries from users where role='secretary' group by sector_id),
+      month_counts as (select sector_id, count(*)::int months from months group by sector_id),
+      payment_totals as (select sector_id, coalesce(sum(amount_paid),0)::numeric collected, coalesce(sum(total_payable),0)::numeric due from monthly_payments group by sector_id),
+      expense_totals as (select sector_id, coalesce(sum(amount),0)::numeric expenses from expenses group by sector_id),
+      sector_counts as (
+        select s.id, s.name, s.slug, s.active,
+          coalesce(mc.members,0)::int as members,
+          coalesce(sc.secretaries,0)::int as secretaries,
+          coalesce(moc.months,0)::int as months,
+          coalesce(pt.collected,0)::numeric as collected,
+          coalesce(pt.due,0)::numeric as due,
+          coalesce(et.expenses,0)::numeric as expenses
+        from sectors s
+        left join member_counts mc on mc.sector_id=s.id
+        left join secretary_counts sc on sc.sector_id=s.id
+        left join month_counts moc on moc.sector_id=s.id
+        left join payment_totals pt on pt.sector_id=s.id
+        left join expense_totals et on et.sector_id=s.id
+      )
+    select coalesce(json_agg(sector_counts order by name),'[]'::json) as sectors,
+      count(*)::int as total_sectors,
+      count(*) filter (where active)::int as active_sectors,
+      coalesce(sum(members),0)::int as total_members,
+      coalesce(sum(collected),0)::numeric as total_collected,
+      coalesce(sum(due),0)::numeric as total_due,
+      coalesce(sum(expenses),0)::numeric as total_expenses
+    from sector_counts
+  `);
+  res.json({ success: true, data: result.rows[0] });
+});
+
+router.get('/sectors/:id/summary', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) return res.status(400).json({ success: false, error: 'Invalid sector id' });
+  const result = await db.query(`
+    select s.id, s.name, s.slug, s.active,
+      (select count(*)::int from members where sector_id=s.id) as members,
+      (select count(*)::int from users where sector_id=s.id and role='secretary') as secretaries,
+      (select count(*)::int from users where sector_id=s.id and role='secretary' and must_change_password) as pending_secretary_passwords,
+      (select count(*)::int from months where sector_id=s.id) as months,
+      (select coalesce(sum(amount_paid),0)::numeric from monthly_payments where sector_id=s.id) as collected,
+      (select coalesce(sum(total_payable),0)::numeric from monthly_payments where sector_id=s.id) as due,
+      (select coalesce(sum(amount),0)::numeric from expenses where sector_id=s.id) as expenses,
+      (select max(created_at) from audit_log where sector_id=s.id) as last_activity
+    from sectors s where s.id=$1
+  `, [id]);
+  if (!result.rowCount) return res.status(404).json({ success: false, error: 'Sector not found' });
+  res.json({ success: true, data: result.rows[0] });
+});
+
+router.get('/sectors/:id/users', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) return res.status(400).json({ success: false, error: 'Invalid sector id' });
+  const result = await db.query(`
+    select id, email, role, must_change_password, created_at, last_login_at
+    from users where sector_id=$1 order by email limit 500
+  `, [id]);
+  res.json({ success: true, data: result.rows });
+});
+
 router.get('/sectors', async (_req, res) => {
   const result = await db.query(`
     select s.id, s.name, s.slug, s.active, s.created_at,
@@ -135,13 +212,22 @@ router.post('/sectors/:id/secretary/reset', (req, res) => provisionSecretary(req
 
 router.get('/audit-log', async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+  const page = Math.max(Number(req.query.page) || 1, 1);
+  const offset = (page - 1) * limit;
+  const sectorId = Number(req.query.sectorId);
+  const action = String(req.query.action || '').trim();
+  const filters = []; const params = [];
+  if (Number.isInteger(sectorId) && sectorId > 0) { params.push(sectorId); filters.push(`a.sector_id=$${params.length}`); }
+  if (action) { params.push(action.slice(0, 100)); filters.push(`a.action=$${params.length}`); }
+  params.push(limit, offset);
+  const where = filters.length ? `where ${filters.join(' and ')}` : '';
   const result = await db.query(`
     select a.id, a.actor_user_id, a.sector_id, a.action, a.entity_type, a.entity_id, a.metadata, a.created_at,
       u.email as actor_email
     from audit_log a left join users u on u.id=a.actor_user_id
-    order by a.created_at desc limit $1
-  `, [limit]);
-  res.json({ success: true, data: result.rows });
+    ${where} order by a.created_at desc limit $${params.length - 1} offset $${params.length}
+  `, params);
+  res.json({ success: true, data: result.rows, page, limit, filters: { sectorId: Number.isInteger(sectorId) && sectorId > 0 ? sectorId : null, action: action || null } });
 });
 
 module.exports = router;

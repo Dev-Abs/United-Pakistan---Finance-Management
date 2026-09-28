@@ -2,6 +2,7 @@ const express = require('express');
 const sheets = require('../services/finance-db');
 const deepseek = require('../services/deepseek');
 const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
+const idempotency = require('../middleware/idempotency');
 
 const router = express.Router();
 router.use(requireAuth, scopeToSector);
@@ -182,7 +183,7 @@ router.post('/chat', asyncRoute(async (req, res) => {
   sendResult(res, 'chat', result, facts);
 }));
 
-router.post('/bulk-drafts', requireWriteAccess, asyncRoute(async (req, res) => {
+router.post('/bulk-drafts', requireWriteAccess, idempotency(), asyncRoute(async (req, res) => {
   if (String(process.env.AI_CONTROLLED_ACTIONS_ENABLED || '').toLowerCase() !== 'true') {
     throw Object.assign(httpError(503, 'Controlled AI actions are not enabled.'), { code: 'AI_ACTIONS_DISABLED' });
   }

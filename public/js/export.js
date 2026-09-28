@@ -64,6 +64,8 @@ export function setupExportListeners(appInstance) {
         await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.8/dist/jspdf.plugin.autotable.min.js');
       }
 
+      await fetch('/api/export/audit', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('auth_token'), 'Content-Type': 'application/json', 'Idempotency-Key': 'pdf-export-' + Date.now() }, body: JSON.stringify({ format: 'pdf', month: appInstance.state.currentMonth }) });
+
       const token = localStorage.getItem('auth_token');
       const res = await fetch('/api/members?month=' + encodeURIComponent(appInstance.state.currentMonth), {
         headers: { 'Authorization': 'Bearer ' + token }

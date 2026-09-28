@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const db = require('./db');
 
 const PASSWORD_MIN_LENGTH = 12;
-const JWT_EXPIRES_IN = '12h';
+const JWT_EXPIRES_IN = '30m';
+const REFRESH_DAYS = 14;
 
 function jwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -30,6 +31,7 @@ function signToken(user) {
   return jwt.sign({
     role: safe.role,
     sector_id: safe.sector_id,
+    session_version: Number(user.session_version || 0),
   }, jwtSecret(), {
     subject: String(safe.id),
     expiresIn: JWT_EXPIRES_IN,
@@ -44,7 +46,7 @@ function verifyToken(token) {
 async function findUserByEmail(email, database = db) {
   const result = await database.query(`
     select u.id, u.sector_id, u.email, u.password_hash, u.role,
-      u.must_change_password, s.active as sector_active
+      u.must_change_password, u.active, u.session_version, s.active as sector_active
     from users u
     left join sectors s on s.id=u.sector_id
     where lower(btrim(u.email))=lower(btrim($1))
@@ -56,7 +58,7 @@ async function findUserByEmail(email, database = db) {
 async function findUserById(id, database = db) {
   const result = await database.query(`
     select u.id, u.sector_id, u.email, u.password_hash, u.role,
-      u.must_change_password, s.active as sector_active
+      u.must_change_password, u.active, u.session_version, s.active as sector_active
     from users u
     left join sectors s on s.id=u.sector_id
     where u.id=$1
@@ -67,6 +69,7 @@ async function findUserById(id, database = db) {
 
 function assertUserActive(user) {
   if (!user) throw Object.assign(new Error('Unauthorized'), { code: 'UNAUTHORIZED' });
+  if (user.active === false) throw Object.assign(new Error('User is inactive'), { code: 'UNAUTHORIZED' });
   if (user.role !== 'super_admin' && user.sector_active !== true) {
     throw Object.assign(new Error('Sector is inactive'), { code: 'SECTOR_INACTIVE' });
   }
@@ -92,6 +95,9 @@ async function userFromToken(token, database = db) {
   const user = await findUserById(claims.sub, database);
   assertUserActive(user);
   if (claims.role !== user.role || (claims.sector_id ?? null) !== (user.sector_id == null ? null : Number(user.sector_id))) {
+    throw Object.assign(new Error('Session is no longer valid'), { code: 'UNAUTHORIZED' });
+  }
+  if (Number(claims.session_version || 0) !== Number(user.session_version || 0)) {
     throw Object.assign(new Error('Session is no longer valid'), { code: 'UNAUTHORIZED' });
   }
   return user;
@@ -120,6 +126,34 @@ async function changePassword(user, currentPassword, newPassword, database = db)
   return result.rows[0];
 }
 
+function refreshHash(token) { return require('crypto').createHash('sha256').update(token).digest('hex'); }
+
+async function issueRefreshToken(user, database = db) {
+  const raw = require('crypto').randomBytes(48).toString('base64url');
+  const expires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
+  await database.query('insert into refresh_tokens (user_id,token_hash,session_version,expires_at) values ($1,$2,$3,$4)', [user.id, refreshHash(raw), Number(user.session_version || 0), expires]);
+  return raw;
+}
+
+async function rotateRefreshToken(raw, database = db) {
+  if (!raw) throw Object.assign(new Error('Refresh token is required'), { code: 'UNAUTHORIZED' });
+  return database.withTransaction(async (client) => {
+    const found = await client.query(`select rt.id as refresh_id, rt.user_id, rt.session_version, rt.expires_at,
+      u.id as user_id, u.sector_id, u.email, u.role, u.must_change_password, u.active, u.session_version as current_session_version,
+      s.active as sector_active
+      from refresh_tokens rt join users u on u.id=rt.user_id left join sectors s on s.id=u.sector_id
+      where rt.token_hash=$1 and rt.revoked_at is null for update of rt`, [refreshHash(raw)]);
+    const user = found.rows[0];
+    if (!user || user.expires_at <= new Date() || user.active === false || user.session_version !== user.current_session_version || user.sector_active === false) throw Object.assign(new Error('Invalid refresh token'), { code: 'UNAUTHORIZED' });
+    await client.query('update refresh_tokens set revoked_at=now() where id=$1', [user.refresh_id]);
+    const next = require('crypto').randomBytes(48).toString('base64url');
+    const expires = new Date(Date.now() + REFRESH_DAYS * 24 * 60 * 60 * 1000);
+    await client.query('insert into refresh_tokens (user_id,token_hash,session_version,expires_at) values ($1,$2,$3,$4)', [user.user_id, refreshHash(next), user.current_session_version, expires]);
+    user.id = user.user_id;
+    return { user, refreshToken: next };
+  });
+}
+
 module.exports = {
   authenticate,
   changePassword,
@@ -130,5 +164,7 @@ module.exports = {
   signToken,
   userFromToken,
   validateNewPassword,
+  issueRefreshToken,
+  rotateRefreshToken,
   _test: { assertUserActive, jwtSecret, verifyToken },
 };

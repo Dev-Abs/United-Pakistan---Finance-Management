@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="UP Finance">
-    <meta name="theme-color" content="#047857">
+    <meta name="theme-color" content="#C8102E">
     <meta name="description" content="United Pakistan finance, member and fund management.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,6 +70,10 @@
 
         <!-- Main Content -->
         <main class="main-content">
+            <div id="sector-context-banner" class="context-banner" role="status" hidden>
+                <span>Viewing sector: <strong id="sector-context-name"></strong></span>
+                <button id="sector-context-exit" class="btn btn-quiet" type="button">Exit sector</button>
+            </div>
             <!-- Header -->
             <header class="top-header">
                 <div class="header-left">
@@ -80,6 +84,7 @@
                         <i data-lucide="search"></i><span>Search or jump to…</span><kbd>Ctrl K</kbd>
                     </button>
                     <span class="role-badge" id="user-role-badge">Admin</span>
+                    <button id="notifications-btn" class="btn btn-sm btn-secondary" type="button" aria-expanded="false" aria-controls="notifications-panel"><i data-lucide="bell"></i><span class="sr-only">Notifications</span><span id="notifications-count" class="notification-count hidden">0</span></button>
                     <div class="month-selector">
                         <select id="current-month-select" class="form-control">
                             <option value="">Loading...</option>
@@ -90,6 +95,7 @@
                     </button>
                 </div>
             </header>
+            <aside id="notifications-panel" class="notifications-panel card" hidden aria-live="polite"><div class="card-header"><h3>Notifications</h3><button id="notifications-close" class="btn btn-sm btn-secondary" type="button">Close</button></div><div id="notifications-list"><p class="text-muted">No notifications loaded.</p></div></aside>
 
             <!-- Warns when the selected month is not the current calendar month -->
             <div id="stale-month-notice" class="stale-month-notice" style="display:none;"></div>

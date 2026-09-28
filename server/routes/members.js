@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/finance-db');
 const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
+const idempotency = require('../middleware/idempotency');
 
 router.use(requireAuth, scopeToSector);
 
@@ -31,7 +32,7 @@ router.get('/history', async (req, res) => {
   }
 });
 
-router.post('/', requireWriteAccess, async (req, res) => {
+router.post('/', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const { month, data } = req.body;
     if (!month || !data) {
@@ -44,7 +45,7 @@ router.post('/', requireWriteAccess, async (req, res) => {
   }
 });
 
-router.put('/:id', requireWriteAccess, async (req, res) => {
+router.put('/:id', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const { id } = req.params;
     const { month, data } = req.body;
@@ -58,7 +59,7 @@ router.put('/:id', requireWriteAccess, async (req, res) => {
   }
 });
 
-router.delete('/:id', requireWriteAccess, async (req, res) => {
+router.delete('/:id', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const { id } = req.params;
     const { month } = req.query;

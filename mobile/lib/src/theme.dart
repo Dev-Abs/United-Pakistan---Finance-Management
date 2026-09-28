@@ -3,46 +3,58 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AppColors {
-  static const emerald = Color(0xFF087F67);
-  static const emeraldDark = Color(0xFF034B46);
-  static const teal = Color(0xFF04B99B);
-  static const cyan = Color(0xFF168FC7);
-  static const indigo = Color(0xFF3146B8);
-  static const navy = Color(0xFF061C2D);
-  static const mint = Color(0xFFD9FFF2);
+  static const crimson950 = Color(0xFF1A0305);
+  static const crimson900 = Color(0xFF2A0508);
+  static const crimson800 = Color(0xFF4A0A10);
+  static const crimson700 = Color(0xFF7A0F1A);
+  static const crimson600 = Color(0xFFA3121F);
+  static const crimson500 = Color(0xFFC8102E);
+  static const crimson400 = Color(0xFFE23A4A);
+  static const crimson300 = Color(0xFFF27A83);
+  static const crimson100 = Color(0xFFFFE5E7);
+  static const ember = Color(0xFFFF5A4F);
   static const gold = Color(0xFFFFC857);
-  static const background = Color(0xFFF2F8F7);
+  static const background = Color(0xFFFBF6F5);
   static const surface = Colors.white;
-  static const ink = Color(0xFF082B32);
-  static const slate = Color(0xFF577078);
-  static const border = Color(0xFFCFE3E0);
+  static const ink = Color(0xFF241014);
+  static const slate = Color(0xFF6F5B60);
+  static const border = Color(0xFFEADADD);
   static const success = Color(0xFF15803D);
   static const warning = Color(0xFFE09A13);
-  static const error = Color(0xFFBA1A1A);
-  static const info = Color(0xFF1685A8);
+  static const error = Color(0xFF7A0F1A);
+  static const info = Color(0xFF096A86);
 
   // Compatibility aliases retained for older widgets.
-  static const blood = emerald;
-  static const bloodDark = emeraldDark;
-  static const crimson = teal;
-  static const rose = mint;
+  static const emerald = crimson600;
+  static const emeraldDark = crimson800;
+  static const teal = crimson500;
+  static const cyan = crimson400;
+  static const indigo = crimson700;
+  static const navy = crimson950;
+  static const mint = crimson100;
+
+  // Compatibility aliases retained for older widgets.
+  static const blood = crimson500;
+  static const bloodDark = crimson800;
+  static const crimson = crimson500;
+  static const rose = crimson100;
 }
 
 abstract final class AppGradients {
   static const brand = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [AppColors.emeraldDark, AppColors.emerald, AppColors.teal],
+    colors: [AppColors.crimson800, AppColors.crimson600, AppColors.crimson500],
   );
   static const accent = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [AppColors.teal, AppColors.cyan, AppColors.indigo],
+    colors: [AppColors.crimson600, AppColors.crimson400, AppColors.ember],
   );
   static const night = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [AppColors.navy, Color(0xFF063B49), AppColors.emeraldDark],
+    colors: [AppColors.crimson950, AppColors.crimson900, AppColors.crimson800],
   );
 }
 
@@ -143,10 +155,10 @@ ThemeData buildTheme({
     secondary: AppColors.gold,
   );
   final scheme = (dynamicScheme ?? fallback).copyWith(
-    primary: isDark ? const Color(0xFF5FF2CC) : AppColors.emerald,
-    onPrimary: isDark ? AppColors.navy : Colors.white,
-    primaryContainer: isDark ? const Color(0xFF07594F) : AppColors.mint,
-    onPrimaryContainer: isDark ? AppColors.mint : AppColors.emeraldDark,
+    primary: isDark ? AppColors.crimson300 : AppColors.crimson600,
+    onPrimary: isDark ? AppColors.crimson950 : Colors.white,
+    primaryContainer: isDark ? AppColors.crimson800 : AppColors.crimson100,
+    onPrimaryContainer: isDark ? AppColors.crimson100 : AppColors.crimson800,
     secondary: isDark ? const Color(0xFFFFCB70) : AppColors.gold,
     onSecondary: AppColors.navy,
     error: isDark ? const Color(0xFFFFB4AB) : AppColors.error,
@@ -154,20 +166,20 @@ ThemeData buildTheme({
     errorContainer: isDark ? const Color(0xFF93000A) : const Color(0xFFFFDAD6),
     onErrorContainer:
         isDark ? const Color(0xFFFFDAD6) : const Color(0xFF410002),
-    surface: isDark ? const Color(0xFF092733) : Colors.white,
-    onSurface: isDark ? const Color(0xFFE9FFFA) : AppColors.ink,
-    onSurfaceVariant: isDark ? const Color(0xFFAACCC7) : AppColors.slate,
-    outline: isDark ? const Color(0xFF77958F) : const Color(0xFF687D79),
-    outlineVariant: isDark ? const Color(0xFF28505A) : AppColors.border,
-    surfaceContainerLowest: isDark ? const Color(0xFF061E28) : Colors.white,
+    surface: isDark ? const Color(0xFF1C0B0D) : Colors.white,
+    onSurface: isDark ? const Color(0xFFFFF1F1) : AppColors.ink,
+    onSurfaceVariant: isDark ? const Color(0xFFD4B9BD) : AppColors.slate,
+    outline: isDark ? const Color(0xFF9A6D73) : const Color(0xFF80666B),
+    outlineVariant: isDark ? const Color(0xFF553239) : AppColors.border,
+    surfaceContainerLowest: isDark ? const Color(0xFF120607) : Colors.white,
     surfaceContainerLow:
-        isDark ? const Color(0xFF0D303B) : const Color(0xFFF7FBFA),
+        isDark ? const Color(0xFF1C0B0D) : const Color(0xFFFCF8F7),
     surfaceContainer:
-        isDark ? const Color(0xFF123641) : const Color(0xFFF0F7F5),
+        isDark ? const Color(0xFF261115) : const Color(0xFFF8EFEE),
     surfaceContainerHigh:
-        isDark ? const Color(0xFF183E49) : const Color(0xFFE8F2F0),
+        isDark ? const Color(0xFF35191E) : const Color(0xFFF2E5E6),
     surfaceContainerHighest:
-        isDark ? const Color(0xFF204852) : const Color(0xFFDDEAE7),
+        isDark ? const Color(0xFF4A252B) : const Color(0xFFEADADD),
   );
   final base = isDark
       ? FlexThemeData.dark(

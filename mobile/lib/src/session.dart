@@ -53,11 +53,18 @@ class AppSession extends ChangeNotifier {
             SecureThemePreferenceStore(
                 storage ?? const FlutterSecureStorage()) {
     client.onUnauthorized = signOut;
+    client.onTokensRefreshed = (access, refresh) async {
+      client.token = access;
+      client.refreshToken = refresh;
+      await _credentialStore.write(_tokenKey, access);
+      await _credentialStore.write(_refreshTokenKey, refresh);
+    };
   }
 
   static const _tokenKey = 'session_token';
   static const _roleKey = 'session_role';
   static const _systemRoleKey = 'session_system_role';
+  static const _refreshTokenKey = 'session_refresh_token';
   static const themeKey = 'theme_mode';
 
   final ApiClient client;
@@ -89,6 +96,7 @@ class AppSession extends ChangeNotifier {
     }
     try {
       client.token = await _credentialStore.read(_tokenKey);
+      client.refreshToken = await _credentialStore.read(_refreshTokenKey);
       role = await _credentialStore.read(_roleKey);
       systemRole = await _credentialStore.read(_systemRoleKey);
       if (client.token != null) {
@@ -102,6 +110,7 @@ class AppSession extends ChangeNotifier {
       }
     } catch (_) {
       client.token = null;
+      client.refreshToken = null;
       role = null;
       systemRole = null;
       sessionPersistenceError =
@@ -136,20 +145,28 @@ class AppSession extends ChangeNotifier {
   }
 
   Future<void> persist(Object session) async {
-    final data = session is Map<String, dynamic> ? session : <String, dynamic>{'role': session};
+    final data = session is Map<String, dynamic>
+        ? session
+        : <String, dynamic>{'role': session};
     role = data['role']?.toString() ?? 'admin';
     systemRole = data['systemRole']?.toString();
+    client.refreshToken = data['refreshToken']?.toString();
     final token = client.token;
     try {
       if (token != null) {
         await _credentialStore.write(_tokenKey, token);
         await _credentialStore.write(_roleKey, role!);
-        if (systemRole != null)
+        if (client.refreshToken != null) {
+          await _credentialStore.write(_refreshTokenKey, client.refreshToken!);
+        }
+        if (systemRole != null) {
           await _credentialStore.write(_systemRoleKey, systemRole!);
+        }
       }
       sessionPersistenceError = null;
     } catch (_) {
       client.token = null;
+      client.refreshToken = null;
       role = null;
       systemRole = null;
       sessionPersistenceError =
@@ -162,6 +179,7 @@ class AppSession extends ChangeNotifier {
 
   Future<void> signOut() async {
     client.token = null;
+    client.refreshToken = null;
     role = null;
     systemRole = null;
     try {
@@ -177,6 +195,7 @@ class AppSession extends ChangeNotifier {
 
   Future<void> _clear() async {
     client.token = null;
+    client.refreshToken = null;
     role = null;
     systemRole = null;
     await _deleteCredentials();
@@ -192,6 +211,7 @@ class AppSession extends ChangeNotifier {
     try {
       await _credentialStore.delete(_roleKey);
       await _credentialStore.delete(_systemRoleKey);
+      await _credentialStore.delete(_refreshTokenKey);
     } catch (error) {
       firstError ??= error;
     }

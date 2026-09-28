@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sheetsService = require('../services/finance-db');
 const { requireAuth, requireWriteAccess, scopeToSector } = require('../middleware/auth');
+const idempotency = require('../middleware/idempotency');
 
 router.use(requireAuth, scopeToSector);
 
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/new', requireWriteAccess, async (req, res) => {
+router.post('/new', requireWriteAccess, idempotency(), async (req, res) => {
   try {
     const { monthName, carryBalances } = req.body;
     if (!monthName) {

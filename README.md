@@ -69,6 +69,13 @@ Never paste deployment secrets into source files, commit them, or share them in 
 
 The copilot sends only minimized facts through the authenticated Express API. It excludes phone numbers, credentials, tokens, and free-form remarks. Entry parsing produces an editable proposal; saving still requires explicit confirmation and uses the normal authorized finance route. Bulk drafts never send automatically and remain disabled unless `AI_CONTROLLED_ACTIONS_ENABLED=true`. Scheduled unattended automation is intentionally unavailable until expiring sessions, durable audits, and a scheduler exist.
 
+### Platform operations
+
+- Public sector onboarding is request-and-approve: `/login.html` accepts a sector request, while super-admins review it in the Platform Console before a sector is created. The request endpoint is honeypot- and rate-limited; CAPTCHA and credential delivery remain deployment-owned decisions.
+- The authenticated shell and Flutter More screen expose sector-scoped overdue-payment and due-follow-up notifications through `/api/notifications`. Push delivery and scheduled reminders are intentionally off until Firebase credentials and a scheduler are configured.
+- CSV, Excel, and PDF exports are authenticated and sector-scoped. Each export records an actor-bound audit event; PDF audit requests are idempotent.
+- Team mutations and finance mutations require idempotency keys. Clients generate them automatically, while external API callers must supply `Idempotency-Key` for protected writes.
+
 ### 4. Build the Android app against Vercel
 
 From the `mobile` directory, run:

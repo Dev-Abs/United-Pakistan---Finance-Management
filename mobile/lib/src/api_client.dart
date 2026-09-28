@@ -30,6 +30,11 @@ class ApiClient {
           if (token case final value?) {
             options.headers[HttpHeaders.authorizationHeader] = 'Bearer $value';
           }
+          if (options.method.toUpperCase() != 'GET' &&
+              !options.headers.containsKey('Idempotency-Key')) {
+            options.headers['Idempotency-Key'] =
+                '${DateTime.now().microsecondsSinceEpoch}-${options.path}';
+          }
           handler.next(options);
         },
       ),
@@ -40,7 +45,10 @@ class ApiClient {
   late final Dio _dio;
   final Map<String, Future<Map<String, dynamic>>> _inflightGets = {};
   String? token;
+  String? refreshToken;
   VoidCallback? onUnauthorized;
+  Future<void> Function(String accessToken, String refreshToken)?
+      onTokensRefreshed;
 
   static String _resolveBaseUrl(String? override) {
     final configured = (override ??
@@ -115,6 +123,7 @@ class ApiClient {
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
     CancelToken? cancelToken,
+    bool retryAfterRefresh = true,
   }) async {
     try {
       final response = await _dio.request<Object?>(
@@ -131,6 +140,33 @@ class ApiClient {
       throw const ApiException('The server returned an unexpected response.');
     } on DioException catch (error) {
       final status = error.response?.statusCode;
+      if (status == 401 &&
+          retryAfterRefresh &&
+          refreshToken != null &&
+          !path.contains('/api/auth/refresh')) {
+        try {
+          final refreshed = await _dio.post<Object?>('/api/auth/refresh',
+              data: {'refreshToken': refreshToken});
+          final values = refreshed.data is Map
+              ? Map<String, dynamic>.from(refreshed.data as Map)
+              : const <String, dynamic>{};
+          token = values['token']?.toString();
+          refreshToken = values['refreshToken']?.toString() ?? refreshToken;
+          if (token != null &&
+              refreshToken != null &&
+              onTokensRefreshed != null) {
+            await onTokensRefreshed!(token!, refreshToken!);
+          }
+          return _performRequest(path,
+              method: method,
+              body: body,
+              query: query,
+              cancelToken: cancelToken,
+              retryAfterRefresh: false);
+        } catch (_) {
+          refreshToken = null;
+        }
+      }
       if (status == 401) onUnauthorized?.call();
       final data = error.response?.data;
       final serverMessage = data is Map ? data['error']?.toString() : null;
