@@ -12,8 +12,8 @@ function temporaryPassword() { return `${crypto.randomBytes(9).toString('base64u
 router.use(requireAuth, scopeToSector, requireRole('secretary', 'super_admin'));
 
 router.get('/users', async (req, res) => {
-  const result = await db.query(`select id, email, role, active, must_change_password, created_at, last_login_at
-    from users where sector_id=$1 and role='read_only' order by email`, [req.sectorId]);
+  const result = await db.withSectorTransaction({ sectorId: req.sectorId, role: req.user.systemRole || req.user.role }, (client) => client.query(`select id, email, role, active, must_change_password, created_at, last_login_at
+    from users where sector_id=$1 and role='read_only' order by email`, [req.sectorId]));
   res.json({ success: true, data: result.rows });
 });
 

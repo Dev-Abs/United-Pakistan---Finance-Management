@@ -161,12 +161,15 @@ class App {
 
         // Logout
         const logoutHandler = async () => {
+            const refreshToken = localStorage.getItem('auth_refresh_token');
             try {
+                if (refreshToken) await api.post('/api/auth/logout', { refreshToken });
+            } catch (_) {
+                // Local sign-out still completes if the network is unavailable.
+            } finally {
                 localStorage.removeItem('auth_token');
                 localStorage.removeItem('auth_refresh_token');
                 window.location.href = '/login.html';
-            } catch (error) {
-                utils.showToast('Failed to logout', 'error');
             }
         };
         document.getElementById('logout-btn')?.addEventListener('click', logoutHandler);

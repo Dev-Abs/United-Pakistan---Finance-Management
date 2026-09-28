@@ -12,7 +12,10 @@ router.get('/', async (req, res) => {
     if (!campaignId) {
       return res.status(400).json({ success: false, error: 'Campaign ID is required' });
     }
-    const data = await sheetsService.getSpecialFundContributions(campaignId, req.sectorId);
+    const data = await sheetsService.getSpecialFundContributions(campaignId, req.sectorId, {
+      sectorId: req.sectorId,
+      role: req.user.role,
+    });
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -29,7 +32,10 @@ router.post('/', requireWriteAccess, idempotency(), async (req, res) => {
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ success: false, error: 'Contribution amount must be greater than zero' });
     }
-    const result = await sheetsService.addSpecialFundContribution(data, req.sectorId);
+      const result = await sheetsService.addSpecialFundContribution(data, req.sectorId, {
+        sectorId: req.sectorId,
+        role: req.user.role,
+      });
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -46,7 +52,10 @@ router.put('/:id', requireWriteAccess, idempotency(), async (req, res) => {
     if (data['Amount Paid'] !== undefined && (!Number.isFinite(Number(data['Amount Paid'])) || Number(data['Amount Paid']) <= 0)) {
       return res.status(400).json({ success: false, error: 'Contribution amount must be greater than zero' });
     }
-    await sheetsService.updateSpecialFundContribution(rowId, data, req.sectorId);
+      await sheetsService.updateSpecialFundContribution(rowId, data, req.sectorId, {
+        sectorId: req.sectorId,
+        role: req.user.role,
+      });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -59,7 +68,10 @@ router.delete('/:id', requireWriteAccess, idempotency(), async (req, res) => {
     if (!Number.isInteger(rowId) || rowId < 1) {
       return res.status(400).json({ success: false, error: 'Valid contribution is required' });
     }
-    await sheetsService.deleteSpecialFundContribution(rowId, req.sectorId);
+      await sheetsService.deleteSpecialFundContribution(rowId, req.sectorId, {
+        sectorId: req.sectorId,
+        role: req.user.role,
+      });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

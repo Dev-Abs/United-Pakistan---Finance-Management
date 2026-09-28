@@ -75,6 +75,11 @@ The copilot sends only minimized facts through the authenticated Express API. It
 - The authenticated shell and Flutter More screen expose sector-scoped overdue-payment and due-follow-up notifications through `/api/notifications`. Push delivery and scheduled reminders are intentionally off until Firebase credentials and a scheduler are configured.
 - CSV, Excel, and PDF exports are authenticated and sector-scoped. Each export records an actor-bound audit event; PDF audit requests are idempotent.
 - Team mutations and finance mutations require idempotency keys. Clients generate them automatically, while external API callers must supply `Idempotency-Key` for protected writes.
+- Login lockout is durable across serverless instances: five failures for the same normalized username/client-address hash lock that key for 15 minutes. Raw usernames and IP addresses are not stored in the lockout table, and a successful login clears its key.
+- Web and Flutter logout submit the current refresh token for server-side revocation before clearing local credentials. Local sign-out still completes if the network is unavailable; a revoked refresh token cannot be rotated again.
+- Before enabling the review-only policies in `db/rls/finance-policies.sql`, run `npm run db:check-rls-role`. It must report `rlsEnforcementReady: true`. Either use a non-bypass `DATABASE_URL` role or set `DATABASE_RLS_ROLE` to a restricted `NOLOGIN` role that the connection role can `SET`; tenant transactions enter that role with `SET LOCAL ROLE`. Never apply the draft while the preflight fails.
+- To provision the restricted-role option, choose a simple role name such as `finance_app`, set it as `DATABASE_RLS_ROLE` in the local environment, then run `npm run db:provision-rls-role` followed by `npm run db:check-rls-role`. The provisioner is idempotent, grants only tenant-table DML/schema/sequence access, creates no login or password, and does not enable policies.
+- The current hosted Supabase database has the finance-table policies enabled and uses Supabase's built-in `authenticated` role for enforcement. Set `DATABASE_RLS_ROLE=authenticated` in every deployed runtime before considering RLS active end-to-end, then run `npm run db:check-rls-role` and `npm run smoke:rls` from an environment using the same database.
 
 ### 4. Build the Android app against Vercel
 

@@ -78,6 +78,7 @@ class ApiClient {
     String method = 'GET',
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
+    Map<String, dynamic>? headers,
     CancelToken? cancelToken,
   }) async {
     final normalizedMethod = method.toUpperCase();
@@ -92,6 +93,7 @@ class ApiClient {
         method: normalizedMethod,
         body: body,
         query: query,
+        headers: headers,
       );
       _inflightGets[dedupeKey] = future;
       try {
@@ -107,6 +109,7 @@ class ApiClient {
       method: normalizedMethod,
       body: body,
       query: query,
+      headers: headers,
       cancelToken: cancelToken,
     );
   }
@@ -122,6 +125,7 @@ class ApiClient {
     required String method,
     Map<String, dynamic>? body,
     Map<String, dynamic>? query,
+    Map<String, dynamic>? headers,
     CancelToken? cancelToken,
     bool retryAfterRefresh = true,
   }) async {
@@ -130,7 +134,7 @@ class ApiClient {
         path,
         data: body,
         queryParameters: query,
-        options: Options(method: method),
+        options: Options(method: method, headers: headers),
         cancelToken: cancelToken,
       );
       final data = response.data;
@@ -161,6 +165,7 @@ class ApiClient {
               method: method,
               body: body,
               query: query,
+              headers: headers,
               cancelToken: cancelToken,
               retryAfterRefresh: false);
         } catch (_) {

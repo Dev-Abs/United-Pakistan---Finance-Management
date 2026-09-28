@@ -61,4 +61,38 @@
             it can't happen again. Safe to run — only touches the Month column, not amounts or other data.</p>
         <pre id="diagnostics-output" class="diagnostics-output" style="display:none;"></pre>
     </div>
+
+    <section class="card mt-md" id="team-management-card" hidden aria-labelledby="team-management-title">
+        <div class="page-intro">
+            <div><p class="section-eyebrow">Access management</p><h3 id="team-management-title">Read-only team accounts</h3><p>Create and manage sector viewers. New and reset passwords are shown once and are never retained here.</p></div>
+        </div>
+        <form id="team-user-form" class="management-toolbar">
+            <div class="form-group">
+                <label for="team-user-email">Email address</label>
+                <input id="team-user-email" class="form-control" type="email" autocomplete="off" required>
+            </div>
+            <button id="team-user-create" class="btn btn-primary" type="submit"><i data-lucide="user-plus"></i> Create viewer</button>
+        </form>
+        <p id="team-status" class="text-sm text-muted" role="status" aria-live="polite">Loading team accounts…</p>
+        <div class="table-container mt-md">
+            <table>
+                <thead><tr><th>Email</th><th>Status</th><th>Password</th><th>Last login</th><th>Actions</th></tr></thead>
+                <tbody id="team-users-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <dialog id="team-credential-dialog" class="credential-dialog" aria-labelledby="team-credential-title">
+        <div class="credential-dialog-content">
+            <h3 id="team-credential-title">One-time credentials</h3>
+            <p>Copy this password now. It will not be shown again.</p>
+            <label for="team-credential-password">Temporary password</label>
+            <input id="team-credential-password" class="form-control credential-value" readonly>
+            <p id="team-credential-copy-status" class="text-sm text-muted" role="status" aria-live="polite"></p>
+            <div class="dialog-actions">
+                <button id="team-credential-copy" class="btn btn-primary" type="button">Copy password</button>
+                <button id="team-credential-close" class="btn btn-outline" type="button">Done</button>
+            </div>
+        </div>
+    </dialog>
 </div>

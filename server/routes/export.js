@@ -8,14 +8,15 @@ const sheetsBackup = require('../services/sheets-backup');
 const db = require('../services/db');
 
 router.use(requireAuth, scopeToSector);
+const financeContext = (req) => ({ sectorId: req.sectorId, role: req.user.systemRole || req.user.role });
 
 async function auditExport(req, format, month) {
-  await db.query(`insert into audit_log (actor_user_id, sector_id, action, entity_type, metadata) values ($1,$2,'export_requested','export',$3)`, [req.user.id, req.sectorId, { format, month: String(month || '').slice(0, 100) }]);
+  await db.withSectorTransaction({ sectorId: req.sectorId, role: req.user.systemRole || req.user.role }, (client) => client.query(`insert into audit_log (actor_user_id, sector_id, action, entity_type, metadata) values ($1,$2,'export_requested','export',$3)`, [req.user.id, req.sectorId, { format, month: String(month || '').slice(0, 100) }]));
 }
 
 router.post('/sheets-backup', requireWriteAccess, idempotency(), async (req, res) => {
   try {
-    const result = await sheetsBackup.exportBackup(undefined, undefined, req.sectorId);
+    const result = await sheetsBackup.exportBackup(undefined, undefined, req.sectorId, financeContext(req));
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -35,10 +36,11 @@ router.get('/csv', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
     await auditExport(req, 'csv', month);
+    const context = financeContext(req);
     
     const [members, followUps] = await Promise.all([
-      sheetsService.getSheetData(month, req.sectorId),
-      sheetsService.getFollowUps(month, req.sectorId).catch(() => [])
+      sheetsService.getSheetData(month, req.sectorId, context),
+      sheetsService.getFollowUps(month, req.sectorId, context).catch(() => [])
     ]);
     
     if (members.length === 0) {
@@ -77,8 +79,9 @@ router.get('/expense/csv', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
     await auditExport(req, 'expense_csv', month);
+    const context = financeContext(req);
 
-    const expenses = await sheetsService.getExpenses(month, req.sectorId);
+    const expenses = await sheetsService.getExpenses(month, req.sectorId, context);
 
     if (expenses.length === 0) {
       return res.status(404).send('No expenses found for this month');
@@ -114,8 +117,9 @@ router.get('/expense/excel', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
     await auditExport(req, 'expense_excel', month);
+    const context = financeContext(req);
 
-    const expenses = await sheetsService.getExpenses(month, req.sectorId);
+    const expenses = await sheetsService.getExpenses(month, req.sectorId, context);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Expenses');
@@ -148,10 +152,11 @@ router.get('/excel', async (req, res) => {
     const { month } = req.query;
     if (!month) return res.status(400).send('Month required');
     await auditExport(req, 'excel', month);
+    const context = financeContext(req);
     
     const [members, followUps] = await Promise.all([
-      sheetsService.getSheetData(month, req.sectorId),
-      sheetsService.getFollowUps(month, req.sectorId).catch(() => [])
+      sheetsService.getSheetData(month, req.sectorId, context),
+      sheetsService.getFollowUps(month, req.sectorId, context).catch(() => [])
     ]);
     
     const workbook = new ExcelJS.Workbook();

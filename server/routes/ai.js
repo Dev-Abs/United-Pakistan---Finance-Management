@@ -6,6 +6,7 @@ const idempotency = require('../middleware/idempotency');
 
 const router = express.Router();
 router.use(requireAuth, scopeToSector);
+const financeContext = (req) => ({ sectorId: req.sectorId, role: req.user.role });
 
 const buckets = new Map();
 router.use((req, res, next) => {
@@ -36,9 +37,9 @@ router.post('/briefing', asyncRoute(async (req, res) => {
   const month = requiredText(req.body.month, 'Month');
   const language = validLanguage(req.body.language);
   const detail = ['today', 'month', 'comparison'].includes(req.body.detail) ? req.body.detail : 'month';
-  const facts = await monthlyFacts(month, req.sectorId);
+  const facts = await monthlyFacts(month, financeContext(req));
   let comparison = null;
-  if (detail === 'comparison' && req.body.comparisonMonth) comparison = await monthlyFacts(String(req.body.comparisonMonth), req.sectorId);
+  if (detail === 'comparison' && req.body.comparisonMonth) comparison = await monthlyFacts(String(req.body.comparisonMonth), financeContext(req));
   const result = await deepseek.generate({
     operation: 'briefing', role: req.userRole, ip: req.ip, language,
     facts: { ...facts, comparison },
@@ -51,7 +52,7 @@ router.post('/report-summary', asyncRoute(async (req, res) => {
   const month = requiredText(req.body.month, 'Month');
   const language = validLanguage(req.body.language);
   const reportType = req.body.reportType === 'special-fund' ? 'special-fund' : 'monthly';
-  const facts = await monthlyFacts(month, req.sectorId);
+  const facts = await monthlyFacts(month, financeContext(req));
   const result = await deepseek.generate({
     operation: 'report-summary', role: req.userRole, ip: req.ip, language,
     facts: { reportType, ...facts },
@@ -62,12 +63,16 @@ router.post('/report-summary', asyncRoute(async (req, res) => {
 
 router.post('/message-draft', asyncRoute(async (req, res) => {
   const month = requiredText(req.body.month, 'Month');
-  await assertReportingMonth(month, req.sectorId);
+  const context = financeContext(req);
+  await assertReportingMonth(month, context);
   const rowId = Number(req.body.memberRowId);
   if (!Number.isInteger(rowId) || rowId < 1) throw httpError(400, 'A valid member is required.');
   const language = validLanguage(req.body.language);
   const tone = ['polite', 'concise', 'firm', 'campaign'].includes(req.body.tone) ? req.body.tone : 'polite';
-  const [members, settings] = await Promise.all([sheets.getSheetData(month, req.sectorId), sheets.getSettings(req.sectorId)]);
+  const [members, settings] = await Promise.all([
+    sheets.getSheetData(month, context.sectorId, context),
+    sheets.getSettings(context.sectorId, context),
+  ]);
   const member = members.find((item) => Number(item._rowId) === rowId);
   if (!member) throw httpError(404, 'Member not found in the selected month.');
   const facts = {
@@ -90,10 +95,11 @@ router.post('/message-draft', asyncRoute(async (req, res) => {
 
 router.post('/parse-entry', asyncRoute(async (req, res) => {
   const month = requiredText(req.body.month, 'Month');
-  await assertReportingMonth(month, req.sectorId);
+  const context = financeContext(req);
+  await assertReportingMonth(month, context);
   const transcript = requiredText(req.body.text, 'Entry description');
   if (transcript.length > 600) throw httpError(400, 'Entry description is too long.');
-  const members = await sheets.getSheetData(month, req.sectorId);
+  const members = await sheets.getSheetData(month, context.sectorId, context);
   const candidates = members.map((member) => ({
     rowId: Number(member._rowId),
     name: cleanText(member.Name, 120),
@@ -112,7 +118,7 @@ router.post('/parse-entry', asyncRoute(async (req, res) => {
 router.post('/data-review', asyncRoute(async (req, res) => {
   const month = requiredText(req.body.month, 'Month');
   const language = validLanguage(req.body.language);
-  const findings = await deterministicReview(month, req.sectorId);
+  const findings = await deterministicReview(month, financeContext(req));
   let content = findings.length ? `${findings.length} issue(s) require review.` : 'No deterministic data-quality issues were found.';
   let usage = { requestId: '', model: 'deterministic' };
   if (findings.length) {
@@ -135,7 +141,7 @@ router.post('/command', asyncRoute(async (req, res) => {
     role: item?.role === 'assistant' ? 'assistant' : 'user',
     content: cleanMultiline(item?.content, 900),
   })) : [];
-  const fullContext = await managementContext(month, req.sectorId);
+  const fullContext = await managementContext(month, financeContext(req));
   const context = fitManagementContext(
     fullContext,
     request,
@@ -174,7 +180,7 @@ router.post('/chat', asyncRoute(async (req, res) => {
     role: item?.role === 'assistant' ? 'assistant' : 'user',
     content: cleanText(item?.content, 500),
   })) : [];
-  const facts = await monthlyFacts(month, req.sectorId);
+  const facts = await monthlyFacts(month, financeContext(req));
   const result = await deepseek.generate({
     operation: 'scoped-chat', role: req.userRole, ip: req.ip, language: validLanguage(req.body.language),
     facts: { ...facts, conversation: history, question },
@@ -188,8 +194,9 @@ router.post('/bulk-drafts', requireWriteAccess, idempotency(), asyncRoute(async 
     throw Object.assign(httpError(503, 'Controlled AI actions are not enabled.'), { code: 'AI_ACTIONS_DISABLED' });
   }
   const month = requiredText(req.body.month, 'Month');
-  await assertReportingMonth(month, req.sectorId);
-  const members = (await sheets.getSheetData(month, req.sectorId)).filter((member) => numeric(member['Remaining Balance']) > 0).slice(0, 20);
+  const context = financeContext(req);
+  await assertReportingMonth(month, context);
+  const members = (await sheets.getSheetData(month, context.sectorId, context)).filter((member) => numeric(member['Remaining Balance']) > 0).slice(0, 20);
   const facts = { month, recipients: members.map((member) => ({ rowId: Number(member._rowId), name: cleanText(member.Name, 120), remainingBalance: money(member['Remaining Balance']) })) };
   const result = await deepseek.generateJson({
     operation: 'bulk-drafts', role: req.userRole, ip: req.ip, language: validLanguage(req.body.language), facts,
@@ -205,13 +212,17 @@ router.post('/bulk-drafts', requireWriteAccess, idempotency(), asyncRoute(async 
   res.json({ success: true, data: { kind: 'bulk-drafts', drafts, warnings: ['Review and open each message individually. Nothing was sent.'], generatedAt: new Date().toISOString(), privacyNote }, usage: { requestId: result.requestId, model: result.model } });
 }));
 
-async function monthlyFacts(month, sectorId) {
-  await assertReportingMonth(month, sectorId);
+async function monthlyFacts(month, context) {
+  const { sectorId } = context;
+  await assertReportingMonth(month, context);
   const [members, expenses, followUps, settings] = await Promise.all([
-    sheets.getSheetData(month, sectorId), sheets.getExpenses(month, sectorId), sheets.getFollowUps(month, sectorId), sheets.getSettings(sectorId),
+    sheets.getSheetData(month, sectorId, context),
+    sheets.getExpenses(month, sectorId, context),
+    sheets.getFollowUps(month, sectorId, context),
+    sheets.getSettings(sectorId, context),
   ]);
   const campaignId = cleanText(settings.SPECIAL_FUND_CAMPAIGN_ID, 100);
-  const contributions = campaignId ? await sheets.getSpecialFundContributions(campaignId, sectorId) : [];
+  const contributions = campaignId ? await sheets.getSpecialFundContributions(campaignId, sectorId, context) : [];
   const total = (rows, field) => rows.reduce((sum, row) => sum + numeric(row[field]), 0);
   const status = (member) => String(member['Payment Status'] || '').toLowerCase();
   return {
@@ -233,17 +244,18 @@ async function monthlyFacts(month, sectorId) {
   };
 }
 
-async function managementContext(month, sectorId) {
-  await assertReportingMonth(month, sectorId);
+async function managementContext(month, context) {
+  const { sectorId } = context;
+  await assertReportingMonth(month, context);
   const [members, expenses, followUps, settings, months] = await Promise.all([
-    sheets.getSheetData(month, sectorId),
-    sheets.getExpenses(month, sectorId),
-    sheets.getFollowUps(month, sectorId),
-    sheets.getSettings(sectorId),
-    sheets.getSheets(sectorId),
+    sheets.getSheetData(month, sectorId, context),
+    sheets.getExpenses(month, sectorId, context),
+    sheets.getFollowUps(month, sectorId, context),
+    sheets.getSettings(sectorId, context),
+    sheets.getSheets(sectorId, context),
   ]);
   const campaignId = cleanText(settings.SPECIAL_FUND_CAMPAIGN_ID, 100);
-  const contributions = campaignId ? await sheets.getSpecialFundContributions(campaignId, sectorId) : [];
+  const contributions = campaignId ? await sheets.getSpecialFundContributions(campaignId, sectorId, context) : [];
   const safeSettings = {};
   [
     'ORG_NAME', 'SECTOR_NAME', 'ACCOUNT_TITLE', 'BANK_NAME', 'ACCOUNT_NUMBER',
@@ -499,8 +511,8 @@ function validateManagementAction(action, context, canWrite) {
   return { type: 'none', label, requiresConfirmation: true, payload: {} };
 }
 
-async function assertReportingMonth(month, sectorId) {
-  const months = await sheets.getSheets(sectorId);
+async function assertReportingMonth(month, context) {
+  const months = await sheets.getSheets(context.sectorId, context);
   if (!months.includes(month)) throw httpError(400, 'Select a valid reporting month.');
 }
 
@@ -527,9 +539,14 @@ function validateEntryProposal(value, candidates) {
 function entryWarnings(proposal) { return proposal.type === 'payment' && proposal.amountMeaning === 'installment' ? ['The installment was converted server-side to a cumulative paid amount. Confirm before saving.'] : ['Review every field before saving.']; }
 function validDate(value) { const text = cleanText(value, 10); return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : ''; }
 
-async function deterministicReview(month, sectorId) {
-  await assertReportingMonth(month, sectorId);
-  const [members, expenses, followUps] = await Promise.all([sheets.getSheetData(month, sectorId), sheets.getExpenses(month, sectorId), sheets.getFollowUps(month, sectorId)]);
+async function deterministicReview(month, context) {
+  const { sectorId } = context;
+  await assertReportingMonth(month, context);
+  const [members, expenses, followUps] = await Promise.all([
+    sheets.getSheetData(month, sectorId, context),
+    sheets.getExpenses(month, sectorId, context),
+    sheets.getFollowUps(month, sectorId, context),
+  ]);
   const findings = [];
   members.forEach((member) => {
     const rowId = Number(member._rowId); const due = Number(member['Total Payable']); const paid = Number(member['Amount Paid']);

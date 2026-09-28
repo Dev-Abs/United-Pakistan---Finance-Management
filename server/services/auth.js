@@ -154,6 +154,15 @@ async function rotateRefreshToken(raw, database = db) {
   });
 }
 
+async function revokeRefreshToken(raw, database = db) {
+  if (!raw) return false;
+  const result = await database.query(
+    'update refresh_tokens set revoked_at=coalesce(revoked_at,now()) where token_hash=$1 returning id',
+    [refreshHash(String(raw))],
+  );
+  return result.rowCount > 0;
+}
+
 module.exports = {
   authenticate,
   changePassword,
@@ -166,5 +175,6 @@ module.exports = {
   validateNewPassword,
   issueRefreshToken,
   rotateRefreshToken,
+  revokeRefreshToken,
   _test: { assertUserActive, jwtSecret, verifyToken },
 };

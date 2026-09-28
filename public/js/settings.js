@@ -14,6 +14,8 @@ export async function init(app) {
         return;
     }
 
+    await initTeamManagement(app);
+
     document.getElementById('btn-run-diagnostics')?.addEventListener('click', async () => {
         const btn = document.getElementById('btn-run-diagnostics');
         const out = document.getElementById('diagnostics-output');
@@ -79,6 +81,128 @@ export async function init(app) {
             btn.textContent = 'Save Settings';
         }
     });
+}
+
+async function initTeamManagement(app) {
+    const card = document.getElementById('team-management-card');
+    if (!card || !['secretary', 'super_admin'].includes(app.state.systemRole)) return;
+    card.hidden = false;
+    const form = document.getElementById('team-user-form');
+    form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = document.getElementById('team-user-email').value.trim();
+        const button = document.getElementById('team-user-create');
+        button.disabled = true;
+        try {
+            const response = await api.post('/api/team/users', { email });
+            form.reset();
+            showTeamCredential(response.data.oneTimePassword);
+            await loadTeamUsers();
+        } catch (error) {
+            utils.showToast(error.message || 'Unable to create viewer', 'error');
+        } finally {
+            button.disabled = false;
+        }
+    });
+    document.getElementById('team-credential-copy')?.addEventListener('click', copyTeamCredential);
+    document.getElementById('team-credential-close')?.addEventListener('click', closeTeamCredential);
+    await loadTeamUsers();
+}
+
+async function loadTeamUsers() {
+    const body = document.getElementById('team-users-body');
+    const status = document.getElementById('team-status');
+    if (!body || !status) return;
+    body.replaceChildren();
+    status.textContent = 'Loading team accounts…';
+    try {
+        const response = await api.get('/api/team/users');
+        const users = response.data || [];
+        users.forEach((user) => body.appendChild(teamUserRow(user)));
+        status.textContent = users.length ? `${users.length} read-only account${users.length === 1 ? '' : 's'}` : 'No read-only accounts yet.';
+    } catch (error) {
+        status.textContent = error.message || 'Unable to load team accounts.';
+    }
+}
+
+function teamUserRow(user) {
+    const row = document.createElement('tr');
+    const values = [
+        user.email,
+        user.active ? 'Active' : 'Inactive',
+        user.must_change_password ? 'Change required' : 'Updated',
+        user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never',
+    ];
+    values.forEach((value) => {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        row.appendChild(cell);
+    });
+    const actions = document.createElement('td');
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'btn btn-outline btn-sm';
+    reset.textContent = 'Reset password';
+    reset.addEventListener('click', () => resetTeamPassword(user));
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'btn btn-outline btn-sm';
+    toggle.textContent = user.active ? 'Deactivate' : 'Activate';
+    toggle.addEventListener('click', () => toggleTeamUser(user));
+    actions.append(reset, document.createTextNode(' '), toggle);
+    row.appendChild(actions);
+    return row;
+}
+
+async function resetTeamPassword(user) {
+    if (!window.confirm(`Reset the password for ${user.email}? Existing sessions will be revoked.`)) return;
+    try {
+        const response = await api.post(`/api/team/users/${user.id}/reset`, {});
+        showTeamCredential(response.data.oneTimePassword);
+        await loadTeamUsers();
+    } catch (error) {
+        utils.showToast(error.message || 'Unable to reset password', 'error');
+    }
+}
+
+async function toggleTeamUser(user) {
+    const action = user.active ? 'deactivate' : 'activate';
+    if (!window.confirm(`${action[0].toUpperCase()}${action.slice(1)} ${user.email}?`)) return;
+    try {
+        await api.patch(`/api/team/users/${user.id}`, { active: !user.active });
+        await loadTeamUsers();
+        utils.showToast(`Account ${action}d`);
+    } catch (error) {
+        utils.showToast(error.message || `Unable to ${action} account`, 'error');
+    }
+}
+
+function showTeamCredential(password) {
+    const dialog = document.getElementById('team-credential-dialog');
+    const input = document.getElementById('team-credential-password');
+    const status = document.getElementById('team-credential-copy-status');
+    input.value = password || '';
+    status.textContent = '';
+    dialog.showModal();
+    input.select();
+}
+
+async function copyTeamCredential() {
+    const input = document.getElementById('team-credential-password');
+    const status = document.getElementById('team-credential-copy-status');
+    try {
+        await navigator.clipboard.writeText(input.value);
+        status.textContent = 'Password copied.';
+    } catch (_) {
+        input.select();
+        status.textContent = 'Clipboard access was unavailable. Copy the selected password manually.';
+    }
+}
+
+function closeTeamCredential() {
+    const dialog = document.getElementById('team-credential-dialog');
+    document.getElementById('team-credential-password').value = '';
+    dialog.close();
 }
 
 async function loadSettings() {

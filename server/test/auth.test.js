@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const auth = require('../services/auth');
+const loginLockout = require('../services/login-lockout');
 const middleware = require('../middleware/auth');
 const db = require('../services/db');
 const { insertUserIfMissing } = require('../scripts/seed-auth-users');
@@ -138,15 +139,36 @@ test('platform admin endpoints are super-admin guarded and SQL aggregated', () =
   assert.match(source, /router\.get\('\/sectors\/:id\/summary'/);
   assert.match(source, /router\.get\('\/sectors\/:id\/users'/);
   assert.match(source, /with member_counts as/);
+  assert.match(source, /withSectorTransaction\(\{[\s\S]*?sectorId: null,[\s\S]*?role: req\.user\.systemRole \|\| req\.user\.role/);
 });
 
-test('login failures temporarily lock the same username and client key', () => {
+test('login lockout uses a durable privacy-preserving username and client key', () => {
   const authRoute = require('../routes/auth')._test;
-  const req = { body: { username: `lockout-${Date.now()}@example.test` }, ip: '127.0.0.1' };
+  const req = { body: { username: 'Person@Example.test' }, ip: '127.0.0.1' };
   const key = authRoute.loginKey(req);
-  for (let i = 0; i < 5; i += 1) authRoute.recordFailure(key);
-  assert.equal(authRoute.isLocked(key), true);
-  authRoute.loginFailures.delete(key);
+  assert.equal(key, loginLockout.attemptKey('person@example.test', '127.0.0.1'));
+  assert.notEqual(key, loginLockout.attemptKey('person@example.test', '127.0.0.2'));
+  assert.doesNotMatch(key, /person|example|127/);
+  const source = fs.readFileSync(require.resolve('../services/login-lockout'), 'utf8');
+  assert.match(source, /auth_login_attempts/);
+  assert.match(source, /for update/i);
+  assert.equal(loginLockout._test.MAX_FAILURES, 5);
+  assert.equal(loginLockout._test.LOCKOUT_MS, 15 * 60 * 1000);
+});
+
+test('logout revokes the presented refresh token without storing the raw token', async () => {
+  let statement;
+  const database = {
+    async query(sql, params) {
+      statement = { sql, params };
+      return { rowCount: 1, rows: [{ id: 9 }] };
+    },
+  };
+  assert.equal(await auth.revokeRefreshToken('one-time-refresh-token', database), true);
+  assert.match(statement.sql, /update refresh_tokens set revoked_at/i);
+  assert.notEqual(statement.params[0], 'one-time-refresh-token');
+  assert.equal(statement.params[0].length, 64);
+  assert.equal(await auth.revokeRefreshToken('', database), false);
 });
 
 test('finance mutations expose durable idempotency protection', () => {

@@ -9,7 +9,8 @@ const members = [{ rowId: 2, name: 'Test Member', currentPaid: 1000, totalPayabl
 test('scoped chat binds its facts and rate key to the authenticated sector', () => {
   const source = fs.readFileSync(require.resolve('../routes/ai'), 'utf8');
   assert.match(source, /const key = `\$\{day\}:\$\{req\.user\.id\}:\$\{req\.sectorId\}/);
-  assert.match(source, /const facts = await monthlyFacts\(month, req\.sectorId\);/);
+  assert.match(source, /const facts = await monthlyFacts\(month, financeContext\(req\)\);/);
+  assert.match(source, /role: req\.user\.role/);
   assert.match(source, /router\.use\(requireAuth, scopeToSector\)/);
 });
 

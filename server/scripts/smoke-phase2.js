@@ -88,6 +88,33 @@ async function main() {
       method: 'POST', headers: { ...authHeaders(reader.token), 'content-type': 'application/json' },
       body: JSON.stringify({ monthName: 'Forbidden 2099' }),
     }, 403);
+    await request('/api/team/users', { headers: authHeaders(reader.token) }, 403);
+
+    const teamList = await request('/api/team/users', { headers: authHeaders(secretary.token) });
+    assert(teamList.data.some((user) => user.email === emails.reader), 'Secretary cannot list sector viewers');
+    const managedEmail = `phase2-managed-${suffix}@example.invalid`;
+    const managed = await request('/api/team/users', {
+      method: 'POST',
+      headers: { ...authHeaders(secretary.token), 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
+      body: JSON.stringify({ email: managedEmail }),
+    }, 201);
+    assert(managed.data.oneTimePassword, 'Viewer creation did not return a one-time password');
+    createdUserIds.push(Number(managed.data.id));
+    const reset = await request(`/api/team/users/${managed.data.id}/reset`, {
+      method: 'POST',
+      headers: { ...authHeaders(secretary.token), 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
+      body: '{}',
+    });
+    assert(reset.data.oneTimePassword, 'Viewer reset did not return a one-time password');
+    await request(`/api/team/users/${managed.data.id}`, {
+      method: 'PATCH',
+      headers: { ...authHeaders(secretary.token), 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
+      body: JSON.stringify({ active: false }),
+    });
+    await request('/api/auth/login', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: managedEmail, password: reset.data.oneTimePassword }),
+    }, 401);
 
     const superAdmin = await login('superAdmin');
     assert(superAdmin.systemRole === 'super_admin' && superAdmin.sectorId === null, 'Super-admin login is invalid');
@@ -95,6 +122,8 @@ async function main() {
     const superSeed = await request('/api/months', { headers: authHeaders(superAdmin.token, seedSectorId) });
     const superOther = await request('/api/months', { headers: authHeaders(superAdmin.token, createdSectorId) });
     assert(superSeed.data.length === 3 && superOther.data.length === 0, 'Super-admin explicit sector selection failed');
+    const superTeam = await request('/api/team/users', { headers: authHeaders(superAdmin.token, seedSectorId) });
+    assert(superTeam.data.some((user) => user.email === emails.reader), 'Super-admin cannot inspect explicit-sector viewers');
 
     const forced = await login('forced');
     assert(forced.mustChangePassword === true, 'Forced-password flag was not returned');
@@ -115,6 +144,7 @@ async function main() {
       readOnlyWriteRejected: true,
       forcedPasswordChange: true,
       stableClientRoles: true,
+      teamRoleMatrix: true,
     }, null, 2));
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));

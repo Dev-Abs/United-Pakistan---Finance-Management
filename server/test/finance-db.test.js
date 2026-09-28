@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { createFinanceService, _test } = require('../services/finance-db');
+const { _test: dbTest } = require('../services/db');
 
 test('payment normalization preserves spreadsheet payment semantics', () => {
   const paid = _test.paymentValues({
@@ -70,4 +71,34 @@ test('single-tenant fallback refuses ambiguous active sectors', async () => {
     query: async () => ({ rowCount: 2, rows: [{ id: 1 }, { id: 2 }] }),
   });
   await assert.rejects(service.getSheets(), /sector context is required/i);
+});
+
+test('authenticated finance context overrides legacy sector input before queries run', async () => {
+  const observed = { context: null, params: null };
+  const database = {
+    async withSectorTransaction(context, task) {
+      observed.context = context;
+      return task({
+        async query(sql, params) {
+          assert.match(sql, /select name from months/i);
+          observed.params = params;
+          return { rowCount: 1, rows: [{ name: 'September 2026' }] };
+        },
+      });
+    },
+  };
+  const service = createFinanceService(database);
+
+  const result = await service.getSheets(999, { sectorId: 3, role: 'secretary' });
+
+  assert.deepEqual(observed.context, { sectorId: 3, role: 'secretary' });
+  assert.deepEqual(observed.params, [3]);
+  assert.deepEqual(result, ['September 2026']);
+});
+
+test('optional restricted RLS role accepts only a safe PostgreSQL identifier', () => {
+  assert.equal(dbTest.rlsRoleName('finance_app'), 'finance_app');
+  assert.equal(dbTest.rlsRoleName(''), '');
+  assert.throws(() => dbTest.rlsRoleName('finance_app; reset role'), /simple PostgreSQL role name/i);
+  assert.throws(() => dbTest.rlsRoleName('finance-app'), /simple PostgreSQL role name/i);
 });

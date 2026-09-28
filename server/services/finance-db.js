@@ -78,6 +78,24 @@ function paymentValues(data, current = {}) {
 }
 
 function createFinanceService(database = db) {
+  function normalizeSectorContext(explicitSectorId, context) {
+    if (context && typeof context === 'object' && !Array.isArray(context)) {
+      return { sectorId: context.sectorId, role: context.role, useTransaction: true };
+    }
+    return { sectorId: explicitSectorId, role: undefined, useTransaction: false };
+  }
+
+  async function withFinanceTransaction(context, callback) {
+    if (context && context.useTransaction && typeof database.withSectorTransaction === 'function') {
+      return database.withSectorTransaction({ sectorId: context.sectorId, role: context.role }, callback);
+    }
+    if (!context || !context.useTransaction) {
+      if (typeof database.withTransaction === 'function') return database.withTransaction(callback);
+      return callback(database);
+    }
+    return database.withTransaction(callback);
+  }
+
   async function sectorId(target = database, explicitSectorId) {
     if (explicitSectorId !== undefined && explicitSectorId !== null) {
       const parsed = Number(explicitSectorId);
@@ -99,19 +117,24 @@ function createFinanceService(database = db) {
     return result.rows[0];
   }
 
-  async function getSheets(explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const result = await database.query(
+  async function getSheets(explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const result = await client.query(
       'select name from months where sector_id = $1 order by id',
       [resolvedSectorId],
     );
     return result.rows.map((row) => row.name);
+    });
   }
 
-  async function getSheetData(monthName, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const month = await monthRow(database, resolvedSectorId, monthName);
-    const result = await database.query(`
+  async function getSheetData(monthName, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const month = await monthRow(client, resolvedSectorId, monthName);
+    const result = await client.query(`
       select
         mp.id::int as "_rowId",
         m.name as "Name",
@@ -137,11 +160,13 @@ function createFinanceService(database = db) {
       order by mp.id
     `, [resolvedSectorId, month.id]);
     return result.rows;
+    });
   }
 
-  async function addMember(monthName, data, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function addMember(monthName, data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       const month = await monthRow(client, resolvedSectorId, monthName);
       const values = paymentValues({ 'Payment Status': 'Pending', ...data });
       const member = await client.query(`
@@ -172,9 +197,10 @@ function createFinanceService(database = db) {
     });
   }
 
-  async function updateMember(monthName, rowId, data, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function updateMember(monthName, rowId, data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       const month = await monthRow(client, resolvedSectorId, monthName);
       const currentResult = await client.query(`
         select mp.*, m.name, m.phone_number, m.designation, m.member_category
@@ -226,20 +252,24 @@ function createFinanceService(database = db) {
     });
   }
 
-  async function deleteMember(monthName, rowId, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const month = await monthRow(database, resolvedSectorId, monthName);
-    const result = await database.query(
+  async function deleteMember(monthName, rowId, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const month = await monthRow(client, resolvedSectorId, monthName);
+    const result = await client.query(
       'delete from monthly_payments where sector_id=$1 and month_id=$2 and id=$3',
       [resolvedSectorId, month.id, rowId],
     );
     if (!result.rowCount) throw new Error('Member row not found');
     return true;
+    });
   }
 
-  async function updatePayment(monthName, rowId, expectedAmountPaid, amountPaid, paymentDate, remarks, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function updatePayment(monthName, rowId, expectedAmountPaid, amountPaid, paymentDate, remarks, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       const month = await monthRow(client, resolvedSectorId, monthName);
       const currentResult = await client.query(`
         select amount_paid::float8, total_payable::float8
@@ -274,9 +304,10 @@ function createFinanceService(database = db) {
     });
   }
 
-  async function createMonthSheet(newSheetName, carryBalances, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function createMonthSheet(newSheetName, carryBalances, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       const cleanedName = text(newSheetName).replace(/\s+/g, ' ').trim();
       if (!cleanedName) throw new Error('Month name is required');
       const duplicate = await client.query(
@@ -309,16 +340,18 @@ function createFinanceService(database = db) {
     });
   }
 
-  async function getExpenses(monthName, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
+  async function getExpenses(monthName, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
     const params = [resolvedSectorId];
     let where = 'e.sector_id=$1';
     if (monthName) {
-      const month = await monthRow(database, resolvedSectorId, monthName);
+      const month = await monthRow(client, resolvedSectorId, monthName);
       params.push(month.id);
       where += ' and e.month_id=$2';
     }
-    const result = await database.query(`
+    const result = await client.query(`
       select e.id::int as "_rowId", mo.name as "Month",
         to_char(e.expense_date, 'YYYY-MM-DD') as "Date",
         e.category as "Category", e.description as "Description",
@@ -327,22 +360,27 @@ function createFinanceService(database = db) {
       where ${where} order by e.id
     `, params);
     return result.rows;
+    });
   }
 
-  async function addExpense(data, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const month = await monthRow(database, resolvedSectorId, data.Month);
-    const result = await database.query(`
+  async function addExpense(data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const month = await monthRow(client, resolvedSectorId, data.Month);
+    const result = await client.query(`
       insert into expenses (sector_id, month_id, expense_date, category, description, amount, paid_by, remarks)
       values ($1,$2,$3,$4,$5,$6,$7,$8) returning id::int as "_rowId"
     `, [resolvedSectorId, month.id, nullableDate(data.Date), text(data.Category),
       text(data.Description), number(data.Amount), text(data['Paid By']), text(data.Remarks)]);
     return result.rows[0];
+    });
   }
 
-  async function updateExpense(rowId, data, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function updateExpense(rowId, data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       const currentResult = await client.query('select * from expenses where sector_id=$1 and id=$2 for update', [resolvedSectorId, rowId]);
       if (!currentResult.rowCount) throw new Error('Expense not found');
       const current = currentResult.rows[0];
@@ -362,16 +400,21 @@ function createFinanceService(database = db) {
     });
   }
 
-  async function deleteExpense(rowId, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const result = await database.query('delete from expenses where sector_id=$1 and id=$2', [resolvedSectorId, rowId]);
-    if (!result.rowCount) throw new Error('Expense not found');
-    return true;
+  async function deleteExpense(rowId, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+      const result = await client.query('delete from expenses where sector_id=$1 and id=$2', [resolvedSectorId, rowId]);
+      if (!result.rowCount) throw new Error('Expense not found');
+      return true;
+    });
   }
 
-  async function getMemberHistory(name, phone, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const result = await database.query(`
+  async function getMemberHistory(name, phone, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const result = await client.query(`
       select mp.id::int as "_rowId", mo.name as month,
         m.name as "Name", m.phone_number as "Phone Number",
         m.designation as "Designation", m.member_category as "Member Category",
@@ -390,6 +433,7 @@ function createFinanceService(database = db) {
       order by mo.id
     `, [resolvedSectorId, text(name).trim(), text(phone).replace(/\D/g, '')]);
     return result.rows;
+    });
   }
 
   function followUpSelect(where) {
@@ -405,29 +449,36 @@ function createFinanceService(database = db) {
     `;
   }
 
-  async function getFollowUps(monthName, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const month = await monthRow(database, resolvedSectorId, monthName);
-    const result = await database.query(followUpSelect('f.sector_id=$1 and f.month_id=$2'), [resolvedSectorId, month.id]);
-    return result.rows;
+  async function getFollowUps(monthName, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+      const month = await monthRow(client, resolvedSectorId, monthName);
+      const result = await client.query(followUpSelect('f.sector_id=$1 and f.month_id=$2'), [resolvedSectorId, month.id]);
+      return result.rows;
+    });
   }
 
-  async function getMemberFollowUps(monthName, name, phone, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const month = await monthRow(database, resolvedSectorId, monthName);
+  async function getMemberFollowUps(monthName, name, phone, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const month = await monthRow(client, resolvedSectorId, monthName);
     const normalizedPhone = text(phone).replace(/\D/g, '');
-    const result = await database.query(followUpSelect(`
+    const result = await client.query(followUpSelect(`
       f.sector_id=$1 and f.month_id=$2 and (
         ($3 <> '' and regexp_replace(f.phone_number, '\\D', '', 'g')=$3)
         or ($4 <> '' and lower(btrim(f.member_name))=lower(btrim($4)))
       )
     `), [resolvedSectorId, month.id, normalizedPhone, text(name).trim()]);
     return result.rows;
+    });
   }
 
-  async function addFollowUp(data, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function addFollowUp(data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       const month = await monthRow(client, resolvedSectorId, data.Month);
       const eventType = text(data['Event Type'], 'Note') || 'Note';
       let reminderNumber = data['Reminder Number'] === undefined ? null : number(data['Reminder Number']);
@@ -467,10 +518,12 @@ function createFinanceService(database = db) {
     return result.rows[0];
   }
 
-  async function getSpecialFundContributions(campaignKey, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const campaign = await campaignRow(database, resolvedSectorId, campaignKey);
-    const result = await database.query(`
+  async function getSpecialFundContributions(campaignKey, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const campaign = await campaignRow(client, resolvedSectorId, campaignKey);
+    const result = await client.query(`
       select c.id::int as "_rowId", sf.campaign_key as "Campaign ID",
         c.member_name as "Member Name", c.phone_number as "Phone Number",
         c.member_category as "Member Category", c.minimum_amount::float8 as "Minimum Amount",
@@ -481,12 +534,15 @@ function createFinanceService(database = db) {
       where c.sector_id=$1 and c.campaign_id=$2 order by c.id
     `, [resolvedSectorId, campaign.id]);
     return result.rows;
+    });
   }
 
-  async function addSpecialFundContribution(data, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const campaign = await campaignRow(database, resolvedSectorId, data['Campaign ID']);
-    const result = await database.query(`
+  async function addSpecialFundContribution(data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const campaign = await campaignRow(client, resolvedSectorId, data['Campaign ID']);
+    const result = await client.query(`
       insert into special_fund_contributions (
         sector_id, campaign_id, member_name, phone_number, member_category,
         minimum_amount, amount_paid, payment_date, receipt_link, remarks, recorded_at
@@ -497,11 +553,13 @@ function createFinanceService(database = db) {
       nullableDate(data['Payment Date']), text(data['Receipt Link']), text(data.Remarks),
       nullableDate(data['Recorded At'])]);
     return result.rows[0];
+    });
   }
 
-  async function updateSpecialFundContribution(rowId, data, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function updateSpecialFundContribution(rowId, data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       const currentResult = await client.query('select * from special_fund_contributions where sector_id=$1 and id=$2 for update', [resolvedSectorId, rowId]);
       if (!currentResult.rowCount) throw new Error('Contribution not found');
       const current = currentResult.rows[0];
@@ -523,19 +581,24 @@ function createFinanceService(database = db) {
     });
   }
 
-  async function deleteSpecialFundContribution(rowId, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const result = await database.query('delete from special_fund_contributions where sector_id=$1 and id=$2', [resolvedSectorId, rowId]);
-    if (!result.rowCount) throw new Error('Contribution not found');
-    return true;
+  async function deleteSpecialFundContribution(rowId, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+      const result = await client.query('delete from special_fund_contributions where sector_id=$1 and id=$2', [resolvedSectorId, rowId]);
+      if (!result.rowCount) throw new Error('Contribution not found');
+      return true;
+    });
   }
 
-  async function getSettings(explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
+  async function getSettings(explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
     const [settingsResult, templatesResult, campaignResult] = await Promise.all([
-      database.query('select setting_key, setting_value from settings where sector_id=$1', [resolvedSectorId]),
-      database.query('select template_key, content from message_templates where sector_id=$1', [resolvedSectorId]),
-      database.query('select * from special_fund_campaigns where sector_id=$1 order by id limit 1', [resolvedSectorId]),
+      client.query('select setting_key, setting_value from settings where sector_id=$1', [resolvedSectorId]),
+      client.query('select template_key, content from message_templates where sector_id=$1', [resolvedSectorId]),
+      client.query('select * from special_fund_campaigns where sector_id=$1 order by id limit 1', [resolvedSectorId]),
     ]);
     const settings = {};
     settingsResult.rows.forEach((row) => { settings[row.setting_key] = row.setting_value; });
@@ -551,11 +614,13 @@ function createFinanceService(database = db) {
       settings.SPECIAL_FUND_FM_MINIMUM = number(campaign.fm_minimum);
     }
     return settings;
+    });
   }
 
-  async function saveSettings(data, explicitSectorId) {
-    return database.withTransaction(async (client) => {
-      const resolvedSectorId = await sectorId(client, explicitSectorId);
+  async function saveSettings(data, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+      const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
       for (const [key, value] of Object.entries(data || {})) {
         if (TEMPLATE_KEYS.has(key)) {
           await client.query(`
@@ -605,11 +670,14 @@ function createFinanceService(database = db) {
     });
   }
 
-  async function getDiagnostics(monthName, explicitSectorId) {
-    const resolvedSectorId = await sectorId(database, explicitSectorId);
-    const months = await getSheets(resolvedSectorId);
-    const selected = monthName ? await monthRow(database, resolvedSectorId, monthName) : null;
-    const counts = await database.query(`
+  async function getDiagnostics(monthName, explicitSectorId, context) {
+    const transactionContext = normalizeSectorContext(explicitSectorId, context);
+    return withFinanceTransaction(transactionContext, async (client) => {
+    const resolvedSectorId = await sectorId(client, transactionContext.sectorId);
+    const monthResult = await client.query('select name from months where sector_id=$1 order by id', [resolvedSectorId]);
+    const months = monthResult.rows.map((row) => row.name);
+    const selected = monthName ? await monthRow(client, resolvedSectorId, monthName) : null;
+    const counts = await client.query(`
       select
         (select count(*)::int from members where sector_id=$1) as members,
         (select count(*)::int from monthly_payments where sector_id=$1) as payments,
@@ -625,6 +693,7 @@ function createFinanceService(database = db) {
       months,
       counts: counts.rows[0],
     };
+    });
   }
 
   async function repairMonthColumns() {

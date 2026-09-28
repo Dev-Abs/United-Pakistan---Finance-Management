@@ -1222,6 +1222,16 @@ class More extends StatelessWidget {
               title: const Text('Sector administration'),
               subtitle: const Text('Provision sectors and secretary access'),
               trailing: const Icon(Icons.chevron_right)),
+        if (!readOnly && !superAdmin)
+          ListTile(
+              onTap: () => Navigator.push(
+                  c,
+                  MaterialPageRoute(
+                      builder: (_) => TeamManagementScreen(client: store.api))),
+              leading: const Icon(Icons.group_outlined),
+              title: const Text('Team management'),
+              subtitle: const Text('Create and manage read-only access'),
+              trailing: const Icon(Icons.chevron_right)),
         ListTile(
             onTap: () => Navigator.push(c,
                 MaterialPageRoute(builder: (_) => ReportsScreen(store: store))),
@@ -1388,12 +1398,276 @@ class _AdminScreenState extends State<AdminScreen> {
               const SizedBox(height: 16),
               ...sectors.map((s) => Card(
                   child: ListTile(
+                      onTap: () {
+                        final sectorId = int.tryParse(s['id'].toString());
+                        if (sectorId == null) return;
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => TeamManagementScreen(
+                                    client: widget.client,
+                                    sectorId: sectorId,
+                                    sectorName: s['name']?.toString())));
+                      },
                       title: Text(s['name']?.toString() ?? ''),
                       subtitle: Text(
-                          '${s['slug']} • ${s['active'] == true ? 'Active' : 'Inactive'}'),
-                      trailing:
-                          Text('${s['secretary_count'] ?? 0} secretary'))))
+                          '${s['slug']} • ${s['active'] == true ? 'Active' : 'Inactive'} • ${s['secretary_count'] ?? 0} secretary'),
+                      trailing: const Icon(Icons.chevron_right))))
             ]));
+}
+
+class TeamManagementScreen extends StatefulWidget {
+  const TeamManagementScreen(
+      {super.key, required this.client, this.sectorId, this.sectorName});
+
+  final ApiClient client;
+  final int? sectorId;
+  final String? sectorName;
+
+  @override
+  State<TeamManagementScreen> createState() => _TeamManagementScreenState();
+}
+
+class _TeamManagementScreenState extends State<TeamManagementScreen> {
+  final email = TextEditingController();
+  List<Map<String, dynamic>> users = const [];
+  bool loading = true;
+  bool busy = false;
+  String? error;
+
+  Map<String, dynamic>? get _headers => widget.sectorId == null
+      ? null
+      : <String, dynamic>{'X-Sector-Id': widget.sectorId.toString()};
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  @override
+  void dispose() {
+    email.dispose();
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    if (mounted) setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final result = await widget.client
+          .request('/api/team/users', headers: _headers);
+      if (!mounted) return;
+      setState(() {
+        users = (result['data'] as List? ?? const [])
+            .map((value) => Map<String, dynamic>.from(value as Map))
+            .toList();
+        loading = false;
+      });
+    } catch (exception) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error = exception.toString();
+      });
+    }
+  }
+
+  Future<void> createUser() async {
+    final value = email.text.trim();
+    if (value.isEmpty || !value.contains('@') || busy) return;
+    setState(() => busy = true);
+    try {
+      final result = await widget.client.request('/api/team/users',
+          method: 'POST', body: {'email': value}, headers: _headers);
+      email.clear();
+      if (mounted) {
+        await _showCredential(Map<String, dynamic>.from(result['data'] as Map));
+        await load();
+      }
+    } catch (exception) {
+      if (mounted) showError(context, exception);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> resetPassword(Map<String, dynamic> user) async {
+    if (busy) return;
+    setState(() => busy = true);
+    try {
+      final result = await widget.client.request(
+          '/api/team/users/${user['id']}/reset',
+          method: 'POST',
+          headers: _headers);
+      if (mounted) {
+        await _showCredential(Map<String, dynamic>.from(result['data'] as Map));
+        await load();
+      }
+    } catch (exception) {
+      if (mounted) showError(context, exception);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> setActive(Map<String, dynamic> user, bool active) async {
+    if (busy) return;
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+                title: Text(active ? 'Activate account?' : 'Deactivate account?'),
+                content: Text(user['email']?.toString() ?? 'Read-only account'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: const Text('Cancel')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: Text(active ? 'Activate' : 'Deactivate'))
+                ]));
+    if (confirmed != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      await widget.client.request('/api/team/users/${user['id']}',
+          method: 'PATCH', body: {'active': active}, headers: _headers);
+      await load();
+    } catch (exception) {
+      if (mounted) showError(context, exception);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _showCredential(Map<String, dynamic> user) async {
+    final password = user['oneTimePassword']?.toString() ?? '';
+    await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+                icon: const Icon(Icons.key_outlined),
+                title: const Text('One-time credential'),
+                content: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text(
+                      'Share this securely. It will not be shown again.'),
+                  const SizedBox(height: 12),
+                  SelectableText(user['email']?.toString() ?? ''),
+                  const SizedBox(height: 8),
+                  SelectableText(password,
+                      style: Theme.of(dialogContext).textTheme.titleMedium)
+                ]),
+                actions: [
+                  TextButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(
+                            text: '${user['email']}\n$password'));
+                        if (dialogContext.mounted) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              const SnackBar(content: Text('Credential copied')));
+                        }
+                      },
+                      icon: const Icon(Icons.copy_outlined),
+                      label: const Text('Copy')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Done'))
+                ]));
+  }
+
+  String _date(Object? value) {
+    if (value == null) return 'Never';
+    final parsed = DateTime.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    return '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+      appBar: AppBar(
+          title: Text(widget.sectorName == null
+              ? 'Team management'
+              : '${widget.sectorName} team'),
+          actions: [
+            IconButton(
+                tooltip: 'Refresh',
+                onPressed: loading ? null : load,
+                icon: const Icon(Icons.refresh))
+          ]),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Text('Read-only access', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 4),
+        Text('Create viewer accounts and control their access. New and reset passwords are shown once.'),
+        const SizedBox(height: 16),
+        TextField(
+            controller: email,
+            enabled: !busy,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            autocorrect: false,
+            decoration: const InputDecoration(labelText: 'Viewer email'),
+            onSubmitted: (_) => createUser()),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+            onPressed: busy ? null : createUser,
+            icon: const Icon(Icons.person_add_alt_1),
+            label: const Text('Create read-only account')),
+        const SizedBox(height: 20),
+        if (loading)
+          const Center(child: CircularProgressIndicator())
+        else if (error != null)
+          Column(children: [
+            Text('Team accounts unavailable: $error',
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            OutlinedButton(onPressed: load, child: const Text('Try again'))
+          ])
+        else if (users.isEmpty)
+          const Card(
+              child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('No read-only accounts yet.')))
+        else
+          ...users.map((user) {
+            final active = user['active'] == true;
+            return Card(
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Expanded(
+                                child: Text(user['email']?.toString() ?? '',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium)),
+                            Chip(label: Text(active ? 'Active' : 'Inactive'))
+                          ]),
+                          Text(user['must_change_password'] == true
+                              ? 'Password change required'
+                              : 'Password current'),
+                          Text('Last login: ${_date(user['last_login_at'])}'),
+                          const SizedBox(height: 10),
+                          Wrap(spacing: 8, runSpacing: 8, children: [
+                            OutlinedButton.icon(
+                                onPressed:
+                                    busy ? null : () => resetPassword(user),
+                                icon: const Icon(Icons.key_outlined),
+                                label: const Text('Reset password')),
+                            OutlinedButton.icon(
+                                onPressed: busy
+                                    ? null
+                                    : () => setActive(user, !active),
+                                icon: Icon(active
+                                    ? Icons.person_off_outlined
+                                    : Icons.person_outline),
+                                label: Text(active ? 'Deactivate' : 'Activate'))
+                          ])
+                        ])));
+          })
+      ]));
 }
 
 class PaymentSheet extends StatefulWidget {

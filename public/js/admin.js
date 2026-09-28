@@ -4,6 +4,9 @@ import { utils } from './utils.js';
 function cell(value) { const td = document.createElement('td'); td.textContent = value == null ? '' : String(value); return td; }
 function row(values) { const tr = document.createElement('tr'); values.forEach((v) => tr.appendChild(v instanceof Node ? v : cell(v))); return tr; }
 let auditPage = 1;
+let sectorPage = 1;
+let sectorsState = [];
+const SECTOR_PAGE_SIZE = 10;
 function showOneTimeCredential(email, password) {
     const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop active';
     const dialog = document.createElement('section'); dialog.className = 'modal-dialog card'; dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'credential-title');
@@ -14,6 +17,37 @@ function showOneTimeCredential(email, password) {
     const copyButton = document.createElement('button'); copyButton.className = 'btn btn-primary'; copyButton.textContent = 'Copy password'; copyButton.addEventListener('click', async () => { try { await navigator.clipboard.writeText(password); copyButton.textContent = 'Copied'; } catch { utils.showToast('Clipboard access unavailable; select the password to copy it.', 'error'); } });
     const close = document.createElement('button'); close.className = 'btn btn-secondary'; close.textContent = 'Done'; close.addEventListener('click', () => backdrop.remove());
     actions.append(copyButton, close); dialog.append(title, copy, value, actions); backdrop.append(dialog); backdrop.addEventListener('click', (event) => { if (event.target === backdrop) backdrop.remove(); }); document.body.append(backdrop); close.focus();
+}
+
+function renderSectorTable() {
+    const body = document.getElementById('admin-sectors');
+    if (!body) return;
+    const query = document.getElementById('admin-sector-search')?.value.trim().toLowerCase() || '';
+    const status = document.getElementById('admin-sector-status')?.value || 'all';
+    const filtered = sectorsState.filter((sector) => {
+        const matchesQuery = !query || sector.name.toLowerCase().includes(query) || sector.slug.toLowerCase().includes(query);
+        const matchesStatus = status === 'all' || (status === 'active' ? sector.active : !sector.active);
+        return matchesQuery && matchesStatus;
+    });
+    const pageCount = Math.max(1, Math.ceil(filtered.length / SECTOR_PAGE_SIZE));
+    sectorPage = Math.min(sectorPage, pageCount);
+    const start = (sectorPage - 1) * SECTOR_PAGE_SIZE;
+    body.replaceChildren();
+    filtered.slice(start, start + SECTOR_PAGE_SIZE).forEach((sector) => {
+        const actions = document.createElement('div'); actions.className = 'inline-actions';
+        const secretary = document.createElement('button'); secretary.className = 'btn btn-secondary btn-sm'; secretary.textContent = 'Create/reset secretary';
+        secretary.addEventListener('click', async () => {
+            const email = window.prompt('Secretary email'); if (!email) return;
+            try { const result = await api.post(`/api/admin/sectors/${sector.id}/secretary`, { email }); showOneTimeCredential(result.data.email, result.data.oneTimePassword); await load(); } catch (e) { utils.showToast(e.message || 'Unable to provision secretary', 'error'); }
+        });
+        const toggle = document.createElement('button'); toggle.className = 'btn btn-secondary btn-sm'; toggle.textContent = sector.active ? 'Deactivate' : 'Activate';
+        toggle.addEventListener('click', async () => { try { await api.patch(`/api/admin/sectors/${sector.id}`, { active: !sector.active }); await load(); } catch (e) { utils.showToast(e.message || 'Unable to update sector', 'error'); } });
+        actions.append(secretary, toggle); body.appendChild(row([sector.name, sector.slug, sector.active ? 'Active' : 'Inactive', sector.secretary_count, actions]));
+    });
+    document.getElementById('admin-sector-results').textContent = `${filtered.length} matching sector${filtered.length === 1 ? '' : 's'}`;
+    document.getElementById('admin-sector-page').textContent = `Page ${sectorPage} of ${pageCount}`;
+    document.getElementById('admin-sector-prev').disabled = sectorPage <= 1;
+    document.getElementById('admin-sector-next').disabled = sectorPage >= pageCount;
 }
 
 async function load() {
@@ -38,6 +72,7 @@ async function load() {
         card.append(title, status, detail, enter); cards.appendChild(card);
     });
     const sectorRows = sectors.data || [];
+    sectorsState = sectorRows;
     const userSector = document.getElementById('admin-user-sector');
     if (userSector) {
         const current = userSector.value;
@@ -46,18 +81,7 @@ async function load() {
         userSector.onchange = () => loadUsers(userSector.value);
         if (userSector.value) await loadUsers(userSector.value);
     }
-    const body = document.getElementById('admin-sectors'); body.replaceChildren();
-    sectorRows.forEach((sector) => {
-        const actions = document.createElement('div'); actions.className = 'inline-actions';
-        const secretary = document.createElement('button'); secretary.className = 'btn btn-secondary btn-sm'; secretary.textContent = 'Create/reset secretary';
-        secretary.addEventListener('click', async () => {
-            const email = window.prompt('Secretary email'); if (!email) return;
-            try { const result = await api.post(`/api/admin/sectors/${sector.id}/secretary`, { email }); showOneTimeCredential(result.data.email, result.data.oneTimePassword); await load(); } catch (e) { utils.showToast(e.message || 'Unable to provision secretary', 'error'); }
-        });
-        const toggle = document.createElement('button'); toggle.className = 'btn btn-secondary btn-sm'; toggle.textContent = sector.active ? 'Deactivate' : 'Activate';
-        toggle.addEventListener('click', async () => { try { await api.patch(`/api/admin/sectors/${sector.id}`, { active: !sector.active }); await load(); } catch (e) { utils.showToast(e.message || 'Unable to update sector', 'error'); } });
-        actions.append(secretary, toggle); body.appendChild(row([sector.name, sector.slug, sector.active ? 'Active' : 'Inactive', sector.secretary_count, actions]));
-    });
+    renderSectorTable();
     const auditBody = document.getElementById('admin-audit'); auditBody.replaceChildren();
     (audit.data || []).forEach((item) => auditBody.appendChild(row([new Date(item.created_at).toLocaleString(), item.action, item.actor_email, item.sector_id, JSON.stringify(item.metadata || {})])));
     const auditPageLabel = document.getElementById('admin-audit-page'); if (auditPageLabel) auditPageLabel.textContent = `Page ${auditPage}`;
@@ -84,5 +108,9 @@ export async function init() {
     document.getElementById('admin-audit-action')?.addEventListener('change', () => { auditPage = 1; load(); });
     document.getElementById('admin-audit-prev')?.addEventListener('click', () => { if (auditPage > 1) { auditPage -= 1; load(); } });
     document.getElementById('admin-audit-next')?.addEventListener('click', () => { auditPage += 1; load(); });
+    document.getElementById('admin-sector-search')?.addEventListener('input', () => { sectorPage = 1; renderSectorTable(); });
+    document.getElementById('admin-sector-status')?.addEventListener('change', () => { sectorPage = 1; renderSectorTable(); });
+    document.getElementById('admin-sector-prev')?.addEventListener('click', () => { if (sectorPage > 1) { sectorPage -= 1; renderSectorTable(); } });
+    document.getElementById('admin-sector-next')?.addEventListener('click', () => { sectorPage += 1; renderSectorTable(); });
     await load();
 }

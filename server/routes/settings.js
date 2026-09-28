@@ -9,7 +9,10 @@ router.use(requireAuth, scopeToSector);
 
 router.get('/', async (req, res) => {
   try {
-    const settings = await sheetsService.getSettings(req.sectorId);
+    const settings = await sheetsService.getSettings(req.sectorId, {
+      sectorId: req.sectorId,
+      role: req.user.role,
+    });
     const data = {
       ...getSettingsDefaults(),
       ...settings
@@ -26,7 +29,10 @@ router.post('/', requireWriteAccess, idempotency(), async (req, res) => {
     if (!data) {
       return res.status(400).json({ success: false, error: 'Settings data required' });
     }
-    await sheetsService.saveSettings(data, req.sectorId);
+    await sheetsService.saveSettings(data, req.sectorId, {
+      sectorId: req.sectorId,
+      role: req.user.role,
+    });
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

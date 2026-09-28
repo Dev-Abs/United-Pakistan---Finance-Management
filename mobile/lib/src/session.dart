@@ -178,6 +178,15 @@ class AppSession extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    final tokenToRevoke = client.refreshToken;
+    if (tokenToRevoke != null) {
+      try {
+        await client.request('/api/auth/logout',
+            method: 'POST', body: {'refreshToken': tokenToRevoke});
+      } catch (_) {
+        // Local sign-out must succeed even when the API is unreachable.
+      }
+    }
     client.token = null;
     client.refreshToken = null;
     role = null;

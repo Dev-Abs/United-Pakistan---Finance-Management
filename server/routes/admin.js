@@ -56,8 +56,11 @@ router.get('/status', async (_req, res) => {
   });
 });
 
-router.get('/overview', async (_req, res) => {
-  const result = await db.query(`
+router.get('/overview', async (req, res) => {
+  const result = await db.withSectorTransaction({
+    sectorId: null,
+    role: req.user.systemRole || req.user.role,
+  }, (client) => client.query(`
     with member_counts as (select sector_id, count(*)::int members from members group by sector_id),
       secretary_counts as (select sector_id, count(*)::int secretaries from users where role='secretary' group by sector_id),
       month_counts as (select sector_id, count(*)::int months from months group by sector_id),
@@ -86,14 +89,14 @@ router.get('/overview', async (_req, res) => {
       coalesce(sum(due),0)::numeric as total_due,
       coalesce(sum(expenses),0)::numeric as total_expenses
     from sector_counts
-  `);
+  `));
   res.json({ success: true, data: result.rows[0] });
 });
 
 router.get('/sectors/:id/summary', async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) return res.status(400).json({ success: false, error: 'Invalid sector id' });
-  const result = await db.query(`
+  const result = await db.withSectorTransaction({ sectorId: id, role: req.user.systemRole || req.user.role }, (client) => client.query(`
     select s.id, s.name, s.slug, s.active,
       (select count(*)::int from members where sector_id=s.id) as members,
       (select count(*)::int from users where sector_id=s.id and role='secretary') as secretaries,
@@ -104,7 +107,7 @@ router.get('/sectors/:id/summary', async (req, res) => {
       (select coalesce(sum(amount),0)::numeric from expenses where sector_id=s.id) as expenses,
       (select max(created_at) from audit_log where sector_id=s.id) as last_activity
     from sectors s where s.id=$1
-  `, [id]);
+  `, [id]));
   if (!result.rowCount) return res.status(404).json({ success: false, error: 'Sector not found' });
   res.json({ success: true, data: result.rows[0] });
 });
@@ -112,10 +115,10 @@ router.get('/sectors/:id/summary', async (req, res) => {
 router.get('/sectors/:id/users', async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) return res.status(400).json({ success: false, error: 'Invalid sector id' });
-  const result = await db.query(`
+  const result = await db.withSectorTransaction({ sectorId: id, role: req.user.systemRole || req.user.role }, (client) => client.query(`
     select id, email, role, must_change_password, created_at, last_login_at
     from users where sector_id=$1 order by email limit 500
-  `, [id]);
+  `, [id]));
   res.json({ success: true, data: result.rows });
 });
 

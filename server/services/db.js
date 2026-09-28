@@ -24,6 +24,15 @@ function query(text, params) {
   return getPool().query(text, params);
 }
 
+function rlsRoleName(value = process.env.DATABASE_RLS_ROLE) {
+  const role = String(value || '').trim();
+  if (!role) return '';
+  if (!/^[a-z_][a-z0-9_]*$/i.test(role)) {
+    throw new Error('DATABASE_RLS_ROLE must be a simple PostgreSQL role name');
+  }
+  return role;
+}
+
 async function withTransaction(callback) {
   const client = await getPool().connect();
   try {
@@ -44,6 +53,8 @@ async function withTransaction(callback) {
 // is migrated to this helper. It deliberately does not alter ordinary queries.
 async function withSectorTransaction({ sectorId, role } = {}, callback) {
   return withTransaction(async (client) => {
+    const restrictedRole = rlsRoleName();
+    if (restrictedRole) await client.query(`SET LOCAL ROLE "${restrictedRole}"`);
     await client.query(`select set_config('app.current_sector_id', $1, true), set_config('app.current_role', $2, true)`, [sectorId == null ? '' : String(sectorId), role == null ? '' : String(role)]);
     return callback(client);
   });
@@ -57,4 +68,4 @@ async function closePool() {
   }
 }
 
-module.exports = { getPool, query, withTransaction, withSectorTransaction, closePool };
+module.exports = { getPool, query, withTransaction, withSectorTransaction, closePool, _test: { rlsRoleName } };

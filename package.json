@@ -9,11 +9,16 @@
     "db:check": "node server/scripts/check-db.js",
     "db:migrate": "node server/scripts/migrate-db.js",
     "db:verify-schema": "node server/scripts/check-schema.js",
+    "db:check-rls-role": "node server/scripts/check-rls-role.js",
+    "db:provision-rls-role": "node server/scripts/provision-rls-role.js",
+    "db:apply-finance-rls": "node server/scripts/apply-finance-rls.js",
+    "smoke:rls": "node server/scripts/smoke-rls.js",
     "db:migrate-from-sheets": "node server/scripts/migrate-from-sheets.js",
     "db:sync-seed-settings": "node server/scripts/sync-seed-settings.js",
     "db:seed-auth": "node server/scripts/seed-auth-users.js",
     "smoke:phase1": "node server/scripts/smoke-phase1.js",
     "smoke:phase2": "node server/scripts/smoke-phase2.js",
+    "verify:release": "node server/scripts/verify-release.js",
     "test": "node server/test/run.js"
   },
   "dependencies": {

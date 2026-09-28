@@ -28,6 +28,7 @@ router.post('/:id', requireWriteAccess, idempotency(), async (req, res) => {
       paymentDate || '',
       remarks || '',
       req.sectorId,
+      { sectorId: req.sectorId, role: req.user.role },
     );
 
     res.json({ success: true, data: result });

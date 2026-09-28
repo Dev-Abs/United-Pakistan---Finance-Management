@@ -11,20 +11,20 @@ function table(name, rows) {
   };
 }
 
-async function buildBackupSnapshot(financeService = finance, sectorId) {
+async function buildBackupSnapshot(financeService = finance, sectorId, context) {
   const [months, settings, expenses] = await Promise.all([
-    financeService.getSheets(sectorId),
-    financeService.getSettings(sectorId),
-    financeService.getExpenses(null, sectorId),
+    financeService.getSheets(sectorId, context),
+    financeService.getSettings(sectorId, context),
+    financeService.getExpenses(null, sectorId, context),
   ]);
   const monthly = await Promise.all(months.map(async (month) => ({
     month,
-    members: await financeService.getSheetData(month, sectorId),
-    followUps: await financeService.getFollowUps(month, sectorId),
+    members: await financeService.getSheetData(month, sectorId, context),
+    followUps: await financeService.getFollowUps(month, sectorId, context),
   })));
   const campaignId = settings.SPECIAL_FUND_CAMPAIGN_ID;
   const contributions = campaignId
-    ? await financeService.getSpecialFundContributions(campaignId, sectorId)
+    ? await financeService.getSpecialFundContributions(campaignId, sectorId, context)
     : [];
   const payments = monthly.flatMap(({ month, members }) => members.map((row) => ({ Month: month, ...row })));
   const followUps = monthly.flatMap(({ followUps: rows }) => rows);
@@ -45,8 +45,8 @@ async function buildBackupSnapshot(financeService = finance, sectorId) {
   };
 }
 
-async function exportBackup(financeService = finance, sheetsService = sheets, sectorId) {
-  const snapshot = await buildBackupSnapshot(financeService, sectorId);
+async function exportBackup(financeService = finance, sheetsService = sheets, sectorId, context) {
+  const snapshot = await buildBackupSnapshot(financeService, sectorId, context);
   const result = await sheetsService.replaceBackupSnapshot(snapshot);
   const counts = Object.fromEntries(snapshot.sheets.map((item) => [item.name, item.rows.length]));
   for (const [name, count] of Object.entries(counts)) {
